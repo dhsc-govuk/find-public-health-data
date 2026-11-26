@@ -1,6 +1,7 @@
 import {
   canAssignReviewers,
   canDecideUpdates,
+  canDiscardDraft,
   canRespondToReview,
   canSchedulePublication,
   canSubmitIndicator,
@@ -76,4 +77,31 @@ export function stepsOpenTo(user: SessionUser, indicator: IndicatorWorkflowRow):
     latestSubmissionStatus: indicator.draftSubmissionStatus,
     latestUpdateDecision: indicator.draftUpdateDecision,
   }).filter((step) => mayTakeStep(user, indicatorAccess(indicator), step));
+}
+
+/** What decides whether a draft can be discarded. */
+export interface DiscardState {
+  /** The draft version's status, or null when there is no draft. */
+  draftStatus: DraftStatus | null;
+  /** Whether every submission of it was withdrawn, as none is while it has none. */
+  draftSubmissionsWithdrawn: boolean;
+}
+
+/**
+ * Whether the draft can be discarded, whoever asks. It can until a review starts. A submitted draft
+ * must be withdrawn first, and one ever sent back for changes or approved can never be discarded.
+ */
+export function isDraftDiscardable({
+  draftStatus,
+  draftSubmissionsWithdrawn,
+}: DiscardState): boolean {
+  return draftStatus === 'draft' && draftSubmissionsWithdrawn;
+}
+
+/** Whether the user may discard the indicator's draft now. */
+export function mayDiscardDraft(
+  user: SessionUser,
+  indicator: DiscardState & Pick<IndicatorAdminSummary, 'teamId' | 'draftReviewers'>,
+): boolean {
+  return isDraftDiscardable(indicator) && canDiscardDraft(user, indicatorAccess(indicator));
 }

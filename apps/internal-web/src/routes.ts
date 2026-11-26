@@ -131,6 +131,10 @@ export default withRouteIds([
         '../../../packages/internal-web-features/src/indicator-withdrawal/route.tsx',
       ),
       route(
+        'publish/indicators/:id/discard-draft',
+        '../../../packages/internal-web-features/src/indicator-discard/route.tsx',
+      ),
+      route(
         'publish/indicators/:id/data-table',
         '../../../packages/internal-web-features/src/indicator-data-table/upload-route.tsx',
       ),
@@ -141,6 +145,10 @@ export default withRouteIds([
       route(
         'publish/indicators/:id/data-table/check',
         '../../../packages/internal-web-features/src/indicator-data-table/check-route.tsx',
+      ),
+      route(
+        'publish/indicators/:id/data-table/values',
+        '../../../packages/internal-web-features/src/indicator-data-table/values-route.ts',
       ),
       route(
         'publish/indicators/:id/definition-and-rationale',

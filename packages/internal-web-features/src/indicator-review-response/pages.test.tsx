@@ -155,7 +155,8 @@ describe('the response pages', () => {
     ]);
     expect(document.querySelectorAll('input[name="flags"]')).toHaveLength(18);
     expect(screen.queryByLabelText('Justifications')).toBeNull();
-    expect(screen.getByLabelText('High-level clarification request')).toBeTruthy();
+    expect(screen.getByLabelText('High-level comments or clarification requests')).toBeTruthy();
+    expect(screen.getByLabelText('Enter comments or requests')).toBeTruthy();
     expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(18);
   });
 
@@ -207,6 +208,21 @@ describe('the response pages', () => {
     expect(
       screen.getAllByLabelText('Enter advised revisions or clarification request'),
     ).toHaveLength(18);
+  });
+
+  it('word the notes as required on an update', () => {
+    inRouter(
+      <RevisionsPage
+        fieldErrors={{}}
+        formError={undefined}
+        isUpdate
+        kind="pre_imrg_feedback"
+        values={noRevisions}
+      />,
+    );
+
+    expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(19);
+    expect(screen.queryByLabelText('Enter advised revisions or clarification request')).toBeNull();
   });
 
   it('keep what was ticked and typed after a refusal, and link a flag error to its notes', () => {

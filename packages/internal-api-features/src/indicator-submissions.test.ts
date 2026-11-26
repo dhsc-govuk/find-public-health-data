@@ -44,6 +44,8 @@ const submittedRow: IndicatorAdminDetailRow = {
   draftFastTrackReason: null,
   draftFirstSubmittedAt: null,
   draftResponse: null,
+  draftUpdatedAt: new Date('2026-10-20T09:00:00.000Z'),
+  draftSubmissionsWithdrawn: false,
 };
 
 /** The indicator's lookups, for an indicator in `teamId`. */
@@ -581,6 +583,20 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
     ]);
   });
 
+  it('records a valid response without reading the indicator beyond its access check', async () => {
+    const { findById: findAccess } = inReview();
+    const findById = vi.fn(findAccess);
+    const respond = vi.fn().mockResolvedValue({ ok: true });
+
+    const response = await request(createTestApp({ findAccess, findById, respond }))
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send(minorRevisions);
+
+    expect(response.status).toBe(204);
+    expect(findById).not.toHaveBeenCalled();
+  });
+
   it('accepts a response over the default body limit but within the text limits', async () => {
     const respond = vi.fn().mockResolvedValue({ ok: true });
     const flags = FLAGGABLE_TASK_KEYS.map((task) => ({ task, notes: 'é'.repeat(10_000) }));
@@ -637,6 +653,33 @@ describe('POST /api/internal/indicators/:id/review-response', () => {
         imrgReviewedOn: 'Date reviewed by IMRG must be today or in the past',
         flags: 'Select what needs to be revised or clarified',
       },
+    });
+    expect(respond).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a new indicator', 'new', 'Enter the revisions advised for polarity'],
+    ['an update', 'live', 'Enter the revisions needed for polarity'],
+  ] as const)('words an empty flag for %s', async (_, indicatorStatus, message) => {
+    const respond = vi.fn();
+    const inReviewRow = await inReview().findById();
+
+    const response = await request(
+      createTestApp({ findById: async () => ({ ...inReviewRow, indicatorStatus }), respond }),
+    )
+      .post(path)
+      .set('Cookie', await reviewerCookie())
+      .send({
+        ...minorRevisions,
+        kind: 'pre_imrg_feedback',
+        imrgReviewedOn: null,
+        flags: [{ task: 'polarity', notes: '' }],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: 'validation_failed',
+      fieldErrors: { 'flags.polarity': message },
     });
     expect(respond).not.toHaveBeenCalled();
   });

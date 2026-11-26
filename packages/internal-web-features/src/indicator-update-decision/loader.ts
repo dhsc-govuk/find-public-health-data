@@ -220,7 +220,7 @@ export async function sendUpdateRevisions({
   const submissionNumber = requireSubmissionNumber(request, id);
   const values = readRevisions(await request.formData());
   const body = revisionsBody({ submissionNumber, kind: 'pre_imrg_feedback' }, values);
-  const checked = reviewResponseSchemaFor(new Date()).safeParse(body);
+  const checked = reviewResponseSchemaFor(new Date(), true).safeParse(body);
 
   if (!checked.success) {
     return { values, fieldErrors: toFieldErrors(checked.error, reviewResponseFieldSchema) };

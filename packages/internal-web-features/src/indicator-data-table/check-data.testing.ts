@@ -1,4 +1,8 @@
-import type { DataTableCheck, DataTableRow } from '@fphd/internal-api-features/contract';
+import type {
+  DataTableCheck,
+  DataTableFilter,
+  DataTableRow,
+} from '@fphd/internal-api-features/contract';
 
 export const BATCH = '00000000-0000-7000-8000-000000000003';
 
@@ -36,9 +40,18 @@ export const DATA_TABLE: NonNullable<DataTableCheck['dataTable']> = {
     'age',
   ],
   rowCount: 52_365,
+  filters: [],
+  matchingRowCount: 52_365,
   yearType: null,
   replacesPublished: false,
   page: 1,
   rowsPerPage: 10,
   rows: [ROW],
 };
+
+/** Filters as the API answers them, on two values of one column and one of another. */
+export const FILTERS: DataTableFilter[] = [
+  { id: 'period.0123456789', label: '2019/20', column: 'period' },
+  { id: 'period.1123456789', label: '2020/21', column: 'period' },
+  { id: 'sex.2123456789', label: 'Female', column: 'sex' },
+];

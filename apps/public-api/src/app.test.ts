@@ -102,6 +102,7 @@ describe('public API', () => {
     ['put', `/api/internal/indicators/${anyId}/tagging`],
     ['post', `/api/internal/indicators/${anyId}/data-uploads`],
     ['put', `/api/internal/indicators/${anyId}/data-table/confirmation`],
+    ['get', `/api/internal/indicators/${anyId}/data-table/values`],
     ['get', '/api/internal/topics'],
     ['get', `/api/internal/indicators/${anyId}/reviewer-options`],
     ['get', `/api/internal/indicators/${anyId}/notes-for-reviewers`],
@@ -118,6 +119,7 @@ describe('public API', () => {
     ['post', `/api/internal/indicators/${anyId}/schedule`],
     ['get', '/api/internal/indicators-scheduled'],
     ['post', `/api/internal/indicators/${anyId}/update-decision`],
+    ['post', `/api/internal/indicators/${anyId}/discard`],
     ['get', '/api/internal/updates-awaiting-decision'],
     ['post', `/api/internal/indicators/${anyId}/draft`],
     ...[

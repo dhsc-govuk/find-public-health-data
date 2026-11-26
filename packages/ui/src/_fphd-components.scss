@@ -926,6 +926,40 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-bottom: 0;
 }
 
+// The panel beside a data table that filters it by the values of its columns.
+.fphd-column-filters {
+  border: 1px solid govuk-colour("black", $variant: "tint-80");
+  margin-bottom: govuk-spacing(4);
+}
+
+.fphd-column-filters__header {
+  background-color: #cecece;
+  padding: govuk-spacing(3) govuk-spacing(4);
+}
+
+.fphd-column-filters__selected {
+  background-color: govuk-colour("black", $variant: "tint-95");
+  padding: govuk-spacing(3);
+}
+
+// The heading takes focus from a script, not the keyboard, so it shows no outline.
+.fphd-column-filters__selected h3:focus {
+  outline: none;
+}
+
+.fphd-column-filters__add {
+  background-color: govuk-colour("white");
+  padding: govuk-spacing(3);
+}
+
+.fphd-column-filters .fphd-geo-alt__chevron {
+  margin-right: govuk-spacing(2);
+}
+
+.fphd-column-filters .fphd-geo-alt__children {
+  margin-left: govuk-spacing(4);
+}
+
 .fphd-tag-list {
   display: flex;
   flex-wrap: wrap;

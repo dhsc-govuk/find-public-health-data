@@ -3,10 +3,10 @@
 import { DATA_TABLE_MAX_BYTES, DATA_TABLE_MESSAGES } from '@fphd/internal-api-features/contract';
 import { serviceName } from '@fphd/ui';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { createRoutesStub, MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { BATCH, DATA_TABLE, ROW } from './check-data.testing.ts';
+import { BATCH, DATA_TABLE, FILTERS, ROW } from './check-data.testing.ts';
 import { DATA_TABLE_CHANGED } from './check-loader.ts';
 import type { DataTableProblem } from './loader.ts';
 import {
@@ -287,12 +287,25 @@ describe('DataTableProblemsPage', () => {
 
 const CHECK = `/publish/indicators/${ID}/data-table/check`;
 
-function renderCheck(props: Partial<Parameters<typeof CheckDataTablePage>[0]> = {}) {
-  return render(
-    <MemoryRouter initialEntries={[CHECK]}>
-      <CheckDataTablePage id={ID} dataTable={DATA_TABLE} totalPages={5237} {...props} />
-    </MemoryRouter>,
-  );
+function renderCheck(
+  props: Partial<Parameters<typeof CheckDataTablePage>[0]> = {},
+  address = CHECK,
+) {
+  const Routes = createRoutesStub([
+    {
+      path: CHECK,
+      Component: () => (
+        <CheckDataTablePage
+          dataTable={DATA_TABLE}
+          filtersLimited={false}
+          id={ID}
+          totalPages={5237}
+          {...props}
+        />
+      ),
+    },
+  ]);
+  return render(<Routes initialEntries={[address]} />);
 }
 
 describe('CheckDataTablePage', () => {
@@ -410,8 +423,40 @@ describe('CheckDataTablePage', () => {
     );
   });
 
+  it('keeps the filters in the page links and the rows per page form', () => {
+    const query = FILTERS.map(({ id }) => `f=${id}`).join('&');
+    renderCheck(
+      {
+        dataTable: { ...DATA_TABLE, page: 2, filters: FILTERS, matchingRowCount: 41 },
+        totalPages: 5,
+      },
+      `${CHECK}?page=2&${query}`,
+    );
+
+    const pages = within(screen.getByRole('navigation', { name: 'Data table pages' }));
+    expect(pages.getByRole('link', { name: '1' }).getAttribute('href')).toBe(`${CHECK}?${query}`);
+    expect(pages.getByRole('link', { name: '5' }).getAttribute('href')).toBe(
+      `${CHECK}?page=5&${query}`,
+    );
+    const form = screen.getByLabelText('Rows per page').closest('form') as HTMLFormElement;
+    expect(new FormData(form).getAll('f')).toEqual(FILTERS.map(({ id }) => id));
+    expect(screen.getByText('Showing 11 to 20 of 41 rows')).toBeTruthy();
+    expect(screen.getByText('Your upload contains 52,365 rows')).toBeTruthy();
+  });
+
+  it('shows the headings and no rows when nothing matches the filters', () => {
+    renderCheck({
+      dataTable: { ...DATA_TABLE, filters: FILTERS, matchingRowCount: 0, rows: [] },
+      totalPages: 1,
+    });
+
+    expect(screen.getByText('No rows match these filters').getAttribute('role')).toBe('status');
+    const table = within(screen.getByRole('region', { name: 'Data table' })).getByRole('table');
+    expect(within(table).getAllByRole('row')).toHaveLength(1);
+  });
+
   it('leaves out the page links when the rows fit on one page', () => {
-    renderCheck({ dataTable: { ...DATA_TABLE, rowCount: 1 }, totalPages: 1 });
+    renderCheck({ dataTable: { ...DATA_TABLE, rowCount: 1, matchingRowCount: 1 }, totalPages: 1 });
 
     expect(screen.queryByRole('navigation', { name: 'Data table pages' })).toBeNull();
   });

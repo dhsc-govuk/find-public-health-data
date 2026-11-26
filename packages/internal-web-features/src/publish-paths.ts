@@ -1,4 +1,5 @@
 import {
+  type CheckColumnKey,
   DATA_TABLE_ROWS_PER_PAGE,
   type IndicatorTaskKey,
 } from '@fphd/internal-api-features/contract';
@@ -44,6 +45,11 @@ export function indicatorWithdrawalPath(id: string): string {
   return indicatorPublishPath(id, 'withdraw-submission');
 }
 
+/** The page that confirms discarding the draft. */
+export function indicatorDiscardPath(id: string): string {
+  return indicatorPublishPath(id, 'discard-draft');
+}
+
 /** Each section of a draft has a page, named by its task key. */
 export function indicatorSectionPath(id: string, section: IndicatorTaskKey): string {
   return indicatorPublishPath(id, section);
@@ -62,13 +68,23 @@ export function indicatorDataTableProblemsPath(id: string): string {
 /** The page where the publisher checks and confirms an uploaded data table. */
 export function indicatorDataTableCheckPath(
   id: string,
-  { page = 1, rowsPerPage }: { page?: number; rowsPerPage?: number } = {},
+  {
+    page = 1,
+    rowsPerPage,
+    filterIds = [],
+  }: { page?: number; rowsPerPage?: number; filterIds?: readonly string[] } = {},
 ): string {
-  const query = new URLSearchParams({
-    ...(page === 1 ? {} : { page: String(page) }),
+  const query = new URLSearchParams([
+    ...(page === 1 ? [] : [['page', String(page)]]),
     ...(rowsPerPage === undefined || String(rowsPerPage) === DATA_TABLE_ROWS_PER_PAGE[0]
-      ? {}
-      : { rowsPerPage: String(rowsPerPage) }),
-  }).toString();
+      ? []
+      : [['rowsPerPage', String(rowsPerPage)]]),
+    ...filterIds.map((id) => ['f', id]),
+  ]).toString();
   return `${indicatorPublishPath(id, 'data-table/check')}${query === '' ? '' : `?${query}`}`;
+}
+
+/** Where the check page's scripts read the values of a column of the data table. */
+export function indicatorDataTableValuesPath(id: string, column: CheckColumnKey): string {
+  return `${indicatorPublishPath(id, 'data-table/values')}?column=${column}`;
 }

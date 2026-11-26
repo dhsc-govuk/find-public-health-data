@@ -35,6 +35,8 @@ const indicator: IndicatorAdminDetail = {
   draftFirstSubmittedAt: '2026-11-02T09:00:00.000Z',
   draftResponse: { kind: 'minor_revisions', flaggedTaskCount: 1 },
   nameVersion: SHOWN_VERSION,
+  draftUpdatedAt: '2026-08-04T23:30:00.000Z',
+  canDiscardDraft: false,
   actions: [],
 };
 

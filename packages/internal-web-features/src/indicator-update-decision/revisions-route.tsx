@@ -18,7 +18,6 @@ export const handle = backLinkHandle<Awaited<ReturnType<typeof loader>>>(({ id }
   updateDecisionPath(id, 'request_revisions'),
 );
 
-// The core team asks for revisions before any IMRG review, so the notes are worded as advice.
 export function UpdateRevisionsRoute() {
   const loaded = useLoaderData<typeof loader>();
   const form = useReviewForm<ReviewResponseField, RevisionsValues>(loaded);

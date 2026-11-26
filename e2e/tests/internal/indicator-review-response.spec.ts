@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { submitDraft } from '../support/complete-draft.ts';
+import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
 import { asUser, inReview, respondToReview } from '../support/review-response.ts';
 import {
   ADMIN,
@@ -87,9 +88,9 @@ test.describe('as an assigned IMRG reviewer', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'What needs to be revised or clarified?' }),
     ).toBeVisible();
-    await page.getByLabel('High-level clarification request').check();
+    await page.getByLabel('High-level comments or clarification requests').check();
     await page
-      .getByLabel('What are you requesting clarification about?')
+      .getByLabel('Enter comments or requests')
       .fill('Which years does the data table cover?');
     await page.getByLabel('Polarity').check();
     await flagNotes(page, 'polarity').fill('Check whether higher is better.');
@@ -152,10 +153,8 @@ test.describe('as an assigned IMRG reviewer', () => {
     await page.getByLabel('No', { exact: true }).check();
     await page.getByLabel('Major revisions needed').check();
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByLabel('High-level clarification request').check();
-    await page
-      .getByLabel('What are you requesting clarification about?')
-      .fill('How is the denominator chosen?');
+    await page.getByLabel('High-level comments or clarification requests').check();
+    await page.getByLabel('Enter comments or requests').fill('How is the denominator chosen?');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('region', { name: 'Important' })).toContainText(
@@ -247,6 +246,28 @@ test.describe('as an assigned IMRG reviewer', () => {
     await expectNoAccessibilityViolations(page, testInfo);
   });
 
+  test('the revisions page errors "Enter high-level comments or clarification requests" when that box is ticked but left empty', async ({
+    browser,
+    page,
+  }, testInfo) => {
+    const { id } = await inReview(browser, 'empty comments');
+
+    await startResponse(page, id);
+    await page.getByLabel('Pre-IMRG meeting feedback').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel('High-level comments or clarification requests').check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expectErrorSummaryReady(page);
+    await expect(page).toHaveTitle(/^Error: What needs to be revised or clarified\?/);
+    const error = page.getByRole('alert').getByRole('link');
+    await expect(error).toHaveText(['Enter high-level comments or clarification requests']);
+    await expect(page.getByLabel('High-level comments or clarification requests')).toBeChecked();
+    await expectNoAccessibilityViolations(page, testInfo);
+    await error.click();
+    await expect(page.getByLabel('Enter comments or requests')).toBeFocused();
+  });
+
   test('a response page opened before a resubmission is refused with the changed banner', async ({
     browser,
     page,
@@ -270,8 +291,8 @@ test.describe('as an assigned IMRG reviewer', () => {
       await submitDraft(publisher, id);
     });
 
-    await page.getByLabel('High-level clarification request').check();
-    await page.getByLabel('What are you requesting clarification about?').fill('Too late.');
+    await page.getByLabel('High-level comments or clarification requests').check();
+    await page.getByLabel('Enter comments or requests').fill('Too late.');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page).toHaveURL(overviewPath(id));
@@ -354,8 +375,8 @@ test.describe('with two reviewers assigned', () => {
       await expect(jamie.getByRole('alert')).toContainText('Indicator approved for publishing');
     });
 
-    await page.getByLabel('High-level clarification request').check();
-    await page.getByLabel('What are you requesting clarification about?').fill('Too late.');
+    await page.getByLabel('High-level comments or clarification requests').check();
+    await page.getByLabel('Enter comments or requests').fill('Too late.');
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page).toHaveURL(overviewPath(id));

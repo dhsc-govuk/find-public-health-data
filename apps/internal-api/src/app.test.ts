@@ -217,6 +217,30 @@ describe('internal API', () => {
     expect(asAdmin.status).toBe(403);
   });
 
+  it('mounts the discard of a draft behind the publisher role', async () => {
+    const internalRepositories = createFakeInternalRepositories({
+      indicators: {
+        findAccess: vi.fn().mockResolvedValue(stepRow),
+        discardDraft: async () => ({ ok: true, indicatorDeleted: true, deletedBlobNames: [] }),
+      },
+    });
+    const app = createTestApp(createFakeRepositories(), internalRepositories);
+    const path = '/api/internal/indicators/00000000-0000-7000-8000-000000000001/discard';
+    const body = { draftUpdatedAt: '2026-10-22T09:30:00.123Z' };
+
+    const asPublisher = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['publisher']))
+      .send(body);
+    const asAdmin = await request(app)
+      .post(path)
+      .set('Cookie', await createCookie(['admin']))
+      .send(body);
+
+    expect(asPublisher.status).toBe(204);
+    expect(asAdmin.status).toBe(403);
+  });
+
   it('mounts the start of an update behind the publisher role', async () => {
     const internalRepositories = createFakeInternalRepositories({
       indicators: {
@@ -667,12 +691,14 @@ describe('the indicator routes', () => {
     ['the start of an update', 'post', `/api/internal/indicators/${id}/draft`],
     ['a data upload', 'post', `/api/internal/indicators/${id}/data-uploads`],
     ['the data table check', 'get', `/api/internal/indicators/${id}/data-table`],
+    ["the data table's values", 'get', `/api/internal/indicators/${id}/data-table/values`],
     ['the revision response', 'get', `/api/internal/indicators/${id}/revision-response`],
     ['the notes for reviewers', 'get', `/api/internal/indicators/${id}/notes-for-reviewers`],
     ['the history', 'get', `/api/internal/indicators/${id}/history`],
     ['the reviewer notes', 'get', `/api/internal/indicators/${id}/reviewer-notes`],
     ['a reviewer note', 'post', `/api/internal/indicators/${id}/reviewer-notes`],
     ['a withdrawal', 'post', `/api/internal/indicators/${id}/withdraw`],
+    ['a discard', 'post', `/api/internal/indicators/${id}/discard`],
     ['the preview data', 'get', `${preview}/api/indicators/108/data`],
   ] as const;
   const detailRoutes = [
@@ -682,7 +708,9 @@ describe('the indicator routes', () => {
 
   function createTeamBApp() {
     const internalRepositories = createFakeInternalRepositories({
-      indicators: { findAccess: async () => ({ teamId: TEAM_IDS.teamB, draftReviewers: [] }) },
+      indicators: {
+        findAccess: async () => ({ teamId: TEAM_IDS.teamB, draftReviewers: [] }),
+      },
     });
     return createTestApp(createFakeRepositories(), internalRepositories);
   }

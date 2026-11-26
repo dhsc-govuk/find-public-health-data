@@ -1,11 +1,12 @@
 import { type Database, schema } from '@fphd/db';
 import { type Actor, changesBetween, recordAudit } from '@fphd/db/audit-log';
 import { type PublicYearType, publicYearType } from '@fphd/utils/period-type';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 
-import type { DataTableRow } from './data-table-check-contract.ts';
+import type { DataTablePage, DataTableRow } from './data-table-check-contract.ts';
 import { columnsOf, type DataTableColumn } from './data-table-columns.ts';
-import { nameKey } from './data-table-names.ts';
+import { applyDataTableFilters } from './data-table-filter-repository.ts';
+import { AGE, nameKey, SEX } from './data-table-names.ts';
 import {
   draftJoin,
   draftVersion,
@@ -30,9 +31,6 @@ const {
   uploadBatch,
 } = schema;
 
-const SEX = nameKey('Sex');
-const AGE = nameKey('Age');
-
 /** The draft's current upload, with the details the check page needs. */
 export interface DraftDataTableRow {
   batchId: string;
@@ -45,6 +43,13 @@ export interface DraftDataTableRow {
    * version's data table.
    */
   replacesPublished: boolean;
+}
+
+/** The page of a data table to read, and the filters its rows must match. */
+export interface DataTablePageRequest {
+  page: number;
+  rowsPerPage: number;
+  filterIds: readonly string[];
 }
 
 export type FindDraftDataTableResult =
@@ -102,15 +107,38 @@ export async function findDraftDataTable(
   };
 }
 
-/**
- * One page of a batch's rows, sorted by area, dates and dimension key. The query counts through
- * the index from whichever end of the batch is nearer, so it never skips more than half the rows.
- * Until the batch has been vacuumed, each skipped row is also read from the table, so the middle
- * pages of a new upload are several times slower.
- */
-export async function listDataTableRows(
+/** A page of a batch's rows that match its filters. A page after the last has no rows. */
+export async function readDataTablePage(
   db: Database,
-  { batchId, rowCount }: Pick<DraftDataTableRow, 'batchId' | 'rowCount'>,
+  dataTable: DraftDataTableRow,
+  { page, rowsPerPage, filterIds }: DataTablePageRequest,
+): Promise<DataTablePage> {
+  const { batchId } = dataTable;
+  const { filters, conditions } = await applyDataTableFilters(db, dataTable, filterIds);
+  const matchingRowCount =
+    conditions.length === 0
+      ? dataTable.rowCount
+      : await db.$count(observation, and(eq(observation.uploadBatchId, batchId), ...conditions));
+  const rows =
+    (page - 1) * rowsPerPage >= matchingRowCount
+      ? []
+      : await listDataTableRows(db, { batchId, matchingRowCount, conditions }, page, rowsPerPage);
+  return { filters, matchingRowCount, rows };
+}
+
+/**
+ * One page of the rows of a batch that match the conditions, sorted by area, dates and dimension
+ * key. The query counts through the index from whichever end of the matching rows is nearer, so it
+ * never skips more than half of them. Until the batch has been vacuumed, each skipped row is also
+ * read from the table, so the middle pages of a new upload are several times slower.
+ */
+async function listDataTableRows(
+  db: Database,
+  {
+    batchId,
+    matchingRowCount: rowCount,
+    conditions,
+  }: { batchId: string; matchingRowCount: number; conditions: SQL[] },
   page: number,
   rowsPerPage: number,
 ): Promise<DataTableRow[]> {
@@ -125,7 +153,7 @@ export async function listDataTableRows(
       dimensionKey: observation.dimensionKey,
     })
     .from(observation)
-    .where(eq(observation.uploadBatchId, batchId))
+    .where(and(eq(observation.uploadBatchId, batchId), ...conditions))
     .orderBy(
       order(observation.areaId),
       order(observation.fromDate),

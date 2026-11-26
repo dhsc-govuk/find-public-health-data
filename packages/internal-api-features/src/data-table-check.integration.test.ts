@@ -8,7 +8,9 @@ import { v7 as randomUuidV7 } from 'uuid';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { dataTableCheckRouter } from './data-table-check.ts';
+import type { DataTableRow } from './data-table-check-contract.ts';
 import { confirmDataTable } from './data-table-check-repository.ts';
+import type { DataTableFilter } from './data-table-filter-contract.ts';
 import { processDataUpload } from './data-upload-load-repository.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
 import { createDraftFromPublished } from './indicator-publish-repository.ts';
@@ -104,6 +106,39 @@ async function check(indicatorId: string, query = '') {
   return request(app)
     .get(`/api/internal/indicators/${indicatorId}/data-table${query}`)
     .set('Cookie', await testSessionCookie(['publisher']));
+}
+
+async function values(indicatorId: string, query: string) {
+  return request(app)
+    .get(`/api/internal/indicators/${indicatorId}/data-table/values${query}`)
+    .set('Cookie', await testSessionCookie(['publisher']));
+}
+
+/** The labels of the values listed, by column. */
+async function labels(indicatorId: string, query: string): Promise<Record<string, string[]>> {
+  const { body } = await values(indicatorId, query);
+  return Object.fromEntries(
+    body.columns.map(({ column, values }: { column: string; values: { label: string }[] }) => [
+      column,
+      values.map(({ label }) => label),
+    ]),
+  );
+}
+
+/** The id of the one value of a column with a label, as the values route lists it. */
+async function filterId(indicatorId: string, column: string, label: string): Promise<string> {
+  const { body } = await values(indicatorId, `?column=${column}`);
+  const found = body.columns[0].values.filter((value: { label: string }) => value.label === label);
+  expect(found).toHaveLength(1);
+  return found[0].id;
+}
+
+/** The query string that filters by each `[column, label]`. */
+async function filterQuery(indicatorId: string, ...filters: [string, string][]): Promise<string> {
+  const ids = await Promise.all(
+    filters.map(([column, label]) => filterId(indicatorId, column, label)),
+  );
+  return `?${ids.map((id) => `f=${id}`).join('&')}`;
 }
 
 async function confirm(indicatorId: string, batchId: string) {
@@ -261,6 +296,323 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'no_draft' });
+  });
+});
+
+// Two sexes, two ages, two categories with a name in common and one note, with empty cells in
+// every optional column and in the value.
+const FILTER_CSV = [
+  'area_code,period_start,period_end,value,count,sex,age,category_type,category,value_note',
+  'E92000001,2019-04-01,2020-03-31,9.5,-3,Female,<75 yrs,,,',
+  'E92000001,2020-04-01,2021-03-31,10,,Female,18+ yrs,,,',
+  'E08000035,2019-04-01,2020-03-31,,12,Male,<75 yrs,,,Aggregated from values for merged CCGs',
+  'E08000035,2020-04-01,2021-03-31,100.25,12,,18+ yrs,,,',
+  'E06000047,2020-04-01,2021-03-31,9.5,,,,Ethnic groups [4],White,',
+  'E06000047,2021-04-01,2022-03-31,9.5,,,,Ethnic groups [17],White,',
+].join('\n');
+
+async function filterable(name: string, content = FILTER_CSV): Promise<string> {
+  const { indicatorId } = await newDraft(internalDb, name);
+  await load(indicatorId, content);
+  return indicatorId;
+}
+
+describe('GET /api/internal/indicators/:id/data-table/values', () => {
+  it.each([
+    ['value', ['Blank', '100.25', '10', '9.5']],
+    ['count', ['Blank', '12', '-3']],
+    ['period', ['2021/22', '2020/21', '2019/20']],
+    ['areaCode', ['E06000047', 'E08000035', 'E92000001']],
+    ['sex', ['Blank', 'Female', 'Male']],
+    ['age', ['Blank', '<75 yrs', '18+ yrs']],
+    ['categoryType', ['Blank', 'Ethnic groups [4]', 'Ethnic groups [17]']],
+    ['category', ['Blank', 'White']],
+    ['valueNote', ['Blank', 'Aggregated from values for merged CCGs']],
+  ])('lists each value of %s once, in order', async (column, expected) => {
+    const indicatorId = await filterable(`Values of ${column}`);
+
+    const listed = await labels(indicatorId, `?column=${column}`);
+
+    expect(listed).toEqual({ [column]: expected });
+  });
+
+  it('lists no values for a column the file did not have', async () => {
+    const indicatorId = await filterable('Values without a column');
+
+    expect((await values(indicatorId, '?column=denominator')).body).toEqual({ columns: [] });
+  });
+
+  it('finds the values that contain a search in every column, whatever its case', async () => {
+    const indicatorId = await filterable('Values search');
+
+    expect(await labels(indicatorId, '?search=9')).toEqual({
+      value: ['9.5'],
+      period: ['2019/20'],
+      areaCode: ['E92000001'],
+    });
+    expect(await labels(indicatorId, '?search=MALE')).toEqual({ sex: ['Female', 'Male'] });
+    expect(await labels(indicatorId, '?search=%3C')).toEqual({ age: ['<75 yrs'] });
+    expect(await labels(indicatorId, '?search=e0&column=areaCode')).toEqual({
+      areaCode: ['E06000047', 'E08000035'],
+    });
+    expect(await labels(indicatorId, '?search=%25')).toEqual({});
+    expect(await labels(indicatorId, '?search=blank')).toEqual({
+      value: ['Blank'],
+      count: ['Blank'],
+      sex: ['Blank'],
+      age: ['Blank'],
+      categoryType: ['Blank'],
+      category: ['Blank'],
+      valueNote: ['Blank'],
+    });
+  });
+
+  it.each([
+    ['0.00005', '0.00005'],
+    ['0.000012', '0.000012'],
+    ['-0.00005', '-0.00005'],
+    ['1e-7', '1e-7'],
+    ['1.5e-10', '1.5e-10'],
+    ['1e15', '1000000000000000'],
+    ['123456789012345680000', '123456789012345680000'],
+    ['1.5e21', '1.5e+21'],
+    ['0.30000000000000004', '0.30000000000000004'],
+  ])('finds %s by what the table shows for it, %s', async (stored, shown) => {
+    expect(String(Number(stored))).toBe(shown);
+    const indicatorId = await filterable(
+      `Values shown as ${shown.replace('-', 'minus ').replace('+', ' plus ')}`,
+      [
+        'area_code,period_start,period_end,value',
+        `E92000001,2019-04-01,2020-03-31,${stored}`,
+        'E92000001,2020-04-01,2021-03-31,7',
+      ].join('\n'),
+    );
+
+    expect(await labels(indicatorId, `?column=value&search=${encodeURIComponent(shown)}`)).toEqual({
+      value: [shown],
+    });
+  });
+
+  it('lists a blank only in a column with an empty cell', async () => {
+    const indicatorId = await filterable(
+      'Values without blanks',
+      [
+        'area_code,period_start,period_end,value,sex,age',
+        'E92000001,2019-04-01,2020-03-31,9.5,Female,',
+        'E92000001,2020-04-01,2021-03-31,10,Male,',
+      ].join('\n'),
+    );
+
+    expect(await labels(indicatorId, '?column=value')).toEqual({ value: ['10', '9.5'] });
+    expect(await labels(indicatorId, '?column=sex')).toEqual({ sex: ['Female', 'Male'] });
+    expect(await labels(indicatorId, '?column=age')).toEqual({ age: ['Blank'] });
+  });
+
+  it('lists no more than 100 values of a column, and says when there are others', async () => {
+    const rows = (count: number) =>
+      [
+        'area_code,period_start,period_end,value',
+        ...Array.from(
+          { length: count },
+          (_, index) => `E92000001,${1900 + index}-01-01,${1900 + index}-12-31,${index}`,
+        ),
+      ].join('\n');
+    const hundred = await filterable('Values to the limit', rows(100));
+    const others = await filterable('Values past the limit', rows(101));
+
+    for (const column of ['value', 'period']) {
+      const [all] = (await values(hundred, `?column=${column}`)).body.columns;
+      const [first] = (await values(others, `?column=${column}`)).body.columns;
+      expect(all).toMatchObject({ more: false });
+      expect(all.values).toHaveLength(100);
+      expect(first).toMatchObject({ more: true });
+      expect(first.values).toHaveLength(100);
+    }
+    expect(await labels(others, '?column=value&search=100')).toEqual({ value: ['100'] });
+  });
+
+  it('answers 404 for an indicator with no draft', async () => {
+    const { indicatorId } = await seededPublished(3);
+
+    expect((await values(indicatorId, '?column=value')).status).toBe(404);
+  });
+});
+
+describe('GET /api/internal/indicators/:id/data-table, filtered', () => {
+  async function matching(indicatorId: string, ...filters: [string, string][]) {
+    const response = await check(indicatorId, await filterQuery(indicatorId, ...filters));
+    expect(response.status).toBe(200);
+    const { dataTable } = response.body;
+    expect(dataTable.rowCount).toBe(6);
+    expect(dataTable.rows).toHaveLength(dataTable.matchingRowCount);
+    expect(dataTable.filters.map(({ column, label }: DataTableFilter) => [column, label])).toEqual(
+      filters,
+    );
+    return dataTable.rows.map(
+      ({ areaCode, fromDate }: DataTableRow) => `${areaCode} ${fromDate.slice(0, 4)}`,
+    );
+  }
+
+  it.each<[column: string, label: string, rows: string[]]>([
+    ['value', '9.5', ['E92000001 2019', 'E06000047 2020', 'E06000047 2021']],
+    ['count', '-3', ['E92000001 2019']],
+    ['period', '2019/20', ['E92000001 2019', 'E08000035 2019']],
+    ['areaCode', 'E08000035', ['E08000035 2019', 'E08000035 2020']],
+    ['sex', 'Female', ['E92000001 2019', 'E92000001 2020']],
+    ['age', '<75 yrs', ['E92000001 2019', 'E08000035 2019']],
+    ['categoryType', 'Ethnic groups [4]', ['E06000047 2020']],
+    ['category', 'White', ['E06000047 2020', 'E06000047 2021']],
+    ['valueNote', 'Aggregated from values for merged CCGs', ['E08000035 2019']],
+    ['value', 'Blank', ['E08000035 2019']],
+    ['count', 'Blank', ['E92000001 2020', 'E06000047 2020', 'E06000047 2021']],
+    ['sex', 'Blank', ['E08000035 2020', 'E06000047 2020', 'E06000047 2021']],
+    ['age', 'Blank', ['E06000047 2020', 'E06000047 2021']],
+    [
+      'categoryType',
+      'Blank',
+      ['E92000001 2019', 'E92000001 2020', 'E08000035 2019', 'E08000035 2020'],
+    ],
+    ['category', 'Blank', ['E92000001 2019', 'E92000001 2020', 'E08000035 2019', 'E08000035 2020']],
+    [
+      'valueNote',
+      'Blank',
+      ['E92000001 2019', 'E92000001 2020', 'E08000035 2020', 'E06000047 2020', 'E06000047 2021'],
+    ],
+  ])('shows the rows with a %s of %s', async (column, label, rows) => {
+    const indicatorId = await filterable(`Filter by ${column} ${label}`);
+
+    expect((await matching(indicatorId, [column, label])).sort()).toEqual(rows.toSorted());
+  });
+
+  it("shows the rows with any of a column's values that match every column", async () => {
+    const indicatorId = await filterable('Filter by several');
+
+    expect(
+      (await matching(indicatorId, ['period', '2020/21'], ['period', '2019/20'])).sort(),
+    ).toEqual([
+      'E06000047 2020',
+      'E08000035 2019',
+      'E08000035 2020',
+      'E92000001 2019',
+      'E92000001 2020',
+    ]);
+    expect(
+      (
+        await matching(
+          indicatorId,
+          ['sex', 'Male'],
+          ['sex', 'Female'],
+          ['age', '<75 yrs'],
+          ['period', '2019/20'],
+        )
+      ).sort(),
+    ).toEqual(['E08000035 2019', 'E92000001 2019']);
+    expect(await matching(indicatorId, ['sex', 'Female'], ['areaCode', 'E08000035'])).toEqual([]);
+    expect(
+      (await matching(indicatorId, ['sex', 'Blank'], ['sex', 'Male'], ['age', '18+ yrs'])).sort(),
+    ).toEqual(['E08000035 2020']);
+    expect((await matching(indicatorId, ['value', 'Blank'], ['value', '10'])).sort()).toEqual([
+      'E08000035 2019',
+      'E92000001 2020',
+    ]);
+  });
+
+  it('splits the matching rows across pages, read from either end', async () => {
+    const rows = Array.from(
+      { length: 82 },
+      (_, index) =>
+        `E92000001,${1920 + index}-01-01,${1920 + index}-12-31,${index},${index % 2 ? 'Male' : 'Female'}`,
+    );
+    const indicatorId = await filterable(
+      'Filter pages',
+      ['area_code,period_start,period_end,value,sex', ...rows].join('\n'),
+    );
+    const query = await filterQuery(indicatorId, ['sex', 'Female']);
+
+    const pages = await Promise.all(
+      [1, 2, 3, 4, 5, 6].map((page) => check(indicatorId, `${query}&page=${page}`)),
+    );
+
+    expect(pages.map(({ body }) => body.dataTable.matchingRowCount)).toEqual(Array(6).fill(41));
+    expect(pages.map(({ body }) => body.dataTable.rows.length)).toEqual([10, 10, 10, 10, 1, 0]);
+    expect(
+      pages.flatMap(({ body }) => body.dataTable.rows.map(({ value }: DataTableRow) => value)),
+    ).toEqual(Array.from({ length: 41 }, (_, index) => index * 2));
+  });
+
+  it('keeps a filter on its value when another upload replaces the table', async () => {
+    const indicatorId = await filterable('Filter across uploads');
+    const query = await filterQuery(
+      indicatorId,
+      ['value', '10'],
+      ['sex', 'Male'],
+      ['age', '18+ yrs'],
+    );
+    await load(
+      indicatorId,
+      [
+        'area_code,period_start,period_end,value,sex',
+        'E92000001,2001-01-01,2001-12-31,7,Female',
+        'E92000001,2002-01-01,2002-12-31,10,Male',
+        'E92000001,2003-01-01,2003-12-31,8,Male',
+      ].join('\n'),
+    );
+
+    const { dataTable } = (await check(indicatorId, query)).body;
+
+    expect(dataTable.filters.map(({ label }: DataTableFilter) => label)).toEqual(['10', 'Male']);
+    expect(dataTable.rows.map(({ value }: DataTableRow) => value)).toEqual([10]);
+  });
+
+  it('leaves out a blank when another upload fills every cell of its column', async () => {
+    const indicatorId = await filterable('Filter by blanks across uploads');
+    const query = await filterQuery(indicatorId, ['value', 'Blank']);
+    await load(
+      indicatorId,
+      [
+        'area_code,period_start,period_end,value',
+        'E92000001,2001-01-01,2001-12-31,7',
+        'E92000001,2002-01-01,2002-12-31,10',
+      ].join('\n'),
+    );
+
+    expect((await check(indicatorId, query)).body.dataTable).toMatchObject({
+      filters: [],
+      matchingRowCount: 2,
+    });
+  });
+
+  it('leaves out filters whose values are not in the table, showing every row for none', async () => {
+    const indicatorId = await filterable('Filter by nothing found');
+
+    const { dataTable } = (
+      await check(indicatorId, '?f=sex.0000000000&f=value.0000000000&f=period.0000000000')
+    ).body;
+
+    expect(dataTable).toMatchObject({ filters: [], rowCount: 6, matchingRowCount: 6 });
+    expect(dataTable.rows).toHaveLength(6);
+  });
+
+  it("labels the periods it filters by as the draft's year type does", async () => {
+    const indicatorId = await filterable('Filter by rolling years');
+    await updateIndicatorDraft(
+      internalDb,
+      indicatorId,
+      'period-type',
+      { periodType: 'years', yearType: 'rolling' },
+      {},
+      AS_ACTOR,
+    );
+
+    expect(await matching(indicatorId, ['period', 'April 2021 to March 2022'])).toEqual([
+      'E06000047 2021',
+    ]);
+  });
+
+  it('answers 400 for a filter that is not an id', async () => {
+    const indicatorId = await filterable('Filter by a bad id');
+
+    expect((await check(indicatorId, '?f=sex.Female')).status).toBe(400);
   });
 });
 

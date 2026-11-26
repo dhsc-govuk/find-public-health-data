@@ -100,10 +100,8 @@ export async function respondToReview(
 
     if (response.kind !== 'approved') {
       if (response.clarification !== undefined) {
-        await page.getByLabel('High-level clarification request').check();
-        await page
-          .getByLabel('What are you requesting clarification about?')
-          .fill(response.clarification);
+        await page.getByLabel('High-level comments or clarification requests').check();
+        await page.getByLabel('Enter comments or requests').fill(response.clarification);
       }
       for (const { key, title, notes } of response.flags ?? []) {
         await page.getByLabel(title, { exact: true }).check();

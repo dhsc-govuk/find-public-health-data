@@ -18,6 +18,8 @@ import {
   indicatorTaskListPath,
 } from '../publish-paths.ts';
 import { queryObject } from '../query-object.ts';
+import { readColumnFilterIntent } from './column-filters-form.ts';
+import { type ColumnFilterState, submitColumnFilters } from './column-filters-loader.ts';
 
 export const DATA_TABLE_CHANGED =
   'Another data table was uploaded while you were checking this one. Check the new data table.';
@@ -41,43 +43,65 @@ export async function loadDataTableCheck({ context, params, request }: LoaderFun
 
   if (!query.success) throw notFound();
 
-  const { page, rowsPerPage } = query.data;
+  const { page, rowsPerPage, filterIds, filtersLimited } = query.data;
+  const apiQuery = new URLSearchParams([
+    ['page', String(page)],
+    ['rowsPerPage', String(rowsPerPage)],
+    ...filterIds.map((filterId) => ['f', filterId]),
+  ]);
   const { dataTable } = await unlessDraftLocked(
     context,
     id,
     context
       .get(apiContext)
       .get(
-        `${apiPath`/api/internal/indicators/${id}/data-table`}?page=${page}&rowsPerPage=${rowsPerPage}`,
+        `${apiPath`/api/internal/indicators/${id}/data-table`}?${apiQuery}`,
         dataTableCheckSchema,
       ),
   );
 
   if (dataTable === null) throw redirect(indicatorDataTablePath(id));
 
-  const totalPages = Math.max(1, Math.ceil(dataTable.rowCount / rowsPerPage));
+  const totalPages = Math.max(1, Math.ceil(dataTable.matchingRowCount / rowsPerPage));
 
   // A newer upload can have fewer pages than the publisher was on, so send them to its last.
   if (page > totalPages) {
-    throw redirect(indicatorDataTableCheckPath(id, { page: totalPages, rowsPerPage }));
+    throw redirect(
+      indicatorDataTableCheckPath(id, {
+        page: totalPages,
+        rowsPerPage,
+        filterIds: dataTable.filters.map((filter) => filter.id),
+      }),
+    );
   }
 
-  return { id, dataTable, totalPages };
+  return { id, dataTable, totalPages, filtersLimited };
 }
 
 export type DataTableCheckData = Awaited<ReturnType<typeof loadDataTableCheck>>;
+
+/** Answers the page's two forms: its column filters, or Continue, which confirms the data table. */
+export async function submitDataTableCheck(
+  args: ActionFunctionArgs,
+): Promise<DataTableCheckRefusal | ColumnFilterState | Response> {
+  const formData = await args.request.formData();
+  const intent = readColumnFilterIntent(formData);
+
+  return intent === undefined
+    ? confirmDataTable(args, formData)
+    : submitColumnFilters(args, formData, intent);
+}
 
 /**
  * Confirms the batch shown on the page and returns to the task list. If another upload has
  * replaced it in the meantime, shows the new one with a message instead.
  */
-export async function confirmDataTable({
-  context,
-  params,
-  request,
-}: ActionFunctionArgs): Promise<DataTableCheckRefusal | Response> {
+async function confirmDataTable(
+  { context, params }: ActionFunctionArgs,
+  formData: FormData,
+): Promise<DataTableCheckRefusal | Response> {
   const id = requireIndicatorId(params);
-  const batchId = (await request.formData()).get('batchId');
+  const batchId = formData.get('batchId');
   const result = await context
     .get(apiContext)
     .put(

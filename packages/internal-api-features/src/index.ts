@@ -5,6 +5,7 @@ import { internalCiMethodsRouter } from './ci-methods.ts';
 import { internalDataProvidersRouter } from './data-providers.ts';
 import { dataTableCheckRouter } from './data-table-check.ts';
 import { dataUploadsRouter } from './data-uploads.ts';
+import { indicatorDiscardRouter } from './indicator-discard.ts';
 import { indicatorHistoryRouter } from './indicator-history.ts';
 import { indicatorSchedulingRouter } from './indicator-scheduling.ts';
 import { indicatorSectionsRouter } from './indicator-sections.ts';
@@ -57,6 +58,7 @@ export function internalApiRoutes({
   router.use(internalIndicatorsUnderReviewRouter(repositories.indicators, session));
   router.use(indicatorSectionsRouter(repositories, session));
   router.use(indicatorSubmissionsRouter(repositories.indicators, session));
+  router.use(indicatorDiscardRouter(repositories.indicators, storage, session));
   router.use(indicatorSchedulingRouter(repositories.indicators, session));
   router.use(updateDecisionRouter(repositories.indicators, session));
   router.use(internalReviewersRouter(repositories.reviewers, repositories.indicators, session));

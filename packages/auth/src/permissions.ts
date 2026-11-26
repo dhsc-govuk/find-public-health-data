@@ -82,6 +82,14 @@ export function canWithdrawSubmission(
   return canSubmitIndicator(user, indicator);
 }
 
+/** Whether the user may discard the indicator's draft. The editors. */
+export function canDiscardDraft(
+  user: SessionUser,
+  indicator: Pick<IndicatorAccess, 'teamId'>,
+): boolean {
+  return canEditIndicator(user, indicator);
+}
+
 /** Whether the user may be assigned indicators to review; `canReviewIndicator` decides which. */
 export function canReviewIndicators(user: Pick<SessionUser, 'roles'>): boolean {
   return holds(user, 'imrg-reviewer');
