@@ -335,4 +335,17 @@ describe('TaggingPage', () => {
 
     expect(document.activeElement).toBe(select('Select a subtopic for Cancer'));
   });
+
+  it('keeps focus on the topic select when a topic with subtopics is chosen after a change', () => {
+    renderPage({
+      values: { ...empty, topicIds: [dental] },
+      focus: { on: 'picker', list: 'topicIds' },
+    });
+    expect(document.activeElement).toBe(select('Select a topic'));
+
+    fireEvent.change(select('Select a topic'), { target: { value: cancer } });
+
+    expect(select('Select a subtopic for Cancer')).toBeTruthy();
+    expect(document.activeElement).toBe(select('Select a topic'));
+  });
 });

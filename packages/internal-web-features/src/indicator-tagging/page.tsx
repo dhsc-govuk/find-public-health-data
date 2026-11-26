@@ -143,7 +143,9 @@ function TopicPicker({
   const topicIds = offered('topicIds');
   const subtopicIds = offered('subtopicIds');
   const focused = focusesPicker(focus, 'topicIds') || focusesPicker(focus, 'subtopicIds');
-  const asksForSubtopic = chosen !== undefined && subtopics.length > 0;
+  // Focus follows the topic the page came back with, not one chosen since: the subtopic select
+  // is mounted again for each topic chosen, and would otherwise take focus from the topic select.
+  const asksForSubtopic = subtopicsOf(options, values.addTopic).length > 0;
 
   return (
     <div className="govuk-!-margin-bottom-6">
@@ -166,7 +168,7 @@ function TopicPicker({
       {chosen === undefined || subtopics.length === 0 ? null : (
         <>
           <Select
-            autoFocus={focused}
+            autoFocus={focused && chosen.id === values.addTopic}
             defaultValue={chosen.id === values.addTopic ? values.addSubtopic : ''}
             // The refusal was for the topic sent, not one chosen since.
             error={chosen.id === values.addTopic ? fieldErrors.addSubtopic : undefined}
