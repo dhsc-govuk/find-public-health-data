@@ -90,6 +90,7 @@ export function selected(shortId = 108): SelectedIndicator {
       yearType: null,
       polarity: 'higher-is-better',
       comparatorMethod: 'Confidence intervals overlapping reference value',
+      dataValues: [] as IndicatorDetail['dataValues'],
     } as IndicatorDetail,
     areaData: [
       {

@@ -12,7 +12,7 @@ import { InequalitiesChart } from './charts/bar-chart.tsx';
 import { availablePeriodTypes } from './data.ts';
 import { inequalityTableModel } from './inequalities.ts';
 import type { SelectedIndicator } from './loader.ts';
-import { providerSourceText } from './metadata-data.ts';
+import { sourceLine } from './metadata-data.ts';
 import { NO_ENGLAND_MESSAGE } from './no-england.ts';
 import { InequalityOptions, useOptionParamNavigation, usePanelOptions } from './options.tsx';
 import { InequalitiesTable } from './tables/inequalities-table.tsx';
@@ -150,14 +150,9 @@ export function InequalitiesTab({ primary }: { primary: SelectedIndicator }) {
                 areaName={inequalityArea?.areaName ?? 'England'}
                 sex={inequality.sex}
               />
-              {detail.dataSource || detail.numeratorSources.length ? (
-                <p className="govuk-body-s">
-                  Source:{' '}
-                  {detail.numeratorSources.length
-                    ? providerSourceText(detail.numeratorSources)
-                    : detail.dataSource?.name}
-                </p>
-              ) : null}
+              {sourceLine(detail) === null ? null : (
+                <p className="govuk-body-s">Source: {sourceLine(detail)}</p>
+              )}
             </>
           )}
         </GridColumn>
