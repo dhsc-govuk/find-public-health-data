@@ -270,6 +270,10 @@ export const indicatorAdminDetailSchema = indicatorAdminSummarySchema.extend({
     .nullable(),
   /** A hash of the name. A rename sends it back to show it saw the latest name. */
   nameVersion: editVersionSchema,
+  /** When the draft was last edited, which a discard names; null with no draft. */
+  draftUpdatedAt: z.iso.datetime().nullable(),
+  /** Whether the user may discard the draft now. */
+  canDiscardDraft: z.boolean(),
   actions: indicatorActionsSchema,
 });
 
@@ -452,6 +456,26 @@ export const indicatorStartUpdateErrorSchema = z.object({
 /** A submission confirms the draft as the task list showed it, by its last edit. */
 export const indicatorSubmitSchema = z.object({ draftUpdatedAt: z.iso.datetime() });
 
+/** A discard confirms the draft as its page showed it, by its last edit. */
+export const indicatorDiscardSchema = z.object({ draftUpdatedAt: z.iso.datetime() });
+
+/**
+ * The 400 and 409 answers. `upload_running` means a data table is being uploaded to the draft.
+ * `already_discarded` means there is no draft: a live indicator has none left, or a new indicator
+ * was deleted by another discard this one waited for. A missing indicator is a 404, which the
+ * client throws, and is what a new indicator's discarded draft answers from then on.
+ */
+export const indicatorDiscardErrorSchema = z.object({
+  error: z.enum([
+    'invalid_id',
+    'invalid_draft_updated_at',
+    'not_allowed',
+    'changed',
+    'upload_running',
+    'already_discarded',
+  ]),
+});
+
 /** The 400 and 409 answers. A missing indicator or draft is a 404, which the client throws. */
 export const indicatorSubmitErrorSchema = z.object({
   error: z.enum([
@@ -525,6 +549,8 @@ export type IndicatorTaskListError = z.infer<typeof indicatorTaskListErrorSchema
 export type IndicatorStartUpdateError = z.infer<typeof indicatorStartUpdateErrorSchema>;
 export type IndicatorSubmit = z.infer<typeof indicatorSubmitSchema>;
 export type IndicatorSubmitError = z.infer<typeof indicatorSubmitErrorSchema>;
+export type IndicatorDiscard = z.infer<typeof indicatorDiscardSchema>;
+export type IndicatorDiscardError = z.infer<typeof indicatorDiscardErrorSchema>;
 export type IndicatorWithdraw = z.infer<typeof indicatorWithdrawSchema>;
 export type IndicatorWithdrawError = z.infer<typeof indicatorWithdrawErrorSchema>;
 

@@ -380,6 +380,34 @@ describe('ApiClient.postToMember', () => {
       client().postToMember('/api/internal/steps/1', {}, errorSchema),
     ).rejects.toMatchObject({ status: 502 });
   });
+
+  it('gives up after the ordinary timeout', async () => {
+    hangingFetch();
+
+    await expect(
+      createApiClient({ ...baseOptions(), timeoutMs: 5, uploadTimeoutMs: 60_000 }).postToMember(
+        '/api/internal/steps/1',
+        {},
+        errorSchema,
+      ),
+    ).rejects.toMatchObject({ name: 'TimeoutError' });
+  });
+
+  it('waits for the upload timeout when asked to, then says so', async () => {
+    hangingFetch();
+    const started = performance.now();
+
+    const outcome = await createApiClient({
+      ...baseOptions(),
+      timeoutMs: 5,
+      uploadTimeoutMs: 100,
+    })
+      .postToMember('/api/internal/steps/1', {}, errorSchema, { timeout: 'upload' })
+      .catch((error: unknown) => error);
+
+    expect(outcome).toBeInstanceOf(ApiTimeoutError);
+    expect(performance.now() - started).toBeGreaterThanOrEqual(90);
+  });
 });
 
 describe('ApiClient.delete', () => {

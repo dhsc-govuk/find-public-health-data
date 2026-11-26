@@ -1,5 +1,17 @@
 import { schema } from '@fphd/db';
-import { and, asc, desc, eq, max, sql } from 'drizzle-orm';
+import {
+  type AnyColumn,
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  max,
+  ne,
+  not,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import { alias, QueryBuilder } from 'drizzle-orm/pg-core';
 
 import type {
@@ -86,6 +98,26 @@ const latestDraftSubmissionNumber = new QueryBuilder({ casing: 'snake_case' })
   .from(indicatorVersionSubmission)
   .where(eq(indicatorVersionSubmission.indicatorVersionId, draftVersion.id));
 export const draftSubmissionNumber = sql<number | null>`(${latestDraftSubmissionNumber})`;
+/**
+ * Whether every submission of the version was withdrawn, as none is for a version never
+ * submitted. The latest submission alone does not say so, because a draft sent back for changes
+ * can be resubmitted and then withdrawn.
+ */
+export function submissionsWithdrawn(versionId: AnyColumn): SQL<boolean> {
+  return sql<boolean>`${not(
+    exists(
+      new QueryBuilder({ casing: 'snake_case' })
+        .select({ one: sql`1` })
+        .from(indicatorVersionSubmission)
+        .where(
+          and(
+            eq(indicatorVersionSubmission.indicatorVersionId, versionId),
+            ne(indicatorVersionSubmission.status, 'withdrawn'),
+          ),
+        ),
+    ),
+  )}`;
+}
 const latestDraftSubmittedAt = new QueryBuilder({ casing: 'snake_case' })
   .select({ submittedAt: indicatorVersionSubmission.submittedAt })
   .from(indicatorVersionSubmission)

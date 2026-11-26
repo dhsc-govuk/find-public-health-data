@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { NEW_INDICATOR_PATH } from '../publish-paths.ts';
 import { INDICATOR_HEADINGS, INDICATOR_KEYS, indicatorCells } from './indicator-cells.tsx';
 import type { IndicatorAdminListItem, IndicatorsUnderReview } from './loader.ts';
+import type { DashboardNotification } from './notifications.ts';
 import {
   ALL_INDICATORS_TAB,
   ALL_OTHER_TAB,
@@ -115,7 +116,7 @@ interface DashboardPageProps {
   /** Every other team's indicators, for a publisher whose list holds only their teams'. */
   otherList?: IndicatorList | null;
   /** Something the page the user came from left to tell them. */
-  notification?: string | undefined;
+  notification?: DashboardNotification | undefined;
 }
 
 /** How many of the dashboard's roles the user holds: managing, reviewing, scheduling, the list. */
@@ -282,7 +283,12 @@ export function DashboardPage(props: DashboardPageProps) {
     <GridRow>
       <GridColumn width="full">
         {props.notification === undefined ? null : (
-          <NotificationBanner disableAutoFocus>{props.notification}</NotificationBanner>
+          <NotificationBanner
+            disableAutoFocus
+            {...(props.notification.type === 'success' ? { type: 'success' } : {})}
+          >
+            {props.notification.text}
+          </NotificationBanner>
         )}
         <h1 className="govuk-heading-xl">{dashboardHeading(props)}</h1>
         <DashboardSearch search={props.search} />

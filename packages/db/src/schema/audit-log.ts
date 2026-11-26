@@ -6,9 +6,10 @@ import { actorId } from './user.ts';
 
 /**
  * Every change the log records, named `<entity type>.<what happened>`. An indicator's history
- * reads three shapes, which must stay as they are: the `reviewerIds.after` of
- * `indicator.reviewers_assigned`, the field names of `indicator.draft_updated`, and the
- * `dataTableConfirmedAt.before` of `indicator.data_table_confirmed`.
+ * reads four shapes, which must stay as they are: the `reviewerIds.after` of
+ * `indicator.reviewers_assigned`, the field names of `indicator.draft_updated`, the
+ * `dataTableConfirmedAt.before` of `indicator.data_table_confirmed`, and the `id.after` of
+ * `indicator.draft_created_from_published`.
  */
 export const AUDIT_ACTIONS = [
   'topic.created',
@@ -17,6 +18,7 @@ export const AUDIT_ACTIONS = [
   'indicator.draft_created',
   'indicator.draft_updated',
   'indicator.draft_created_from_published',
+  'indicator.draft_discarded',
   'indicator.data_table_confirmed',
   'indicator.submitted',
   'indicator.submission_withdrawn',

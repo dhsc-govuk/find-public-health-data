@@ -31,6 +31,8 @@ const indicator: IndicatorAdminDetail = {
   draftFirstSubmittedAt: null,
   draftResponse: null,
   nameVersion: SHOWN_VERSION,
+  draftUpdatedAt: null,
+  canDiscardDraft: false,
   actions: [],
 };
 

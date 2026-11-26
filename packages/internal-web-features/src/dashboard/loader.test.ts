@@ -414,7 +414,10 @@ describe('loadDashboard', () => {
       await flashCookie('no-longer-reviewer'),
     );
 
-    expect(outcome.notification).toBe('You are no longer a reviewer of this indicator.');
+    expect(outcome.notification).toEqual({
+      type: 'important',
+      text: 'You are no longer a reviewer of this indicator.',
+    });
   });
 });
 

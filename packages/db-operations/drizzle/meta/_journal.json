@@ -701,6 +701,13 @@
       "when": 1795536553268,
       "tag": "0099_fingertips-ci-formatting",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1795628038271,
+      "tag": "0100_discard-drafts",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,8 @@ const OTHER_TEAM_ID = '00000000-0000-7000-8000-00000000000b';
 // The id the name page minted for a new indicator.
 const NEW_ID = '019a1b2c-3d4e-7f60-8a9b-0c1d2e3f4a5b';
 
+const DRAFT_UPDATED_AT = new Date('2026-01-01T00:00:00.000Z');
+
 const row: IndicatorAdminRow = {
   id: '00000000-0000-7000-8000-000000000001',
   name: 'Life expectancy at birth',
@@ -53,6 +55,8 @@ const detailRow: IndicatorAdminDetailRow = {
   draftFastTrackReason: null,
   draftFirstSubmittedAt: null,
   draftResponse: null,
+  draftUpdatedAt: null,
+  draftSubmissionsWithdrawn: true,
 };
 
 const OTHER_REVIEWER_ID = '00000000-0000-7000-8000-0000000000a1';
@@ -350,6 +354,8 @@ describe('GET /api/internal/indicators/:id', () => {
       draftFirstSubmittedAt: null,
       draftResponse: null,
       nameVersion,
+      draftUpdatedAt: null,
+      canDiscardDraft: false,
       actions: [],
     });
   });
@@ -478,6 +484,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftResponseKind: 'minor_revisions',
       draftSubmissionNumber: 2,
       draftFirstSubmittedAt: new Date('2026-10-20T09:00:00.000Z'),
+      draftUpdatedAt: DRAFT_UPDATED_AT,
       draftResponse: { kind: 'minor_revisions', flaggedTaskCount: 3 },
       draftReviewers: [{ id: OTHER_REVIEWER_ID, name: 'Jamie Evans' }],
     };
@@ -495,6 +502,7 @@ describe('GET /api/internal/indicators/:id', () => {
       draftResponse: null,
       draftSubmissionNumber: null,
       draftFirstSubmittedAt: null,
+      draftUpdatedAt: null,
     });
   });
 
@@ -533,6 +541,27 @@ describe('GET /api/internal/indicators/:id', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.actions).toEqual(['give_feedback', 'request_changes', 'approve']);
+  });
+
+  it.each([
+    ["a publisher in the indicator's team", ['publisher'], [TEAM_ID], true],
+    ['a publisher in another team', ['publisher'], [OTHER_TEAM_ID], false],
+    ['an admin', ['admin'], [], false],
+    ['an IMRG manager', ['imrg-manager'], [], false],
+  ])('says whether %s may discard the draft', async (_user, roles, teams, canDiscardDraft) => {
+    const findById = vi.fn().mockResolvedValue({
+      ...detailRow,
+      indicatorStatus: 'new',
+      draftStatus: 'draft',
+      draftUpdatedAt: DRAFT_UPDATED_AT,
+    });
+
+    const response = await request(createTestApp({ findAccess: findById, findById }))
+      .get(`/api/internal/indicators/${row.id}`)
+      .set('Cookie', await testSessionCookie(roles, teams));
+
+    expect(response.status).toBe(200);
+    expect(response.body.canDiscardDraft).toBe(canDiscardDraft);
   });
 
   it('answers 404 to an IMRG reviewer for an indicator assigned to someone else', async () => {
@@ -586,6 +615,8 @@ describe('POST /api/internal/indicators', () => {
     draftFastTrackReason: null,
     draftFirstSubmittedAt: null,
     draftResponse: null,
+    draftUpdatedAt: DRAFT_UPDATED_AT,
+    draftSubmissionsWithdrawn: true,
   };
 
   it('rejects an anonymous request', async () => {
@@ -701,6 +732,8 @@ describe('POST /api/internal/indicators', () => {
       draftFirstSubmittedAt: null,
       draftResponse: null,
       nameVersion,
+      draftUpdatedAt: DRAFT_UPDATED_AT.toISOString(),
+      canDiscardDraft: true,
       actions: ['submit'],
     });
   });
@@ -869,6 +902,8 @@ describe('PATCH /api/internal/indicators/:id', () => {
     draftFastTrackReason: null,
     draftFirstSubmittedAt: null,
     draftResponse: null,
+    draftUpdatedAt: DRAFT_UPDATED_AT,
+    draftSubmissionsWithdrawn: true,
   };
   const path = `/api/internal/indicators/${row.id}`;
 
@@ -929,6 +964,8 @@ describe('PATCH /api/internal/indicators/:id', () => {
       draftFirstSubmittedAt: null,
       draftResponse: null,
       nameVersion: editVersion({ name: 'A better name' }),
+      draftUpdatedAt: DRAFT_UPDATED_AT.toISOString(),
+      canDiscardDraft: true,
       actions: ['submit'],
     });
   });

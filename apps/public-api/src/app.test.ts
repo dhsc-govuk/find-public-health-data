@@ -119,6 +119,7 @@ describe('public API', () => {
     ['post', `/api/internal/indicators/${anyId}/schedule`],
     ['get', '/api/internal/indicators-scheduled'],
     ['post', `/api/internal/indicators/${anyId}/update-decision`],
+    ['post', `/api/internal/indicators/${anyId}/discard`],
     ['get', '/api/internal/updates-awaiting-decision'],
     ['post', `/api/internal/indicators/${anyId}/draft`],
     ...[

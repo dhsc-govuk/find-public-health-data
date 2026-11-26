@@ -67,12 +67,14 @@ export interface ApiClient {
 
   /**
    * POST `body` to a member of a collection, for an action that answers 204 with no body. A 400
-   * or 409 comes back as a value parsed with `errorSchema`; otherwise as `put`.
+   * or 409 comes back as a value parsed with `errorSchema`; otherwise as `put`. An action that may
+   * be slow takes the upload timeout, and throws `ApiTimeoutError` after it.
    */
   postToMember<E>(
     path: string,
     body: unknown,
     errorSchema: z.ZodType<E>,
+    options?: { timeout?: 'upload' },
   ): Promise<ApiWriteResult<undefined, E>>;
 
   /**
@@ -111,7 +113,7 @@ export const REFUSAL_STATUSES: Readonly<
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-/** The API took longer to answer an upload than the upload timeout allows. */
+/** The API took longer to answer than the upload timeout allows. */
 export class ApiTimeoutError extends Error {
   constructor(path: string) {
     super(`No answer from ${path} within the upload timeout`);
@@ -382,18 +384,32 @@ export function createApiClient({
       });
     },
 
-    postToMember(path, body, errorSchema) {
-      return call('POST', path, json(body), async (response) => {
-        const refused = await memberRefusal(
+    async postToMember(path, body, errorSchema, options) {
+      const slow = options?.timeout === 'upload';
+      const timeout = AbortSignal.timeout(slow ? uploadTimeoutMs : timeoutMs);
+
+      try {
+        return await call(
+          'POST',
           path,
-          errorSchema,
-          response,
-          REFUSAL_STATUSES.postToMember,
+          json(body),
+          async (response) => {
+            const refused = await memberRefusal(
+              path,
+              errorSchema,
+              response,
+              REFUSAL_STATUSES.postToMember,
+            );
+            if (refused !== undefined) return refused;
+            if (response.status !== 204) unexpectedStatus();
+            return { ok: true, data: undefined };
+          },
+          timeout,
         );
-        if (refused !== undefined) return refused;
-        if (response.status !== 204) unexpectedStatus();
-        return { ok: true, data: undefined };
-      });
+      } catch (error) {
+        if (slow && timeout.aborted) throw new ApiTimeoutError(path);
+        throw error;
+      }
     },
 
     async postStream(path, { body, contentType }, schema, errorSchema) {

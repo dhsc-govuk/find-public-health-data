@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { INDICATOR_STEPS } from './contract.ts';
-import { type IndicatorWorkflowRow, mayTakeStep, stepsOpenTo } from './indicator-workflow.ts';
+import {
+  type IndicatorWorkflowRow,
+  isDraftDiscardable,
+  mayDiscardDraft,
+  mayTakeStep,
+  stepsOpenTo,
+} from './indicator-workflow.ts';
 
 const TEAM = '00000000-0000-7000-8000-00000000000a';
 const publisher = { roles: ['publisher'], sub: 'publisher', teams: [TEAM] };
@@ -184,5 +190,40 @@ describe('stepsOpenTo', () => {
     const published = { ...unsubmittedRow, indicatorStatus: 'live', draftStatus: null } as const;
 
     expect(stepsOpenTo(publisher, published)).toEqual([]);
+  });
+});
+
+describe('isDraftDiscardable', () => {
+  it('is true of a draft whose submissions, if any, were all withdrawn', () => {
+    expect(isDraftDiscardable({ draftStatus: 'draft', draftSubmissionsWithdrawn: true })).toBe(
+      true,
+    );
+  });
+
+  it('is false of a draft with a submission that was not withdrawn', () => {
+    expect(isDraftDiscardable({ draftStatus: 'draft', draftSubmissionsWithdrawn: false })).toBe(
+      false,
+    );
+  });
+
+  it.each(['scheduled', null] as const)('is false of a draft status of %s', (draftStatus) => {
+    expect(isDraftDiscardable({ draftStatus, draftSubmissionsWithdrawn: true })).toBe(false);
+  });
+});
+
+describe('mayDiscardDraft', () => {
+  const discardable = { ...unsubmittedRow, draftSubmissionsWithdrawn: true };
+
+  it("lets a publisher discard their own team's draft only", () => {
+    expect(mayDiscardDraft(publisher, discardable)).toBe(true);
+    for (const user of [otherTeam, admin, manager, reviewer]) {
+      expect(mayDiscardDraft(user, discardable)).toBe(false);
+    }
+  });
+
+  it('lets nobody discard a draft once a review has started on it', () => {
+    expect(mayDiscardDraft(publisher, { ...discardable, draftSubmissionsWithdrawn: false })).toBe(
+      false,
+    );
   });
 });

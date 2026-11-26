@@ -44,6 +44,8 @@ const submittedRow: IndicatorAdminDetailRow = {
   draftFastTrackReason: null,
   draftFirstSubmittedAt: null,
   draftResponse: null,
+  draftUpdatedAt: new Date('2026-10-20T09:00:00.000Z'),
+  draftSubmissionsWithdrawn: false,
 };
 
 /** The indicator's lookups, for an indicator in `teamId`. */
