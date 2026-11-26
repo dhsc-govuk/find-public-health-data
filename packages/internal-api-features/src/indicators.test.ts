@@ -1382,7 +1382,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
   it("judges the confidence intervals by the kind of the draft's method", async () => {
     const findDraftState = vi.fn().mockResolvedValue({
       ...draftState,
-      draft: { ...draftState.draft, ciMethodId: '019fa38f-0747-73bb-b8a4-bb6e8f3c244e' },
+      draft: { ...draftState.draft, ciMethodId: '019fa38f-0748-74b5-83b2-f5dfebffaf22' },
       draftCiMethodKind: 'none',
     });
 

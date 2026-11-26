@@ -4,6 +4,7 @@ import { ukDaysUntil, ukInstant } from '@fphd/utils/uk-time';
 import {
   addIssues,
   areProviderSourcesOffered,
+  CI_METHOD_NO_LONGER_OFFERED,
   type ConfidenceIntervalsField,
   confidenceIntervalsSection,
   confidenceIntervalsSectionFor,
@@ -98,7 +99,10 @@ export function taggingServerSection(
   };
 }
 
-/** The form's schema, then the requirements of the chosen method, read from its row. */
+/**
+ * The form's schema, then the requirements of the chosen method, read from its row. A method the
+ * list no longer holds is refused with a message asking the publisher to choose another.
+ */
 export function confidenceIntervalsServerSection(
   ciMethods: InternalCiMethodRepository,
 ): IndicatorSection<ConfidenceIntervalsField, ConfidenceIntervalsWithKind> {
@@ -106,9 +110,19 @@ export function confidenceIntervalsServerSection(
     ...confidenceIntervalsSection,
     schema: confidenceIntervalsSection.schema.transform(async (answers, ctx) => {
       const kind = (await ciMethods.findById(answers.ciMethodId))?.kind ?? null;
+
+      if (kind === null) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ciMethodId'],
+          message: CI_METHOD_NO_LONGER_OFFERED,
+        });
+        return z.NEVER;
+      }
+
       const checked = confidenceIntervalsSectionFor(kind).schema.safeParse(answers);
 
-      if (checked.success && kind !== null) return { ...checked.data, kind };
+      if (checked.success) return { ...checked.data, kind };
 
       for (const { path, message } of checked.error?.issues ?? []) {
         ctx.addIssue({ code: 'custom', path, message });

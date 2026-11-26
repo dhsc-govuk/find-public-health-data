@@ -25,7 +25,6 @@ export const ciMethod = pgTable(
   {
     id: uuidPrimaryKey(),
     name: text().notNull().unique(),
-    description: text(),
     kind: text({ enum: CI_METHOD_KINDS }).notNull().default('standard'),
     ...timestamps,
   },

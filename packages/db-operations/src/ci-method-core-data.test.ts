@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { STANDARD_CONFIDENCE_INTERVAL_METHODS } from '@fphd/utils/standard-methods';
 import { describe, expect, it } from 'vitest';
 
 import { type CiMethodRecord, parseCiMethodsFile } from './ci-method-core-data.ts';
@@ -9,15 +10,14 @@ const byars: CiMethodRecord = {
   id: '019fa38f-073f-764e-9ac6-1c4d03b1cb92',
   name: "Byar's method",
   kind: 'standard',
-  description: 'A description.',
 };
 
 const committedFile = fileURLToPath(new URL('../data/ci-methods.json', import.meta.url));
 
 describe('parseCiMethodsFile', () => {
-  it('accepts a well-formed file, with or without a description', () => {
+  it('accepts a well-formed file', () => {
     const other = { ...byars, id: '019fa38f-0746-7e1c-8826-0ee5d2b83fef', name: 'Other method' };
-    const methods = [byars, { ...other, kind: 'other', description: null }];
+    const methods = [byars, { ...other, kind: 'other' }];
 
     expect(parseCiMethodsFile(methods)).toEqual(methods);
   });
@@ -45,5 +45,15 @@ describe('parseCiMethodsFile', () => {
     expect(() =>
       parseCiMethodsFile(JSON.parse(readFileSync(committedFile, 'utf-8'))),
     ).not.toThrow();
+  });
+});
+
+describe('the committed confidence interval methods', () => {
+  it('match the standard methods one for one by name, so every method finds its description', () => {
+    const methods = parseCiMethodsFile(JSON.parse(readFileSync(committedFile, 'utf-8')));
+
+    expect(methods.map(({ name }) => name).sort()).toEqual(
+      STANDARD_CONFIDENCE_INTERVAL_METHODS.map(({ name }) => name).sort(),
+    );
   });
 });

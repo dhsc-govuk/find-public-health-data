@@ -5,19 +5,16 @@ export const METHODS: Record<CiMethodRow['kind'], CiMethodRow> = {
   standard: {
     id: '019fa38f-073f-764e-9ac6-1c4d03b1cb92',
     name: "Byar's method",
-    description: 'A standard description.',
     kind: 'standard',
   },
   other: {
     id: '019fa38f-0746-7e1c-8826-0ee5d2b83fef',
     name: 'Other method',
-    description: null,
     kind: 'other',
   },
   none: {
-    id: '019fa38f-0747-73bb-b8a4-bb6e8f3c244e',
-    name: 'Unknown',
-    description: null,
+    id: '019fa38f-0748-74b5-83b2-f5dfebffaf22',
+    name: 'No confidence intervals available',
     kind: 'none',
   },
 };

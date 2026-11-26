@@ -13,18 +13,23 @@ export const sectionBackLinkHandle = backLinkHandle<{ id: string }>(
 );
 
 /**
- * The draft's answers and their version. After a rejected save, it's what was typed, the
- * errors, and the version the action returned (see `versionedAction`).
+ * The draft's answers and their version, and any errors the loader found in them. After a
+ * rejected save, it's what was typed, the errors, and the version the action returned (see
+ * `versionedAction`).
  */
 export function useSectionForm<
   Field extends string,
   Values = FormValues<Field>,
 >(): SectionPageProps<Field, Values> {
-  const { values, version } = useLoaderData<{ values: Values; version: string }>();
+  const { values, version, fieldErrors } = useLoaderData<{
+    values: Values;
+    version: string;
+    fieldErrors?: Partial<Record<Field, string>>;
+  }>();
   const rejected = useActionData<(FormFailure<Field, Values> & { version: string }) | undefined>();
 
   return {
-    fieldErrors: rejected?.fieldErrors ?? {},
+    fieldErrors: rejected?.fieldErrors ?? fieldErrors ?? {},
     formError: rejected?.formError,
     values: rejected?.values ?? values,
     version: rejected?.version ?? version,

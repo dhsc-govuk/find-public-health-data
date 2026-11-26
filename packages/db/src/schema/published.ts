@@ -78,7 +78,6 @@ export const publishedCiMethod = publishedSchema
   .view('ci_method', {
     id: uuid('id').notNull(),
     name: text('name').notNull(),
-    description: text('description'),
   })
   .existing();
 

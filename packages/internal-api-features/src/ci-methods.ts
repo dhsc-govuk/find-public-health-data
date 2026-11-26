@@ -17,9 +17,11 @@ export function internalCiMethodsRouter(
     '/api/internal/ci-methods',
     requireJwtSession(session, canEditIndicators),
     async (_request, response) => {
-      const methods: CiMethod[] = (await ciMethods.list()).map(
-        ({ id, name, description, kind }) => ({ id, name, description, kind }),
-      );
+      const methods: CiMethod[] = (await ciMethods.list()).map(({ id, name, kind }) => ({
+        id,
+        name,
+        kind,
+      }));
 
       response.status(200).json(methods);
     },

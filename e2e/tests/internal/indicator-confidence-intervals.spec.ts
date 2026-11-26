@@ -14,6 +14,10 @@ const METHOD = 'Select the confidence interval method used';
 const MODIFIED = 'Were any modifications to the described method used for this indicator?';
 const MODIFICATIONS = 'Enter description of the modifications used';
 const OTHER_DETAIL = 'Provide detail of the other confidence interval method used';
+const SELECT_MODIFIED = 'Select whether any modifications to the described method were used';
+const WHAT_AN_INTERVAL_IS = /^A confidence interval is a range of values/;
+const BYARS_DESCRIPTION = /^Byar’s method gives very accurate approximate confidence intervals/;
+const NONE_AVAILABLE_DESCRIPTION = /^Without confidence intervals it is impossible to know/;
 
 /** The page once hydrated, which hides the follow-ups while no method is chosen. */
 async function openHydratedPage(page: Page): Promise<string> {
@@ -32,7 +36,7 @@ function modifiedQuestion(page: Page) {
 }
 
 function standardDescription(page: Page) {
-  return page.getByRole('heading', { level: 2, name: 'Standard description' });
+  return page.getByRole('heading', { level: 2, name: 'Standard method description' });
 }
 
 async function continueAndExpectErrors(page: Page, messages: string[]) {
@@ -64,15 +68,26 @@ test('shows only the questions the chosen method asks', async ({ page }) => {
 
   await chooseMethod(page, "Byar's method");
   await expect(standardDescription(page)).toBeVisible();
+  await expect(page.getByText(WHAT_AN_INTERVAL_IS)).toBeVisible();
+  await expect(page.getByText(BYARS_DESCRIPTION)).toBeVisible();
   await expect(modifiedQuestion(page)).toBeVisible();
   await expect(page.getByLabel(OTHER_DETAIL)).toBeHidden();
+
+  await chooseMethod(page, 'T-distribution method');
+  await expect(standardDescription(page)).toBeVisible();
+  await expect(page.getByText(WHAT_AN_INTERVAL_IS)).toBeVisible();
+  await expect(page.getByText(BYARS_DESCRIPTION)).toBeHidden();
+  await expect(modifiedQuestion(page)).toBeVisible();
 
   await chooseMethod(page, 'Other method');
   await expect(standardDescription(page)).toBeHidden();
   await expect(modifiedQuestion(page)).toBeHidden();
   await expect(page.getByLabel(OTHER_DETAIL)).toBeVisible();
 
-  await chooseMethod(page, 'Unknown');
+  await chooseMethod(page, 'No confidence intervals available');
+  await expect(standardDescription(page)).toBeVisible();
+  await expect(page.getByText(NONE_AVAILABLE_DESCRIPTION)).toBeVisible();
+  await expect(page.getByText(WHAT_AN_INTERVAL_IS)).toBeHidden();
   await expect(modifiedQuestion(page)).toBeHidden();
   await expect(page.getByLabel(OTHER_DETAIL)).toBeHidden();
 });
@@ -84,7 +99,6 @@ test('lists the methods in alphabetical order', async ({ page }) => {
     'Select',
     "Byar's method",
     "Byar's method (adjusted for repeat hospital admissions)",
-    "Byar's method (no small number correction)",
     'Chiang-Silcocks method',
     "Dobson & Byar's methods",
     'Exact Poisson method',
@@ -92,7 +106,6 @@ test('lists the methods in alphabetical order', async ({ page }) => {
     'No confidence intervals available',
     'Other method',
     'T-distribution method',
-    'Unknown',
     'Wald normal approximation',
     'Wilson Score method',
   ]);
@@ -103,7 +116,7 @@ test('saves nothing until the chosen method is fully answered', async ({ page })
   const pagePath = new URL(page.url()).pathname;
 
   await chooseMethod(page, "Byar's method");
-  await continueAndExpectErrors(page, ['Select whether any modifications were used']);
+  await continueAndExpectErrors(page, [SELECT_MODIFIED]);
 
   await modifiedQuestion(page).getByLabel('Yes').check();
   await continueAndExpectErrors(page, ['Enter a description of the modifications used']);
@@ -134,9 +147,7 @@ test('saves an other method with its detail and shows the task as completed', as
   const taskListPath = await openHydratedPage(page);
 
   await chooseMethod(page, 'Other method');
-  await continueAndExpectErrors(page, [
-    'Enter details of the other confidence interval method used',
-  ]);
+  await continueAndExpectErrors(page, ['Enter details of the other confidence interval method']);
   await page.getByLabel(OTHER_DETAIL).fill('Bootstrap intervals');
   await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -169,7 +180,7 @@ test('has no WCAG 2.2 AA violations when the submission is rejected', async ({
 }, testInfo) => {
   await openHydratedPage(page);
   await chooseMethod(page, "Byar's method");
-  await continueAndExpectErrors(page, ['Select whether any modifications were used']);
+  await continueAndExpectErrors(page, [SELECT_MODIFIED]);
 
   await expectNoAccessibilityViolations(page, testInfo);
 });
@@ -183,7 +194,7 @@ test.describe('without JavaScript', () => {
     await expect(modifiedQuestion(page)).toBeVisible();
     await expect(
       modifiedQuestion(page).getByText(
-        'Not needed for No confidence intervals available, Other method or Unknown',
+        'Not needed for No confidence intervals available or Other method',
       ),
     ).toBeVisible();
     await expect(page.getByLabel(MODIFICATIONS)).toBeVisible();
@@ -195,7 +206,7 @@ test.describe('without JavaScript', () => {
     const taskListPath = await openSectionPage(page, SECTION);
 
     await chooseMethod(page, "Byar's method");
-    await continueAndExpectErrors(page, ['Select whether any modifications were used']);
+    await continueAndExpectErrors(page, [SELECT_MODIFIED]);
     await expect(standardDescription(page)).toBeVisible();
 
     await chooseMethod(page, 'Other method');

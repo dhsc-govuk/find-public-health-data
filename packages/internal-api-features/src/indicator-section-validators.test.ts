@@ -112,10 +112,13 @@ describe('confidenceIntervalsServerSection', () => {
     expect(result.success && result.data.kind).toBe('other');
   });
 
-  it('refuses a method that does not exist', async () => {
+  it('refuses a method the list no longer holds, asking for another', async () => {
     expect(
       await fieldErrorsOf({ ...everyAnswer, ciMethodId: '00000000-0000-7000-8000-000000000999' }),
-    ).toEqual({ ciMethodId: 'Select the confidence interval method used' });
+    ).toEqual({
+      ciMethodId:
+        'The confidence interval method saved is no longer available. Select another method',
+    });
   });
 
   it('refuses an unchosen method without looking for it', async () => {
@@ -133,7 +136,10 @@ describe('confidenceIntervalsServerSection', () => {
         ciMethodModificationsDetail: '',
         ciMethodDetail: '',
       }),
-    ).toEqual({ hasCiMethodModifications: 'Select whether any modifications were used' });
+    ).toEqual({
+      hasCiMethodModifications:
+        'Select whether any modifications to the described method were used',
+    });
   });
 });
 

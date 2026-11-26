@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
 import type { CiMethod } from '@fphd/internal-api-features/contract';
 import { serviceName } from '@fphd/ui';
+import {
+  CONFIDENCE_INTERVAL_DESCRIPTION,
+  STANDARD_CONFIDENCE_INTERVAL_METHODS,
+} from '@fphd/utils/standard-methods';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { noRefusal, RELATED_GUIDANCE_LINK } from '../testing.ts';
-import { ConfidenceIntervalsPage } from './page.tsx';
+import { ConfidenceIntervalsPage, METHOD_NOT_OFFERED_LABEL } from './page.tsx';
 
 afterEach(() => {
   cleanup();
@@ -18,35 +22,37 @@ afterEach(() => {
 const BYARS: CiMethod = {
   id: '019fa38f-073f-764e-9ac6-1c4d03b1cb92',
   name: "Byar's method",
-  description: "Byar's method gives very accurate confidence intervals for counts.",
-  kind: 'standard',
-};
-const CHIANG: CiMethod = {
-  id: '019fa38f-0743-7fac-b512-96bed360f0bc',
-  name: 'Chiang-Silcocks method',
-  description: null,
   kind: 'standard',
 };
 const NONE_AVAILABLE: CiMethod = {
   id: '019fa38f-0748-74b5-83b2-f5dfebffaf22',
   name: 'No confidence intervals available',
-  description: null,
   kind: 'none',
 };
 const OTHER: CiMethod = {
   id: '019fa38f-0746-7e1c-8826-0ee5d2b83fef',
   name: 'Other method',
-  description: null,
   kind: 'other',
 };
-const UNKNOWN: CiMethod = {
-  id: '019fa38f-0747-73bb-b8a4-bb6e8f3c244e',
-  name: 'Unknown',
-  description: null,
-  kind: 'none',
+const T_DISTRIBUTION: CiMethod = {
+  id: '019fa38f-0744-72c8-811f-f7cb59dc5ad0',
+  name: 'T-distribution method',
+  kind: 'standard',
 };
 
-const methods = [BYARS, CHIANG, NONE_AVAILABLE, OTHER, UNKNOWN];
+const methods = [BYARS, NONE_AVAILABLE, OTHER, T_DISTRIBUTION];
+
+/** A method's own description from the shared standard methods. */
+function descriptionOf({ name }: CiMethod): string {
+  const description = STANDARD_CONFIDENCE_INTERVAL_METHODS.find(
+    (method) => method.name === name,
+  )?.description;
+  if (description == null) throw new Error(`no standard description for ${name}`);
+  return description;
+}
+
+const DESCRIPTION_HEADING = 'Standard method description';
+const NOT_OFFERED_ID = '019fa38f-0747-73bb-b8a4-bb6e8f3c244e';
 
 const empty = {
   ciMethodId: '',
@@ -130,24 +136,40 @@ describe('ConfidenceIntervalsPage', () => {
       expect(shown(otherDetail())).toBe(false);
     });
 
-    it("shows a standard method's description and asks whether it was modified", () => {
+    it("shows what a confidence interval is and the standard method's description, then asks whether it was modified", () => {
       renderPage();
 
       choose(BYARS);
 
-      expect(screen.getByRole('heading', { level: 2, name: 'Standard description' })).toBeTruthy();
-      expect(screen.getByText(BYARS.description ?? '')).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 2, name: DESCRIPTION_HEADING })).toBeTruthy();
+      expect(screen.getByText(CONFIDENCE_INTERVAL_DESCRIPTION)).toBeTruthy();
+      expect(screen.getByText(descriptionOf(BYARS))).toBeTruthy();
       expect(shown(modifiedQuestion())).toBe(true);
       expect(shown(otherDetail())).toBe(false);
     });
 
-    it('asks whether a standard method with no description yet was modified', () => {
+    it('shows what a confidence interval is alone for a standard method with no description yet, and asks whether it was modified', () => {
+      const { container } = renderPage();
+
+      choose(T_DISTRIBUTION);
+
+      expect(screen.getByRole('heading', { level: 2, name: DESCRIPTION_HEADING })).toBeTruthy();
+      const description = screen.getByText(CONFIDENCE_INTERVAL_DESCRIPTION);
+      expect(description.nextElementSibling?.tagName).not.toBe('P');
+      expect(container.textContent).not.toContain('[Method explanation needed]');
+      expect(shown(modifiedQuestion())).toBe(true);
+    });
+
+    it('explains having no confidence intervals, asking nothing more', () => {
       renderPage();
 
-      choose(CHIANG);
+      choose(NONE_AVAILABLE);
 
-      expect(screen.queryByRole('heading', { name: 'Standard description' })).toBeNull();
-      expect(shown(modifiedQuestion())).toBe(true);
+      expect(screen.getByRole('heading', { level: 2, name: DESCRIPTION_HEADING })).toBeTruthy();
+      expect(screen.getByText(descriptionOf(NONE_AVAILABLE))).toBeTruthy();
+      expect(screen.queryByText(CONFIDENCE_INTERVAL_DESCRIPTION)).toBeNull();
+      expect(shown(modifiedQuestion())).toBe(false);
+      expect(shown(otherDetail())).toBe(false);
     });
 
     it('asks for the detail of an other method alone', () => {
@@ -157,25 +179,17 @@ describe('ConfidenceIntervalsPage', () => {
 
       expect(shown(otherDetail())).toBe(true);
       expect(shown(modifiedQuestion())).toBe(false);
-    });
-
-    it.each([NONE_AVAILABLE, UNKNOWN])('asks nothing more of $name', (method) => {
-      renderPage();
-
-      choose(method);
-
-      expect(shown(modifiedQuestion())).toBe(false);
-      expect(shown(otherDetail())).toBe(false);
+      expect(screen.queryByRole('heading', { name: DESCRIPTION_HEADING })).toBeNull();
     });
 
     it('describes the method chosen, following each change of choice', () => {
       renderPage({ values: { ...empty, ciMethodId: BYARS.id } });
 
-      expect(screen.getByText(BYARS.description ?? '')).toBeTruthy();
+      expect(screen.getByText(descriptionOf(BYARS))).toBeTruthy();
 
       choose(OTHER);
 
-      expect(screen.queryByText(BYARS.description ?? '')).toBeNull();
+      expect(screen.queryByText(descriptionOf(BYARS))).toBeNull();
     });
 
     it('follows a method chosen before the page was hydrated', () => {
@@ -233,7 +247,7 @@ describe('ConfidenceIntervalsPage', () => {
       expect(shown(otherDetail())).toBe(true);
       expect(
         within(modifiedQuestion()).getByText(
-          'Not needed for No confidence intervals available, Other method or Unknown',
+          'Not needed for No confidence intervals available or Other method',
         ),
       ).toBeTruthy();
       expect(screen.getByText('Only needed for Other method')).toBeTruthy();
@@ -242,13 +256,13 @@ describe('ConfidenceIntervalsPage', () => {
     it('describes the standard method it was given', () => {
       renderWithoutJavaScript({ values: { ...empty, ciMethodId: BYARS.id } });
 
-      expect(screen.getByText(BYARS.description ?? '')).toBeTruthy();
+      expect(screen.getByText(descriptionOf(BYARS))).toBeTruthy();
     });
 
-    it('describes no method when the one it was given is not standard', () => {
+    it('describes no method when the one it was given is an other method', () => {
       renderWithoutJavaScript({ values: { ...empty, ciMethodId: OTHER.id } });
 
-      expect(screen.queryByRole('heading', { name: 'Standard description' })).toBeNull();
+      expect(screen.queryByRole('heading', { name: DESCRIPTION_HEADING })).toBeNull();
     });
   });
 
@@ -274,7 +288,8 @@ describe('ConfidenceIntervalsPage', () => {
     renderPage({
       values: { ...empty, ciMethodId: BYARS.id },
       fieldErrors: {
-        hasCiMethodModifications: 'Select whether any modifications were used',
+        hasCiMethodModifications:
+          'Select whether any modifications to the described method were used',
         ciMethodId: 'Select the confidence interval method used',
       },
     });
@@ -283,7 +298,7 @@ describe('ConfidenceIntervalsPage', () => {
 
     expect(links.map((link) => link.textContent)).toEqual([
       'Select the confidence interval method used',
-      'Select whether any modifications were used',
+      'Select whether any modifications to the described method were used',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       `#${methodSelect().id}`,
@@ -295,7 +310,7 @@ describe('ConfidenceIntervalsPage', () => {
     const { container } = renderPage({
       values: { ...empty, ciMethodId: OTHER.id, ciMethodModificationsDetail: 'Kept' },
       fieldErrors: {
-        ciMethodDetail: 'Enter details of the other confidence interval method used',
+        ciMethodDetail: 'Enter details of the other confidence interval method',
       },
     });
 
@@ -306,5 +321,33 @@ describe('ConfidenceIntervalsPage', () => {
     expect(otherDetail().getAttribute('aria-describedby')).toBe(error?.id);
     expect((screen.getByLabelText(MODIFICATIONS) as HTMLTextAreaElement).value).toBe('Kept');
     expect(container.querySelectorAll('.govuk-form-group--error')).toHaveLength(1);
+  });
+
+  it('shows a saved method the list no longer offers as chosen, with its error', () => {
+    renderPage({
+      values: { ...empty, ciMethodId: NOT_OFFERED_ID },
+      fieldErrors: {
+        ciMethodId:
+          'The confidence interval method saved is no longer available. Select another method',
+      },
+    });
+
+    expect(methodSelect().value).toBe(NOT_OFFERED_ID);
+    expect(methodSelect().selectedOptions[0]?.text).toBe(METHOD_NOT_OFFERED_LABEL);
+    expect(
+      within(screen.getByRole('alert')).getByRole('link', {
+        name: 'The confidence interval method saved is no longer available. Select another method',
+      }),
+    ).toBeTruthy();
+    expect(shown(modifiedQuestion())).toBe(false);
+    expect(shown(otherDetail())).toBe(false);
+  });
+
+  it('offers no stand-in when the saved method is one the list offers', () => {
+    renderPage({ values: { ...empty, ciMethodId: BYARS.id } });
+
+    expect([...methodSelect().options].map(({ text }) => text)).not.toContain(
+      METHOD_NOT_OFFERED_LABEL,
+    );
   });
 });

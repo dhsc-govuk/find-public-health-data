@@ -17,7 +17,6 @@ const { IMPORTED_INDICATOR_TEAM_ID, SYSTEM_USER_IDS } = schema;
 const SERVICE_CI_METHODS = [
   { name: "Byar's method", kind: 'standard' },
   { name: "Byar's method (adjusted for repeat hospital admissions)", kind: 'standard' },
-  { name: "Byar's method (no small number correction)", kind: 'standard' },
   { name: 'Chiang-Silcocks method', kind: 'standard' },
   { name: "Dobson & Byar's methods", kind: 'standard' },
   { name: 'Exact Poisson method', kind: 'standard' },
@@ -25,7 +24,6 @@ const SERVICE_CI_METHODS = [
   { name: 'No confidence intervals available', kind: 'none' },
   { name: 'Other method', kind: 'other' },
   { name: 'T-distribution method', kind: 'standard' },
-  { name: 'Unknown', kind: 'none' },
   { name: 'Wald normal approximation', kind: 'standard' },
   { name: 'Wilson Score method', kind: 'standard' },
 ];
@@ -51,14 +49,6 @@ describe('the committed core data and seed', () => {
     expect(await ciMethods(sql)).toEqual(SERVICE_CI_METHODS);
   });
 
-  it('describe the methods in plain text', async () => {
-    const [marked] = await sql<{ count: number }[]>`
-      SELECT count(*)::int AS count FROM ci_method WHERE description ~ '<[a-z/]|&[a-z]+;'
-    `;
-
-    expect(marked?.count).toBe(0);
-  });
-
   it("point each seeded version at the service's method for Pholio's", async () => {
     const rows = await sql<{ name: string }[]>`
       SELECT c.name FROM indicator_version v
@@ -80,7 +70,6 @@ describe('upsertCiMethods', () => {
     id: '019fa38f-073f-764e-9ac6-1c4d03b1cb92',
     name: "Byar's method",
     kind: 'standard',
-    description: null,
   };
 
   beforeAll(async () => {
@@ -132,7 +121,7 @@ describe('upsertCiMethods', () => {
 
     await upsertCiMethods(db, [method]);
     const unchanged = await stamp();
-    await upsertCiMethods(db, [{ ...method, description: 'A description.' }]);
+    await upsertCiMethods(db, [{ ...method, kind: 'none' }]);
 
     expect(unchanged).toBe(before);
     expect(await stamp()).toBeGreaterThan(before);

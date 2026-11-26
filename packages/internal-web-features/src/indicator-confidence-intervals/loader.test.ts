@@ -9,9 +9,7 @@ const id = '00000000-0000-7000-8000-000000000001';
 const sectionPath = `/api/internal/indicators/${id}/confidence-intervals`;
 const methodId = '019fa38f-073f-764e-9ac6-1c4d03b1cb92';
 
-const methods = [
-  { id: methodId, name: "Byar's method", description: 'A description.', kind: 'standard' },
-];
+const methods = [{ id: methodId, name: "Byar's method", kind: 'standard' }];
 
 const unanswered = {
   ciMethodId: '',
@@ -66,7 +64,48 @@ describe('loadConfidenceIntervals', () => {
       values: { ...unanswered, ciMethodId: methodId, hasCiMethodModifications: 'no' },
       version: SHOWN_VERSION,
       methods,
+      fieldErrors: {},
     });
+  });
+
+  it('asks for another method when the draft holds one the list no longer offers', async () => {
+    const api = createFakeApiClient({
+      [`GET ${sectionPath}`]: {
+        answers: {
+          ciMethodId: '019fa38f-0747-73bb-b8a4-bb6e8f3c244e',
+          hasCiMethodModifications: null,
+          ciMethodModificationsDetail: null,
+          ciMethodDetail: null,
+        },
+        version: SHOWN_VERSION,
+      },
+      'GET /api/internal/ci-methods': methods,
+    });
+
+    await expect(load(id, api)).resolves.toMatchObject({
+      values: { ciMethodId: '019fa38f-0747-73bb-b8a4-bb6e8f3c244e' },
+      fieldErrors: {
+        ciMethodId:
+          'The confidence interval method saved is no longer available. Select another method',
+      },
+    });
+  });
+
+  it('finds nothing wrong in a draft with no method yet', async () => {
+    const api = createFakeApiClient({
+      [`GET ${sectionPath}`]: {
+        answers: {
+          ciMethodId: null,
+          hasCiMethodModifications: null,
+          ciMethodModificationsDetail: null,
+          ciMethodDetail: null,
+        },
+        version: SHOWN_VERSION,
+      },
+      'GET /api/internal/ci-methods': methods,
+    });
+
+    await expect(load(id, api)).resolves.toMatchObject({ values: unanswered, fieldErrors: {} });
   });
 
   it('answers 404 to a malformed id without asking the API for anything', async () => {
