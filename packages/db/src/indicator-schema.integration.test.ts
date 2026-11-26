@@ -571,6 +571,31 @@ describe('indicator_version', () => {
     });
   });
 
+  it.each([
+    ['a numerator definition', { numeratorDefinition: 'Deaths' }],
+    ['a numerator disclosure control answer', { numeratorDisclosureControl: 'not-applicable' }],
+    ['a denominator definition', { denominatorDefinition: 'Population' }],
+    ['a denominator disclosure control answer', { denominatorDisclosureControl: 'not-applicable' }],
+  ] as const)('refuses %s beside no numerator and denominator', async (_, values) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', { hasNumeratorDenominator: false, ...values }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_numerator_denominator_check',
+      },
+    });
+  });
+
+  it('accepts a numerator and denominator beside a yes, and beside an unanswered question', async () => {
+    const answers = { numeratorDefinition: 'Deaths', denominatorDefinition: 'Population' };
+
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', { hasNumeratorDenominator: true, ...answers }),
+    ).resolves.toHaveLength(1);
+    await expect(addVersion(await newIndicatorId(), 'draft', answers)).resolves.toHaveLength(1);
+  });
+
   // The contract requires each of these details beside a yes, so the table does too.
   it.each([
     [

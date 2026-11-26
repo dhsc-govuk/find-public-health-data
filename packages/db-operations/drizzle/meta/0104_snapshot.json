@@ -1,5 +1,5 @@
 {
-  "id": "e77ad529-6d96-463b-aad7-6f71c3db8837",
+  "id": "b20c1419-ae81-4df0-9db2-801c17252567",
   "prevId": "e39f3402-2500-4ec5-a8e3-2b0bef41ce85",
   "version": "7",
   "dialect": "postgresql",
@@ -2308,6 +2308,10 @@
         "indicator_version_denominator_disclosure_control_detail_check": {
           "name": "indicator_version_denominator_disclosure_control_detail_check",
           "value": "(\"indicator_version\".\"denominator_disclosure_control\" IS NOT DISTINCT FROM 'yes') = (\"indicator_version\".\"denominator_disclosure_control_detail\" IS NOT NULL)"
+        },
+        "indicator_version_numerator_denominator_check": {
+          "name": "indicator_version_numerator_denominator_check",
+          "value": "\"indicator_version\".\"has_numerator_denominator\" IS NOT FALSE OR (\"indicator_version\".\"numerator_definition\" IS NULL AND \"indicator_version\".\"numerator_disclosure_control\" IS NULL AND \"indicator_version\".\"denominator_definition\" IS NULL AND \"indicator_version\".\"denominator_disclosure_control\" IS NULL)"
         },
         "indicator_version_rounding_detail_check": {
           "name": "indicator_version_rounding_detail_check",

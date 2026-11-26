@@ -413,6 +413,12 @@ export const indicatorVersion = pgTable(
         t.denominatorDisclosureControlDetail,
       ),
     ),
+    // An indicator without a numerator and denominator has data values instead, and no answer
+    // about either part.
+    check(
+      'indicator_version_numerator_denominator_check',
+      sql`${t.hasNumeratorDenominator} IS NOT FALSE OR (${t.numeratorDefinition} IS NULL AND ${t.numeratorDisclosureControl} IS NULL AND ${t.denominatorDefinition} IS NULL AND ${t.denominatorDisclosureControl} IS NULL)`,
+    ),
     check(
       'indicator_version_rounding_detail_check',
       detailBesideYes(t.hasRounding, t.roundingDetail),

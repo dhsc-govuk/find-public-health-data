@@ -217,10 +217,12 @@ export async function applyIndicatorVersionRows(
       ${joins}
     `);
   } else {
-    const assignments = insertColumns
-      .filter((c) => c !== 'id')
-      .map((c) => `"${c}" = EXCLUDED."${c}"`)
-      .join(', ');
+    // The answer about a numerator and denominator is decided again once the versions are in
+    // (see applyLegacyFormatAndSources), and a "no" left in place would refuse the definitions.
+    const assignments = [
+      ...insertColumns.filter((c) => c !== 'id').map((c) => `"${c}" = EXCLUDED."${c}"`),
+      '"has_numerator_denominator" = NULL',
+    ].join(', ');
     const conflict = assignments.length === 0 ? 'DO NOTHING' : `DO UPDATE SET ${assignments}`;
     await tx.unsafe(`
       INSERT INTO indicator_version (${columnList})
