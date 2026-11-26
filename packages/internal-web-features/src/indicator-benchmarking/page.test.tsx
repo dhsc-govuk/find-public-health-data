@@ -288,10 +288,38 @@ describe('BenchmarkingPage', () => {
     ]);
     expect(field('Upper goal value').className).toContain('govuk-input--error');
     expect(field('Comparison for the lower goal value').className).toContain('govuk-select--error');
-    // Each goal value shows its refusal once, under its legend, not beside each control.
+    // Each control of a goal value shows its own refusal, and is described by it.
+    for (const [label, message] of [
+      ['Comparison for the lower goal value', 'Select the comparison for the lower goal value'],
+      ['Upper goal value', 'Upper goal value must be higher than the lower goal value'],
+    ]) {
+      const control = field(label ?? '');
+      expect(control.getAttribute('aria-invalid')).toBe('true');
+      expect(
+        document.getElementById(control.getAttribute('aria-describedby') ?? '')?.textContent,
+      ).toContain(message);
+    }
+    expect(field('Lower goal value').getAttribute('aria-invalid')).toBeNull();
+  });
+
+  it('shows both refusals of a blank goal value, each above its own control', () => {
+    renderPage({
+      values: { hasGoalBenchmark: 'yes', goals: [blank] },
+      fieldErrors: {
+        [policyGoalFieldName(0, 'lowerComparison')]:
+          'Select the comparison for the lower goal value',
+        [policyGoalFieldName(0, 'lowerValue')]: 'Enter the lower goal value',
+      },
+    });
+
     expect(
-      screen.getByRole('group', { name: UPPER }).querySelectorAll('.govuk-error-message'),
-    ).toHaveLength(1);
+      [...screen.getByRole('group', { name: LOWER }).querySelectorAll('.govuk-error-message')].map(
+        (message) => message.textContent,
+      ),
+    ).toEqual([
+      'Error: Select the comparison for the lower goal value',
+      'Error: Enter the lower goal value',
+    ]);
   });
 
   it('shows a refusal of the goals as a whole at the first goal', () => {
@@ -305,13 +333,9 @@ describe('BenchmarkingPage', () => {
     expect(within(screen.getByRole('alert')).getByRole('link').getAttribute('href')).toBe(
       `#${lower.id}`,
     );
-    const described = (
-      screen.getByRole('group', { name: LOWER }).getAttribute('aria-describedby') ?? ''
-    )
-      .split(' ')
-      .map((id) => document.getElementById(id)?.textContent)
-      .join(' ');
-    expect(described).toContain('You cannot add more than 10 policy goals');
+    expect(
+      document.getElementById(lower.getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toContain('You cannot add more than 10 policy goals');
     expect(lower.className).toContain('govuk-input--error');
   });
 });

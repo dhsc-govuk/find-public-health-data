@@ -148,6 +148,13 @@ test('asks for the comparison, lower value and polarity of a goal given none', a
     'Select the polarity of the goal',
   ]);
   await expect(hasGoal(page, 'Yes')).toBeChecked();
+  // Both refusals of the lower value show on the page, each above its own control.
+  await expect(
+    page.getByRole('group', { name: LOWER, exact: true }).locator('.govuk-error-message'),
+  ).toHaveText([
+    'Error: Select the comparison for the lower goal value',
+    'Error: Enter the lower goal value',
+  ]);
 
   await expectErrorSummaryReady(page);
   await summary.getByRole('link', { name: 'Select the polarity of the goal' }).click();

@@ -80,8 +80,8 @@ function comparisonOptions(comparisons: readonly (GoalLowerComparison | GoalUppe
 }
 
 /**
- * One goal value and its comparison, side by side under one legend, as GOV.UK groups the parts
- * of a date. The legend shows the first refusal of the two, and each control refused is marked.
+ * One goal value and its comparison, side by side under one legend. Each control shows its own
+ * refusal above it, and is marked invalid and described by that message, as on the ages page.
  * The value has no decimal keypad, which on iOS has no minus key, as a goal can be negative.
  */
 function GoalValue({
@@ -106,7 +106,6 @@ function GoalValue({
 
   return (
     <FormGroup
-      error={comparisonError ?? valueError}
       hint={hint}
       id={`${valueName}-group`}
       label={
@@ -118,8 +117,9 @@ function GoalValue({
     >
       <div className="fphd-field-row">
         <Select
-          classModifiers={comparisonError === undefined ? [] : ['error']}
+          aria-invalid={comparisonError === undefined ? undefined : true}
           defaultValue={goal[comparisonPart]}
+          error={comparisonError}
           label={
             <span className="govuk-visually-hidden">
               Comparison for the {bound} goal value{policyGoalOf(index)}
@@ -133,8 +133,9 @@ function GoalValue({
         <TextInput
           autoComplete="off"
           className="govuk-input--width-5"
-          classModifiers={valueError === undefined ? [] : ['error']}
+          aria-invalid={valueError === undefined ? undefined : true}
           defaultValue={goal[valuePart]}
+          error={valueError}
           label={
             <span className="govuk-visually-hidden">
               {bound === 'lower' ? 'Lower' : 'Upper'} goal value{policyGoalOf(index)}
