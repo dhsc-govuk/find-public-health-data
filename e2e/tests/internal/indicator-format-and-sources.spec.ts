@@ -178,7 +178,7 @@ test('refuses a provider and source already added', async ({ page }) => {
   await pickSource(page, NUMERATOR_PROVIDER, ONS, 'Live births');
 
   await expect(page.getByRole('alert').getByRole('link')).toHaveText([
-    'Select a source that has not already been added',
+    'Select a source that has not already been added to the numerator',
   ]);
   await expect(addedSources(page)).toHaveText([`${ONS}: Live births`]);
 });

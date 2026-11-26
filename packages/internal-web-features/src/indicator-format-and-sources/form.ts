@@ -16,8 +16,8 @@ import {
   type NewProviderSourceFormValues,
   type ProviderSource,
   providerSourceSchema,
-  SELECT_DATA_PROVIDER,
   SOURCE_NO_LONGER_OFFERED,
+  selectDataProvider,
   toFieldErrors,
 } from '@fphd/internal-api-features/contract';
 
@@ -324,7 +324,10 @@ export function withSourcesShown(
     ? { values: shown, fieldErrors }
     : {
         values: shown,
-        fieldErrors: { ...fieldErrors, [pickerFields(picker).providerId]: SELECT_DATA_PROVIDER },
+        fieldErrors: {
+          ...fieldErrors,
+          [pickerFields(picker).providerId]: selectDataProvider(figureOf(picker)),
+        },
       };
 }
 

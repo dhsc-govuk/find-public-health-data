@@ -131,8 +131,8 @@ describe('formatAndSourcesSection', () => {
   });
 
   it.each([
-    [[mortality, mortality], 'Select a source that has not already been added'],
-    [[...fullList, mortality], 'You cannot add more than 20 data sources'],
+    [[mortality, mortality], 'Select a source that has not already been added to the numerator'],
+    [[...fullList, mortality], 'You cannot add more than 20 data sources to the numerator'],
   ])('refuses the numerator sources %j', (numeratorSources, message) => {
     expect(
       sectionFieldErrors(formatAndSourcesSection, {
@@ -266,29 +266,49 @@ describe('addProviderSource', () => {
   });
 
   it.each([
-    ['no provider', { providerId: '', sourceId: '' }, { providerId: 'Select a data provider' }],
+    [
+      'no provider',
+      { providerId: '', sourceId: '' },
+      { providerId: 'Select a data provider for the numerator' },
+    ],
     [
       'a provider not offered',
       { providerId: '01a0d858-9885-764e-8d53-6826aec67999', sourceId: NO_SPECIFIC_SOURCE },
-      { providerId: 'Select a data provider' },
+      { providerId: 'Select a data provider for the numerator' },
     ],
     [
       'no source',
       { providerId: ons.id, sourceId: '' },
-      { sourceId: 'Select a source, or No specific source' },
+      { sourceId: 'Select a source for the numerator, or No specific source' },
     ],
     [
       "another provider's source",
       { providerId: estimated.id, sourceId: mortality.sourceId ?? '' },
-      { sourceId: 'Select a source, or No specific source' },
+      { sourceId: 'Select a source for the numerator, or No specific source' },
     ],
     [
       'a source already added',
       { providerId: ons.id, sourceId: mortality.sourceId ?? '' },
-      { sourceId: 'Select a source that has not already been added' },
+      { sourceId: 'Select a source that has not already been added to the numerator' },
     ],
   ])('refuses %s', (_, choice, fieldErrors) => {
     expect(addProviderSource('numerator', [mortality], choice, providers)).toEqual({ fieldErrors });
+  });
+
+  it('names the data value in a refusal of its own source', () => {
+    expect(
+      addProviderSource(
+        { dataValue: 1 },
+        [mortality],
+        {
+          providerId: ons.id,
+          sourceId: mortality.sourceId ?? '',
+        },
+        providers,
+      ),
+    ).toEqual({
+      fieldErrors: { sourceId: 'Select a source that has not already been added to data value 2' },
+    });
   });
 
   it('adds to a data value as to the numerator', () => {

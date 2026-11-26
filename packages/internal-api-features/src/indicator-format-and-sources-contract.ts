@@ -50,14 +50,14 @@ export function sourceListProblem(
 ): string | undefined {
   if (sources.length === 0) return `Add at least one data source for ${figureName(figure)}`;
   if (sources.length > MAX_PROVIDER_SOURCES) {
-    return `You cannot add more than ${MAX_PROVIDER_SOURCES} data sources`;
+    return `You cannot add more than ${MAX_PROVIDER_SOURCES} data sources to ${figureName(figure)}`;
   }
   if (
     sources.some(
       (source, index) => sources.findIndex((other) => sameProviderSource(source, other)) !== index,
     )
   ) {
-    return 'Select a source that has not already been added';
+    return `Select a source that has not already been added to ${figureName(figure)}`;
   }
   return undefined;
 }
@@ -338,7 +338,10 @@ export interface NewProviderSourceFormValues {
 
 export type NewProviderSourceField = keyof NewProviderSourceFormValues;
 
-export const SELECT_DATA_PROVIDER = 'Select a data provider';
+/** The message when a source is added or shown with no offered provider chosen. */
+export function selectDataProvider(figure: Figure): string {
+  return `Select a data provider for ${figureName(figure)}`;
+}
 
 /**
  * The list with the chosen provider and source added at its end, or why they were refused.
@@ -355,12 +358,14 @@ export function addProviderSource(
   | { fieldErrors: Partial<Record<NewProviderSourceField, string>> } {
   const provider = providers.find(({ id }) => id === providerId);
 
-  if (provider === undefined) return { fieldErrors: { providerId: SELECT_DATA_PROVIDER } };
+  if (provider === undefined) return { fieldErrors: { providerId: selectDataProvider(figure) } };
 
   const source = provider.sources.find(({ id }) => id === sourceId);
 
   if (sourceId !== NO_SPECIFIC_SOURCE && source === undefined) {
-    return { fieldErrors: { sourceId: 'Select a source, or No specific source' } };
+    return {
+      fieldErrors: { sourceId: `Select a source for ${figureName(figure)}, or No specific source` },
+    };
   }
 
   const added = [...sources, { providerId, sourceId: source?.id ?? null }];

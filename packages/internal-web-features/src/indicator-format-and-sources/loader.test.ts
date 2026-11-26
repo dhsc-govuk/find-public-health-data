@@ -244,7 +244,7 @@ describe('submitFormatAndSources', () => {
     );
 
     expect(outcome).toMatchObject({
-      fieldErrors: { 'dataValues[0].providerId': 'Select a data provider' },
+      fieldErrors: { 'dataValues[0].providerId': 'Select a data provider for data value 1' },
     });
   });
 
@@ -285,7 +285,9 @@ describe('submitFormatAndSources', () => {
 
     expect(outcome).toMatchObject({
       values: { dataValues: [{ providerId: ons.id, sourceId: '' }] },
-      fieldErrors: { 'dataValues[0].sourceId': 'Select a source, or No specific source' },
+      fieldErrors: {
+        'dataValues[0].sourceId': 'Select a source for data value 1, or No specific source',
+      },
     });
   });
 
@@ -491,7 +493,7 @@ describe('submitFormatAndSources', () => {
 
     expect(outcome).toMatchObject({
       fieldErrors: {
-        numeratorSourceId: 'Select a source, or No specific source',
+        numeratorSourceId: 'Select a source for the numerator, or No specific source',
         numeratorDefinition: 'Enter the numerator definition',
       },
     });
@@ -514,7 +516,9 @@ describe('submitFormatAndSources', () => {
     );
 
     expect(outcome).toMatchObject({
-      fieldErrors: { numeratorSourceId: 'Select a source, or No specific source' },
+      fieldErrors: {
+        numeratorSourceId: 'Select a source for the numerator, or No specific source',
+      },
     });
     expect(outcome).not.toMatchObject({ fieldErrors: { denominatorSources: expect.anything() } });
     expect(saves(api)).toEqual([]);
