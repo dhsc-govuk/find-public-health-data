@@ -13,6 +13,17 @@ from pathlib import Path
 
 LEGACY_COLUMNS = ("numerator_source_id", "denominator_source_id")
 
+# The version columns the seed keeps as Fingertips shaped them, which the seed load turns into
+# the service's indicator format and sources: the definitions and legacy sources of the
+# numerator and denominator, and the one disclosure control answer for the whole indicator.
+FINGERTIPS_VERSION_COLUMNS = (
+    "numerator_definition",
+    "denominator_definition",
+    *LEGACY_COLUMNS,
+    "disclosure_control",
+    "disclosure_control_detail",
+)
+
 LEGACY_MAP_PATH = Path(__file__).resolve().parents[2] / "legacy-numerator-denominator-sources.json"
 
 
@@ -28,10 +39,10 @@ def legacy_source_ids(seed_dir):
 
 
 def version_legacy_sources(seed_dir):
-    """Each seeded version's legacy source ids, which the database no longer holds."""
+    """Each seeded version's Fingertips-shaped columns, which the database holds in other forms."""
     with gzip.open(Path(seed_dir) / "indicator_version.csv.gz", "rt", newline="") as source:
         return {
-            row["id"]: tuple(row[column] or None for column in LEGACY_COLUMNS)
+            row["id"]: tuple(row.get(column) or None for column in FINGERTIPS_VERSION_COLUMNS)
             for row in csv.DictReader(source)
         }
 
