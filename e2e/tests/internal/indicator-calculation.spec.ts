@@ -30,7 +30,7 @@ test.use({ storageState: PUBLISHER.storageState });
 
 /**
  * Opens the page of a new draft whose value type is the one named, chosen on its own page first.
- * Life expectancy and Score ask nothing more about counts and values. Answers the page's path
+ * Life expectancy and Score ask nothing more about counts and values. Returns the page's path
  * and the draft's task list path.
  */
 async function openWithValueType(page: Page, valueType: 'Life expectancy' | 'Score') {
