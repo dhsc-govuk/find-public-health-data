@@ -29,8 +29,6 @@ class NotesAndCaveatsTest(unittest.TestCase):
             {
                 "disclosure_control": "yes",
                 "disclosure_control_detail": "Counts under 5 are suppressed.",
-                "has_rounding": None,
-                "rounding_detail": None,
                 "has_caveats": "true",
                 "caveats_detail": "Survey data.",
                 "has_other_notes": "true",
@@ -123,7 +121,9 @@ class VersionColumnsTest(unittest.TestCase):
         self.assertNotIn("caveats", columns)
         self.assertNotIn("notes", columns)
         start = columns.index("disclosure_control")
-        self.assertEqual(columns[start : start + 8], NOTES_AND_CAVEATS_COLUMNS)
+        self.assertEqual(
+            columns[start : start + len(NOTES_AND_CAVEATS_COLUMNS)], NOTES_AND_CAVEATS_COLUMNS
+        )
 
 
 if __name__ == "__main__":
