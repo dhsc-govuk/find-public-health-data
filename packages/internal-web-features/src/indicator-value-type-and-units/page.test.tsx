@@ -456,6 +456,18 @@ describe('ValueTypeAndUnitsPage', () => {
     });
   });
 
+  it.each([
+    ['with JavaScript', renderPage],
+    ['without JavaScript', renderWithoutJavaScript],
+  ])('renders each count question once for the Count value type %s', (_, renderer) => {
+    renderer({ values: { ...empty, valueTypeId: VALUE_TYPE_IDS.count, countMeasure: 'people' } });
+
+    for (const name of ['countMeasure', 'countMeasureDetail', 'countIsEstimate']) {
+      expect(document.querySelectorAll(`[name="${name}"]`)).toHaveLength(1);
+    }
+    expect(document.querySelectorAll('#countIsEstimate-checkbox-0')).toHaveLength(1);
+  });
+
   it('shows the answers it is given, so a draft can be revisited', () => {
     renderPage({
       values: {

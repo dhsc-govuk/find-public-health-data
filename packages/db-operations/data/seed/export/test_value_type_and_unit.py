@@ -120,6 +120,82 @@ class CountsAndValuesTest(unittest.TestCase):
             counts_and_values("Mean", "£ per 100,000", 108)
 
 
+# Every value type and unit pair among the indicators approved for launch, by their Pholio names,
+# with the number of indicators and the answers each becomes, as in
+# tools/data-migration/src/pholio/value-type-and-unit.test.ts.
+APPROVED_PAIRS = [
+    ["Number", "No unit", 5, {}],
+    ["Number", "Unknown unit 67", 1, {}],
+    [
+        "Number",
+        "population",
+        1,
+        {
+            "count_measure": "other",
+            "count_measure_detail": "population",
+            "count_is_estimate": False,
+        },
+    ],
+    ["Number", "Unknown unit 54", 1, {"count_measure": "admissions", "count_is_estimate": False}],
+    ["Crude rate", "per 100,000", 63, {"rate_per": 100000}],
+    ["Crude rate", "per 1,000", 49, {"rate_per": 1000}],
+    ["Crude rate", "per 10,000", 19, {"rate_per": 10000}],
+    ["Crude rate", "Percent", 9, {"rate_per": 100}],
+    ["Crude rate", "Unknown unit 60", 3, {"rate_per": 100}],
+    ["Crude rate", "Unknown unit 56", 1, {}],
+    ["Crude rate", "Unknown unit 57", 1, {"rate_per": 1000000}],
+    ["Crude rate", "Unknown unit 73", 1, {"rate_per": 1, "rate_object": "re-offender"}],
+    [
+        "Crude rate",
+        "Unknown unit 74",
+        1,
+        {"rate_per": 1000000000, "rate_object": "vehicle-miles"},
+    ],
+    [
+        "Crude rate",
+        "Unknown unit 75",
+        1,
+        {"rate_per": 1, "rate_object": "other", "rate_object_detail": "km2"},
+    ],
+    ["Crude rate", "£ per capita", 1, {"rate_per": 1, "rate_object": "capita"}],
+    ["Directly standardised rate", "per 100,000", 121, {"rate_per": 100000}],
+    ["Directly standardised rate", "per 10,000", 3, {"rate_per": 10000}],
+    ["Directly standardised rate", "per 1,000", 1, {"rate_per": 1000}],
+    ["Unknown value type 21", "Unknown unit 68", 1, {"value_measure": "percentage-points"}],
+    ["Indirectly standardised proportion", "Percent", 1, {}],
+    ["Indirectly standardised ratio", "Unknown unit 60", 1, {}],
+    ["Indirectly standardised ratio", "No unit", 1, {}],
+    ["Indirectly standardised ratio", "per STAR-PU", 1, {}],
+    ["Life expectancy", "Years", 8, {}],
+    ["Mean", "Unknown unit 76", 4, {"value_measure": "other", "value_measure_detail": "cm"}],
+    ["Mean", "Unknown unit 66", 3, {"value_measure": "other", "value_measure_detail": "score"}],
+    ["Mean", "Days", 2, {"value_measure": "days"}],
+    ["Mean", "Unknown unit 58", 1, {"value_measure": "minutes"}],
+    ["Mean", "Unknown unit 63", 1, {"value_measure": "other", "value_measure_detail": "µg/m3"}],
+    ["Median", "Unknown unit 56", 1, {"value_measure": "pounds"}],
+    ["Percentage point", "Percent", 1, {"value_measure": "percentage-points"}],
+    ["Proportion", "Percent", 456, {}],
+    ["Ratio", "No unit", 5, {}],
+    ["Ratio", "Percent", 5, {"ratio_format": "percentage"}],
+    ["Ratio", "Unknown unit 66", 2, {}],
+    ["Score", "No unit", 4, {}],
+    ["Score", "Unknown unit 66", 1, {}],
+    ["Slope Index of Inequality", "Years", 4, {"value_measure": "years"}],
+]
+
+
+class ApprovedPairsTest(unittest.TestCase):
+    def test_covers_the_785_indicators_approved_for_launch(self):
+        self.assertEqual(sum(indicators for _, _, indicators, _ in APPROVED_PAIRS), 785)
+
+    def test_reads_each_pair_as_the_typescript_export_does(self):
+        for value_type, unit, _, answers in APPROVED_PAIRS:
+            with self.subTest(value_type=value_type, unit=unit):
+                self.assertEqual(
+                    counts_and_values(value_type, unit, 108), {**UNANSWERED, **answers}
+                )
+
+
 class UnitNameForLabelTest(unittest.TestCase):
     def test_gives_the_name_the_exports_translate(self):
         self.assertEqual(unit_name_for_label("%"), "Percent")
