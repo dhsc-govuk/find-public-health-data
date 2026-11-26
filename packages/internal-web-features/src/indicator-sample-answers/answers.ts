@@ -156,7 +156,12 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       },
       formatAndSourcesAnswersSchema,
     ),
-    text(calculationSection, { standardMethodUsed: 'yes', calculatedBy: 'ohid' }),
+    // No with a methodology, which a value type with no standard method, such as Score, accepts too.
+    text(calculationSection, {
+      standardMethodUsed: 'no',
+      methodology: 'A sample method.',
+      calculatedBy: 'ohid',
+    }),
     text(confidenceIntervalsSection, {
       ciMethodId: named(ciMethods, "Byar's method", 'confidence interval method').id,
       hasCiMethodModifications: 'no',
