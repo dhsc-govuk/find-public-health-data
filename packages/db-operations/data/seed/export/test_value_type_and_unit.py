@@ -130,9 +130,41 @@ class UnitNameForLabelTest(unittest.TestCase):
         for name in UNIT_NAMES_BY_LABEL.values():
             self.assertIsNotNone(unit_reading(name))
 
+    def test_names_a_readable_unit_for_every_label_the_approved_indicators_have(self):
+        for label in [
+            "",
+            "Count",
+            "population",
+            "admissions",
+            "per 100,000",
+            "per 1,000",
+            "per 10,000",
+            "%",
+            "per 100",
+            "£",
+            "per 1,000,000",
+            "per re-offender",
+            "per billion vehicle miles",
+            "persons/km2",
+            "£ per capita",
+            "Percentage points",
+            "per STAR-PU",
+            "Years",
+            "cm",
+            "Score",
+            "Days",
+            "min",
+            "µg/m3",
+        ]:
+            with self.subTest(label=label):
+                self.assertIsNotNone(unit_reading(unit_name_for_label(label)))
+
+    def test_reads_a_unit_name_with_surrounding_whitespace(self):
+        self.assertEqual(unit_reading("\tper 100\n"), unit_reading("per 100"))
+
     def test_refuses_a_label_it_cannot_name(self):
-        # "£" is also the label of "£ per 100,000"; "per 1,000/day" names "per 1,000, per day ".
-        for label in ["£", "per 1,000/day", "kg/m2", "Unknown"]:
+        # "per 1,000/day" names "per 1,000, per day ".
+        for label in ["per 1,000/day", "kg/m2", "Unknown"]:
             with self.assertRaises(ValueError) as raised:
                 unit_name_for_label(label)
 

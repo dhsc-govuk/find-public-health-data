@@ -119,7 +119,8 @@ UNIT_READINGS = {
 }
 
 # The Fingertips API gives a unit's label, not its name: each readable unit's name by its label.
-# "£" is left out, as Pholio's "£ per 100,000" has that label too.
+# The API labels "No unit" blank. "£" is Pholio's £, the only £ unit an approved indicator has,
+# though Pholio's "£ per 100,000" has that label too.
 UNIT_NAMES_BY_LABEL = {
     "%": "Percent",
     "per 100": "per 100",
@@ -127,10 +128,24 @@ UNIT_NAMES_BY_LABEL = {
     "per 10,000": "per 10,000",
     "per 100,000": "per 100,000",
     "per 1,000,000": "per 1,000,000",
+    "per STAR-PU": "per STAR-PU",
+    "per re-offender": "per re-offender",
+    "per billion vehicle miles": "per 1,000,000,000 vehicle miles",
+    "persons/km2": "Persons per km2",
+    "£": "£",
+    "£ per capita": "£ per capita",
     "min": "Minutes",
     "Days": "Days",
     "Years": "Years",
+    "cm": "Centimetre",
+    "µg/m3": "µg/m-3 (micrograms per cubic meter)",
+    "Percentage points": "Percentage points",
+    "admissions": "admissions",
+    "population": "population",
+    "Count": "Count",
+    "Score": "Score",
     "No unit": "No unit",
+    "": "No unit",
 }
 
 COUNTS_AND_VALUES_COLUMNS = [
@@ -173,7 +188,7 @@ def value_type_id(name):
 
 def unit_reading(name):
     """What a Fingertips unit says, by its Pholio name or placeholder, or None for none known."""
-    return UNIT_READINGS.get(UNIT_PLACEHOLDERS.get(name, name).strip(" "))
+    return UNIT_READINGS.get(UNIT_PLACEHOLDERS.get(name, name).strip())
 
 
 def _answers(value_type, reading):

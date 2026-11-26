@@ -228,8 +228,37 @@ describe('unitNameForLabel', () => {
     expect(unitNameForLabel('per 100,000')).toBe('per 100,000');
   });
 
-  it('throws for £ (ambiguous with £ per 100,000) and unrecognised labels', () => {
-    expect(() => unitNameForLabel('£')).toThrow('£');
+  it('maps every unit label the approved indicators have in the Fingertips API to a readable unit', () => {
+    for (const label of [
+      '',
+      'Count',
+      'population',
+      'admissions',
+      'per 100,000',
+      'per 1,000',
+      'per 10,000',
+      '%',
+      'per 100',
+      '£',
+      'per 1,000,000',
+      'per re-offender',
+      'per billion vehicle miles',
+      'persons/km2',
+      '£ per capita',
+      'Percentage points',
+      'per STAR-PU',
+      'Years',
+      'cm',
+      'Score',
+      'Days',
+      'min',
+      'µg/m3',
+    ]) {
+      expect(unitReading(unitNameForLabel(label)), label).toBeDefined();
+    }
+  });
+
+  it('throws for an unrecognised label', () => {
     expect(() => unitNameForLabel('kg/m2')).toThrow('kg/m2');
   });
 

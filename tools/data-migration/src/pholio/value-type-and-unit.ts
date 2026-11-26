@@ -137,7 +137,11 @@ export const UNIT_READINGS: Readonly<Record<string, UnitReading>> = {
   'Number of items prescribed': otherMeasure('items prescribed'),
 };
 
-/** The Pholio name of each unit the public Fingertips API labels, for the prototype seed. */
+/**
+ * The Pholio name of each unit the public Fingertips API labels, for the prototype seed. The API
+ * labels "No unit" blank. "£" is Pholio's £, the only £ unit an approved indicator has, though
+ * Pholio's "£ per 100,000" has that label too.
+ */
 export const UNIT_NAMES_BY_LABEL: Readonly<Record<string, string>> = {
   '%': 'Percent',
   'per 100': 'per 100',
@@ -145,10 +149,24 @@ export const UNIT_NAMES_BY_LABEL: Readonly<Record<string, string>> = {
   'per 10,000': 'per 10,000',
   'per 100,000': 'per 100,000',
   'per 1,000,000': 'per 1,000,000',
+  'per STAR-PU': 'per STAR-PU',
+  'per re-offender': 'per re-offender',
+  'per billion vehicle miles': 'per 1,000,000,000 vehicle miles',
+  'persons/km2': 'Persons per km2',
+  '£': '£',
+  '£ per capita': '£ per capita',
   min: 'Minutes',
   Days: 'Days',
   Years: 'Years',
+  cm: 'Centimetre',
+  'µg/m3': 'µg/m-3 (micrograms per cubic meter)',
+  'Percentage points': 'Percentage points',
+  admissions: 'admissions',
+  population: 'population',
+  Count: 'Count',
+  Score: 'Score',
   'No unit': 'No unit',
+  '': 'No unit',
 };
 
 export function unitNameForLabel(label: string): string {
