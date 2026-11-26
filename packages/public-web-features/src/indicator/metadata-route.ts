@@ -46,7 +46,7 @@ export async function loadIndicatorMetadata({
         [`${title} disclosure control`, disclosureControl],
       ];
     }),
-    ['Methodology', detail.methodology],
+    ['How the indicator was calculated', detail.methodology],
     ['Confidence interval method', detail.ciMethod],
     ['Benchmarking method', detail.comparatorMethod],
     ['Caveats', detail.caveats],
