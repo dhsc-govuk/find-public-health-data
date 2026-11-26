@@ -196,6 +196,30 @@ describe('benchmarkingSection', () => {
     });
   });
 
+  it.each([
+    ['a detail too long', { detail: 'a'.repeat(10_001) }, 'detail'],
+    ['a comparison the form never offers', { lowerComparison: 'more-than' }, 'lowerComparison'],
+    ['a polarity the form never offers', { polarity: 'no-polarity' }, 'polarity'],
+  ])('refuses the other goals beside %s on one goal', (_, change, part) => {
+    const errors = sectionFieldErrors(section, {
+      hasGoalBenchmark: 'yes',
+      goals: [
+        { ...policyGoal, lowerValue: '' },
+        { ...policyGoal, ...change },
+      ],
+    });
+
+    expect(errors).toMatchObject({ 'goals[0].lowerValue': 'Enter the lower goal value' });
+    expect(Object.keys(errors ?? {})).toContain(`goals[1].${part}`);
+  });
+
+  it.each([
+    ['goals that are not a list', { hasGoalBenchmark: 'yes', goals: 'none' }],
+    ['a goal that is not an object', { hasGoalBenchmark: 'yes', goals: [policyGoal, null] }],
+  ])('refuses %s without checking the goals', (_, body) => {
+    expect(sectionFieldErrors(section, body)).toBeDefined();
+  });
+
   it('refuses more goals than a draft may hold', () => {
     expect(
       sectionFieldErrors(section, {

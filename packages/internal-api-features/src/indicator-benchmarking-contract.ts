@@ -130,6 +130,16 @@ function policyGoalProblems(
   return problems;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function hasValuesAsText(goal: unknown): boolean {
+  return (
+    isRecord(goal) && typeof goal.lowerValue === 'string' && typeof goal.upperValue === 'string'
+  );
+}
+
 const schema = z
   .object({
     hasGoalBenchmark: yesNoSchema(
@@ -158,10 +168,11 @@ const schema = z
         }
       }
     },
-    // Also beside an unanswered question or refused text, so every refusal shows at once.
+    // Also beside an unanswered question or a goal's refused choice or text, so every refusal
+    // shows at once. Only goals whose values the checks can read as text are checked.
     {
-      when: ({ issues }) =>
-        issues.every(({ code, path }) => code === 'custom' || path?.[0] === 'hasGoalBenchmark'),
+      when: ({ value }) =>
+        isRecord(value) && Array.isArray(value.goals) && value.goals.every(hasValuesAsText),
     },
   );
 
