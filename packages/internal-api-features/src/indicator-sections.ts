@@ -41,6 +41,7 @@ import {
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import {
+  calculationDraftContext,
   confidenceIntervalsServerSection,
   formatAndSourcesServerSection,
   publishingDateServerSection,
@@ -78,7 +79,13 @@ export function indicatorSectionsRouter(
       formatAndSourcesServerSection(formatAndSourcesSection, dataProviders),
       formatAndSourcesColumns,
     ),
-    indicatorSectionRouter(indicators, session, calculationSection, calculationColumns),
+    indicatorSectionRouter(
+      indicators,
+      session,
+      calculationSection,
+      calculationColumns,
+      calculationDraftContext,
+    ),
     indicatorSectionRouter(
       indicators,
       session,

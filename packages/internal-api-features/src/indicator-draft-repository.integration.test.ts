@@ -4,6 +4,7 @@ import type { Actor } from '@fphd/db/audit-log';
 import { auditEntriesFor } from '@fphd/db/testing';
 import { SLUG_LOCK_NAMESPACE } from '@fphd/internal-workflow';
 import { MAX_AGE } from '@fphd/utils/ages';
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { eq, sql } from 'drizzle-orm';
 import { v7 as randomUuidV7 } from 'uuid';
 import { describe, expect } from 'vitest';
@@ -613,7 +614,12 @@ describe('updateIndicatorDraft', () => {
         db,
         created.indicatorId,
         'calculation',
-        { methodology: 'A method', calculatedBy: 'other', calculatedByDetail: 'ONS' },
+        {
+          standardMethodUsed: false,
+          methodology: 'A method',
+          calculatedBy: 'other',
+          calculatedByDetail: 'ONS',
+        },
         {},
         AS_ACTOR,
       );
@@ -629,6 +635,7 @@ describe('updateIndicatorDraft', () => {
       const asDhsc = await getIndicatorDraftState(db, created.indicatorId);
 
       expect(asOther?.draft).toMatchObject({
+        standardMethodUsed: false,
         methodology: 'A method',
         calculatedBy: 'other',
         calculatedByDetail: 'ONS',
@@ -1286,6 +1293,27 @@ describe('getIndicatorDraftState', () => {
 
       expect(before?.draftCiMethodKind).toBeNull();
       expect(after?.draftCiMethodKind).toBe('none');
+    },
+  );
+
+  repositoryTest(
+    "reports the name of the draft's value type, and none before one is chosen",
+    async ({ db }) => {
+      const created = await newDraft(db, 'A draft choosing its value type');
+
+      const before = await getIndicatorDraftState(db, created.indicatorId);
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'value-type-and-units',
+        { valueTypeId: VALUE_TYPE_IDS.score },
+        {},
+        AS_ACTOR,
+      );
+      const after = await getIndicatorDraftState(db, created.indicatorId);
+
+      expect(before?.draftValueTypeName).toBeNull();
+      expect(after?.draftValueTypeName).toBe('Score');
     },
   );
 

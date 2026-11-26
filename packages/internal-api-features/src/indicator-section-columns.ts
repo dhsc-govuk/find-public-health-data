@@ -8,7 +8,6 @@ import {
   type CiMethodKind,
   type ConfidenceIntervals,
   type ConfidenceIntervalsField,
-  calculationSection,
   countsAndValuesOf,
   definitionAndRationaleSection,
   type IndicatorUpdateFrequency,
@@ -86,10 +85,17 @@ export const updateFrequencyColumns: IndicatorSectionColumns<
 };
 
 export const calculationColumns: IndicatorSectionColumns<CalculationField, Calculation> = {
-  ...sameNamedColumns(calculationSection.fields),
-  // Details typed under "Other" are dropped once another organisation is chosen.
-  toAttributes: ({ methodology, calculatedBy, calculatedByDetail }) => ({
+  fromDraft: ({ standardMethodUsed, methodology, calculatedBy, calculatedByDetail }) => ({
+    standardMethodUsed: yesNoAnswer(standardMethodUsed),
     methodology,
+    calculatedBy,
+    calculatedByDetail,
+  }),
+  // A question the page did not ask is stored unanswered. A methodology typed under No is dropped
+  // once Yes is chosen, and details typed under "Other" once another organisation is chosen.
+  toAttributes: ({ standardMethodUsed, methodology, calculatedBy, calculatedByDetail }) => ({
+    standardMethodUsed: standardMethodUsed === '' ? null : standardMethodUsed === 'yes',
+    methodology: standardMethodUsed === 'yes' || methodology === '' ? null : methodology,
     calculatedBy,
     calculatedByDetail: calculatedBy === 'other' ? calculatedByDetail : null,
   }),

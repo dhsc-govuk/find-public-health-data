@@ -6,7 +6,7 @@ import {
   agesSection,
   benchmarkingSection,
   type CiMethodKind,
-  calculationSection,
+  calculationSectionFor,
   confidenceIntervalsSectionFor,
   definitionAndRationaleSection,
   formatAndSourcesSection,
@@ -130,7 +130,12 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
     'period-type': complete(periodTypeSection, periodTypeColumns),
     polarity: complete(polaritySection, polarityColumns),
     'format-and-sources': complete(formatAndSourcesSection, formatAndSourcesColumns),
-    calculation: complete(calculationSection, calculationColumns),
+    // The page asks about the method only once a value type is chosen, so until then the
+    // calculation cannot be complete.
+    calculation:
+      draft.valueTypeId === null
+        ? 'not_started'
+        : complete(calculationSectionFor(draft.valueTypeId), calculationColumns),
     'confidence-intervals': complete(
       confidenceIntervalsSectionFor(draft.ciMethodKind),
       confidenceIntervalsColumns,

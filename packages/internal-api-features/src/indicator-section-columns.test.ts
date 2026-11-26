@@ -340,13 +340,19 @@ describe('valueTypeAndUnitsColumns', () => {
 describe('calculationColumns', () => {
   it('keeps the other organisations beside "other"', () => {
     const answers = {
+      standardMethodUsed: 'no',
       methodology: 'A method',
       calculatedBy: 'other',
       calculatedByDetail: 'ONS',
     } as const;
 
-    expect(calculationColumns.fromDraft({ ...unansweredDraft, ...answers })).toEqual(answers);
-    expect(calculationColumns.toAttributes(answers)).toEqual(answers);
+    expect(
+      calculationColumns.fromDraft({ ...unansweredDraft, ...answers, standardMethodUsed: false }),
+    ).toEqual(answers);
+    expect(calculationColumns.toAttributes(answers)).toEqual({
+      ...answers,
+      standardMethodUsed: false,
+    });
   });
 
   it.each(['ohid', 'dhsc'] as const)(
@@ -354,13 +360,61 @@ describe('calculationColumns', () => {
     (calculatedBy) => {
       expect(
         calculationColumns.toAttributes({
+          standardMethodUsed: 'no',
           methodology: 'A method',
           calculatedBy,
           calculatedByDetail: 'Left from before',
         }),
-      ).toEqual({ methodology: 'A method', calculatedBy, calculatedByDetail: null });
+      ).toEqual({
+        standardMethodUsed: false,
+        methodology: 'A method',
+        calculatedBy,
+        calculatedByDetail: null,
+      });
     },
   );
+
+  it.each([
+    [true, 'yes'],
+    [false, 'no'],
+    [null, null],
+  ])('reads a standard method answer of %s as %s', (standardMethodUsed, answer) => {
+    expect(
+      calculationColumns.fromDraft({ ...unansweredDraft, standardMethodUsed }).standardMethodUsed,
+    ).toBe(answer);
+  });
+
+  it('drops a methodology typed under No once the standard method is used', () => {
+    expect(
+      calculationColumns.toAttributes({
+        standardMethodUsed: 'yes',
+        methodology: 'Left from before',
+        calculatedBy: 'ohid',
+        calculatedByDetail: '',
+      }),
+    ).toEqual({
+      standardMethodUsed: true,
+      methodology: null,
+      calculatedBy: 'ohid',
+      calculatedByDetail: null,
+    });
+  });
+
+  it('stores a question the page did not ask as unanswered', () => {
+    expect(
+      calculationColumns.toAttributes({
+        standardMethodUsed: '',
+        methodology: '',
+        calculatedBy: 'dhsc',
+        calculatedByDetail: '',
+      }),
+    ).toEqual({
+      standardMethodUsed: null,
+      methodology: null,
+      calculatedBy: 'dhsc',
+      calculatedByDetail: null,
+    });
+  });
 });
 
 describe('confidenceIntervalsColumns', () => {

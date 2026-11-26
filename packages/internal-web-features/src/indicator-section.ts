@@ -47,21 +47,38 @@ function sectionApiPath(id: string, key: IndicatorTaskKey): string {
 }
 
 /**
+ * The section's GET as `responseSchema` reads it: the draft's answers, their version, and
+ * anything the section returns beside them. The API returns 404 if there is no draft. If the
+ * draft is locked for review, the publisher is sent to the overview.
+ */
+export async function loadIndicatorSectionResponse<Body>(
+  { context, params }: Pick<LoaderFunctionArgs, 'context' | 'params'>,
+  key: IndicatorTaskKey,
+  responseSchema: ApiResponseSchema<Body>,
+): Promise<{ id: string } & Body> {
+  const id = requireIndicatorId(params);
+  const response = await unlessDraftLocked(
+    context,
+    id,
+    context.get(apiContext).get(sectionApiPath(id, key), responseSchema),
+  );
+
+  return { id, ...response };
+}
+
+/**
  * The draft's answers to one section, and their version. The API returns 404 if there is no
  * draft. If the draft is locked for review, the publisher is sent to the overview.
  */
 export async function loadIndicatorSectionAnswers<Answers>(
-  { context, params }: LoaderFunctionArgs,
+  args: LoaderFunctionArgs,
   key: IndicatorTaskKey,
   answersSchema: ApiResponseSchema<Answers>,
 ): Promise<{ id: string; answers: Answers; version: string }> {
-  const id = requireIndicatorId(params);
-  const { answers, version } = await unlessDraftLocked(
-    context,
-    id,
-    context
-      .get(apiContext)
-      .get(sectionApiPath(id, key), indicatorSectionResponseSchema(answersSchema)),
+  const { id, answers, version } = await loadIndicatorSectionResponse(
+    args,
+    key,
+    indicatorSectionResponseSchema(answersSchema),
   );
 
   return { id, answers, version };

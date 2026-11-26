@@ -4,8 +4,12 @@ import { ukDaysUntil, ukInstant } from '@fphd/utils/uk-time';
 import {
   addIssues,
   CALCULATION_PART_FIELDS,
+  type Calculation,
+  type CalculationField,
+  type CalculationValueType,
   CI_METHOD_NO_LONGER_OFFERED,
   type ConfidenceIntervalsField,
+  calculationSectionFor,
   confidenceIntervalsSection,
   confidenceIntervalsSectionFor,
   type FormatAndSourcesSection,
@@ -33,6 +37,7 @@ import {
   type ValueTypeAndUnitsField,
   valueTypeAndUnitsSection,
 } from './contract.ts';
+import type { IndicatorSectionDraftContext } from './indicator-section.ts';
 import type {
   ConfidenceIntervalsWithKind,
   PublishingDateWithInstant,
@@ -98,6 +103,27 @@ export function taggingServerSection(
     }),
   };
 }
+
+/**
+ * The calculation, judged with the draft's value type, which its GET returns beside the answers
+ * so the page asks what that value type asks.
+ */
+export const calculationDraftContext: IndicatorSectionDraftContext<
+  { valueType: CalculationValueType | null },
+  CalculationField,
+  Calculation,
+  Record<CalculationField, string>,
+  CalculationField,
+  Record<CalculationField, string | null>
+> = {
+  contextOf: ({ draft, draftValueTypeName }) => ({
+    valueType:
+      draft.valueTypeId === null || draftValueTypeName === null
+        ? null
+        : { id: draft.valueTypeId, name: draftValueTypeName },
+  }),
+  sectionFor: ({ valueType }) => calculationSectionFor(valueType?.id ?? null),
+};
 
 /**
  * The form's schema, then the requirements of the chosen method, read from its row. A method the

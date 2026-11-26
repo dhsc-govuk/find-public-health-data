@@ -6,7 +6,11 @@ import { Router } from 'express';
 import { type IndicatorTaskKey, indicatorSectionFieldErrors } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import { guardedIndicator, requireIndicatorAccess } from './indicator-access.ts';
-import type { IndicatorDraft, IndicatorDraftAttributes } from './indicator-draft-repository.ts';
+import type {
+  IndicatorDraft,
+  IndicatorDraftAttributes,
+  IndicatorDraftStateRow,
+} from './indicator-draft-repository.ts';
 import {
   type DetailedQuestion,
   type IndicatorSection,
@@ -152,6 +156,27 @@ export function yesNoDetailColumns<
   };
 }
 
+/** The draft's state once it is known to have a draft. */
+type DraftState = IndicatorDraftStateRow & { draft: IndicatorDraft };
+
+/**
+ * For a section whose questions depend on the draft's answer to another section, as the
+ * calculation's depend on the value type. The GET returns `contextOf` beside the answers, so the
+ * page can ask the right questions. The PUT judges the answers with `sectionFor` that context,
+ * read from the draft as it is saved, never from the form.
+ */
+export interface IndicatorSectionDraftContext<
+  Context extends object,
+  Field extends string,
+  Values,
+  Input,
+  ErrorField extends string,
+  Answers,
+> {
+  contextOf(state: DraftState): Context;
+  sectionFor(context: Context): IndicatorSection<Field, Values, Input, ErrorField, Answers>;
+}
+
 /** The path of a section's GET and PUT, such as `/api/internal/indicators/:id/justifications`. */
 export function indicatorSectionPath(key: IndicatorTaskKey): string {
   return `/api/internal/indicators/:id/${key}`;
@@ -170,6 +195,9 @@ export function indicatorSectionPath(key: IndicatorTaskKey): string {
  *   draft opened before its sections can be edited.
  * - 404 `not_found`: the indicator doesn't exist.
  * - 409 `locked`: the draft is locked for review.
+ *
+ * A section given a `draftContext` also returns that context from both, and its PUT reads the
+ * draft before judging the answers.
  */
 export function indicatorSectionRouter<
   Field extends string,
@@ -177,19 +205,22 @@ export function indicatorSectionRouter<
   Input,
   ErrorField extends string,
   Answers,
+  Context extends object = object,
 >(
   indicators: InternalIndicatorRepository,
   session: JwtSessionVerifier,
   section: IndicatorSection<Field, Values, Input, ErrorField, Answers>,
   columns: IndicatorSectionColumns<Field, Values, Answers>,
+  draftContext?: IndicatorSectionDraftContext<Context, Field, Values, Input, ErrorField, Answers>,
 ): Router {
   const router = Router();
   const requireEditor = requireIndicatorAccess(session, indicators, canEditIndicator);
   const path = indicatorSectionPath(section.key);
   const versionOf = (draft: IndicatorSectionDraft) => editVersion(columns.fromDraft(draft));
-  const withVersion = (draft: IndicatorSectionDraft) => ({
-    answers: columns.fromDraft(draft),
-    version: versionOf(draft),
+  const withVersion = (state: DraftState) => ({
+    ...draftContext?.contextOf(state),
+    answers: columns.fromDraft(state.draft),
+    version: versionOf(state.draft),
   });
 
   router.get(path, requireEditor, async (_request, response) => {
@@ -207,7 +238,7 @@ export function indicatorSectionRouter<
       return;
     }
 
-    response.status(200).json(withVersion(row.draft));
+    response.status(200).json(withVersion({ ...row, draft: row.draft }));
   });
 
   router.put(path, requireEditor, async (request, response) => {
@@ -220,8 +251,20 @@ export function indicatorSectionRouter<
       return;
     }
 
+    let judgedBy = section;
+
+    if (draftContext !== undefined) {
+      const row = await indicators.findDraftState(id);
+
+      if (!row?.draft) {
+        response.status(404).json({ error: row ? 'no_draft' : 'not_found' });
+        return;
+      }
+      judgedBy = draftContext.sectionFor(draftContext.contextOf({ ...row, draft: row.draft }));
+    }
+
     // Async, because a section's API-side schema may check an answer against a lookup.
-    const submission = await section.schema.safeParseAsync(save.data.answers);
+    const submission = await judgedBy.schema.safeParseAsync(save.data.answers);
 
     if (!submission.success) {
       // A locked draft refuses every save, so a refused answer is not what to report.
@@ -232,7 +275,7 @@ export function indicatorSectionRouter<
 
       response.status(400).json({
         error: 'validation_failed',
-        fieldErrors: indicatorSectionFieldErrors(section, submission.error),
+        fieldErrors: indicatorSectionFieldErrors(judgedBy, submission.error),
       });
       return;
     }
@@ -269,7 +312,7 @@ export function indicatorSectionRouter<
       { indicatorId: row.id, shortId: row.shortId, section: section.key },
       'Indicator section saved',
     );
-    response.status(200).json(withVersion(row.draft));
+    response.status(200).json(withVersion({ ...row, draft: row.draft }));
   });
 
   return router;

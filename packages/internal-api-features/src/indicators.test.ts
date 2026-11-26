@@ -1282,6 +1282,7 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
       isLocked: false,
     },
     draftCiMethodKind: null,
+    draftValueTypeName: null,
     indicatorStatus: 'new',
     draftStatus: 'draft',
     draftSubmissionStatus: null,

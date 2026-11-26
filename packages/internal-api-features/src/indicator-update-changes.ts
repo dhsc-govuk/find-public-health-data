@@ -254,6 +254,7 @@ const CHANGED_SECTIONS: Readonly<
     dataValues,
   }),
   calculation: sectionOf(calculationSection, calculationColumns, {
+    standardMethodUsed: yesNo,
     methodology: 'text',
     calculatedBy: option(INDICATOR_CALCULATED_BY_LABELS),
     calculatedByDetail: 'text',

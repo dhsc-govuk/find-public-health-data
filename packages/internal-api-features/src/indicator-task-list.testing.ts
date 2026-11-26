@@ -15,6 +15,7 @@ export const completeTaskListDraft: IndicatorTaskListDraft = {
   definition: 'The average number of years a newborn would live.',
   rationale: 'A summary measure of mortality across the whole population.',
   polarity: 'lower-is-better',
+  standardMethodUsed: false,
   methodology: 'Calculated from mortality rates by single year of age.',
   calculatedBy: 'ohid',
   calculatedByDetail: null,

@@ -156,7 +156,7 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       },
       formatAndSourcesAnswersSchema,
     ),
-    text(calculationSection, { methodology: 'A sample method.', calculatedBy: 'ohid' }),
+    text(calculationSection, { standardMethodUsed: 'yes', calculatedBy: 'ohid' }),
     text(confidenceIntervalsSection, {
       ciMethodId: named(ciMethods, "Byar's method", 'confidence interval method').id,
       hasCiMethodModifications: 'no',
