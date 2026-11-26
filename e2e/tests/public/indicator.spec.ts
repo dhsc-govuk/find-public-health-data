@@ -671,7 +671,7 @@ test('shows the highlighted areas next to Showing, removes one from its chip and
   await panel.getByRole('link', { name: 'Remove Hartlepool filter', exact: true }).click();
   await expect(chips).toHaveCount(size);
   await expect(chips.filter({ hasText: /Hartlepool$/ })).toHaveCount(0);
-  // The chip's link has gone, so focus moves to what the tab is still showing.
+  // The chip's remove link is removed along with it, so focus moves to what the tab still shows.
   await expect(panel.locator('#indicator-compare-areas-showing')).toBeFocused();
   await expect(panel.getByRole('checkbox', { name: 'Hartlepool', exact: true })).not.toBeChecked();
   await expect(northEast).not.toBeChecked();
@@ -721,7 +721,8 @@ test('removes an area highlighted through its region from its chip without JavaS
     await withoutJs.getByRole('link', { name: 'Remove Hartlepool filter', exact: true }).click();
     await expect(chips).toHaveCount(count - 1);
     await expect(chips.filter({ hasText: /Hartlepool$/ })).toHaveCount(0);
-    // The chip's link has gone, so its fragment moves focus to what the tab is still showing.
+    // The chip's remove link is removed along with it, so its fragment moves focus to what the tab
+    // still shows.
     const showing = withoutJs.locator('#indicator-compare-areas-showing');
     await expect(showing).toBeFocused();
     await expect(
@@ -1728,7 +1729,7 @@ test('switches the scatter between all local authorities and statistical neighbo
   await expect(marks).toHaveCount(all);
   await panel.getByRole('link', { name: 'Remove West Sussex filter' }).click();
   await expect(chart.locator('.recharts-scatter-symbol polygon')).toHaveCount(0);
-  // The chip's link has gone, so focus moves to what the tab is still showing.
+  // The chip's remove link is removed along with it, so focus moves to what the tab still shows.
   await expect(panel.locator('#indicator-compare-indicators-showing')).toBeFocused();
   await expect(
     panel.getByRole('checkbox', { name: 'Statistical neighbours for West Sussex' }),

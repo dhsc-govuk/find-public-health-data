@@ -329,8 +329,8 @@ test('has no WCAG 2.2 AA violations when no rows match', async ({ page }, testIn
   await expectNoAccessibilityViolations(page, testInfo);
 });
 
-// A chip's remove link goes with its chip, so focus moves to the selected values, or to the
-// column filters once none are left, with or without JavaScript.
+// A chip's remove link is removed along with its chip, so focus moves to the selected values, or
+// to the column filters once none are left, with or without JavaScript.
 for (const javaScriptEnabled of [true, false]) {
   test.describe(javaScriptEnabled ? 'focus with JavaScript' : 'focus without JavaScript', () => {
     test.use({ javaScriptEnabled });

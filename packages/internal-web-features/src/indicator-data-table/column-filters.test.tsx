@@ -264,7 +264,8 @@ describe('ColumnFilters', () => {
     expect(screen.queryByText(/You can select up to/)).toBeNull();
   });
 
-  // The remove link goes with its chip, so its fragment says which heading takes focus instead.
+  // The remove link is removed along with its chip, so its fragment names the heading that takes
+  // focus instead.
   it('moves focus to the selected values after a removal, or to the filters once none are left', () => {
     renderPanel({ dataTable: { ...DATA_TABLE, filters: FILTERS.slice(0, 1) } });
 

@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 
 /**
  * "Showing:" and the chips of what a tab shows, as a group named by that label. A chip's remove
- * link goes with its chip, so the link points at this group by its fragment, and focus moves here
- * once the page shows what is left: the route announcer moves it with JavaScript, and the browser
+ * link is removed along with its chip, so the link points at this group by its fragment, and focus
+ * moves here once the page shows what is left: the route announcer moves it with JavaScript, and the browser
  * does without. A screen reader then hears "Showing", and the next Tab reaches the first chip
  * left.
  */

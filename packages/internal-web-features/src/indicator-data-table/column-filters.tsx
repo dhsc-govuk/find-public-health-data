@@ -84,8 +84,8 @@ export function ColumnFilters({ id, dataTable, filtersLimited, state }: ColumnFi
   const filterIds = filters.map((filter) => filter.id);
   const pathWith = (ids: readonly string[]) =>
     indicatorDataTableCheckPath(id, { rowsPerPage, filterIds: ids });
-  // A chip's remove link names the heading that takes focus once the page shows the values left,
-  // with or without JavaScript, as its own link goes with the chip.
+  // A chip's remove link is removed along with its chip, so the link names the heading that takes
+  // focus once the page shows the values left, with or without JavaScript.
   const pathWithout = (filterId: string) => {
     const kept = filterIds.filter((other) => other !== filterId);
     return `${pathWith(kept)}#${kept.length > 0 ? SELECTED_HEADING_ID : FILTERS_HEADING_ID}`;

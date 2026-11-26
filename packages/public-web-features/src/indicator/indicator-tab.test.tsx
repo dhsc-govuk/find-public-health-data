@@ -99,7 +99,8 @@ it('uses every new checkbox label for its showing chip', () => {
     'Policy goal',
   ])
     expect(screen.getByRole('link', { name: `Remove ${label} filter` })).toBeTruthy();
-  // A remove link goes with its chip, so its fragment moves focus to what is still shown.
+  // A remove link is removed along with its chip, so its fragment moves focus to what is still
+  // shown.
   const showing = screen.getByRole('group', { name: 'Showing:' });
   expect(showing.id).toBe('indicator-data-showing');
   expect(showing.getAttribute('tabindex')).toBe('-1');
