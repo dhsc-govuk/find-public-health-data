@@ -401,7 +401,7 @@ def add_indicators(cur, metadata, seed_dir):
                updated_by)
             VALUES
               (%s, %s, 'published', true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                %s, %s, %s, %s)
             """,
             (
