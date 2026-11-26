@@ -23,6 +23,7 @@ import {
   formatCalculatedValue,
   formatValue,
   unitNote,
+  unitSigns,
   withUnit,
 } from '../data.ts';
 import type { IndicatorObservation, IndicatorPageDetail } from '../loader.ts';
@@ -207,10 +208,13 @@ export function ObservationBars({
   const labelCharacters = Math.max(10, Math.floor((labelWidth - 12) / 8));
   const lines = (name: string) => wrapCategory(name, labelCharacters);
   const rowHeight = Math.max(34, ...rows.map(({ name }) => lines(name).length * 18 + 12));
+  // The bars carry the unit's signs alone, so a long unit leaves them their width. The axis title
+  // gives the whole unit.
+  const barUnit = unitSigns(indicator.unit);
   const valueWidth = Math.max(
     68,
     ...rows.map(
-      ({ observation }) => chartValue(observation?.value ?? null, indicator.unit).length * 8 + 12,
+      ({ observation }) => chartValue(observation?.value ?? null, barUnit).length * 8 + 12,
     ),
   );
   const names = new Map(rows.map(({ key, name }) => [key, name]));
@@ -354,9 +358,7 @@ export function ObservationBars({
                 dataKey="value"
                 position="right"
                 className="fphd-bar-value"
-                formatter={(value) =>
-                  typeof value === 'number' ? chartValue(value, indicator.unit) : ''
-                }
+                formatter={(value) => (typeof value === 'number' ? chartValue(value, barUnit) : '')}
               />
               {confidence !== 'none' ? (
                 <ErrorBar dataKey="error" stroke="#0b0c0c" width={3} isAnimationActive={false} />
