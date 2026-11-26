@@ -642,7 +642,7 @@ it('keeps imported annual and historical rows while cached and full reads select
         cumulative.map(({ value }) => value),
       );
       expect(await indicatorTrendDirections(tx, publishedViews, [model.indicatorId])).toEqual(
-        new Map([[model.indicatorId, 'up']]),
+        new Map([[model.indicatorId, null]]),
       );
       const cached = await getIndicatorSeriesData(
         tx,
@@ -665,7 +665,7 @@ it('keeps imported annual and historical rows while cached and full reads select
         .delete(observationSeriesBatch)
         .where(eq(observationSeriesBatch.indicatorId, model.indicatorId));
       expect(await indicatorTrendDirections(tx, publishedViews, [model.indicatorId])).toEqual(
-        new Map([[model.indicatorId, 'up']]),
+        new Map([[model.indicatorId, null]]),
       );
       throw new RolledBack();
     }),

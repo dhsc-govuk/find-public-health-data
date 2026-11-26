@@ -372,7 +372,8 @@ async function insertSeries(
 
 /**
  * The recent values of England's headline series, elected by `headlineOrder` across period types,
- * or null when England has no data.
+ * or null when England has no data. Cumulative endpoints cover different durations, so they
+ * carry no trend inputs.
  */
 async function englandTrend(
   tx: Executor,
@@ -382,7 +383,14 @@ async function englandTrend(
   periodFilter: SQL | undefined,
 ): Promise<number[] | null> {
   const [trend] = await tx
-    .select({ values: recentNonNull<number>(observation.value, observation) })
+    .select({
+      values: recentNonNull<number>(observation.value, observation),
+      periodType: observationPeriodSql(
+        observation.fromDate,
+        observation.toDate,
+        observation.periodType,
+      ),
+    })
     .from(observation)
     .innerJoin(area, eq(area.id, observation.areaId))
     .where(
@@ -411,7 +419,7 @@ async function englandTrend(
       dimensionKeyOrder(observation.dimensionKey, headlineDimensions),
     )
     .limit(1);
-  return trend?.values ?? null;
+  return trend?.periodType.startsWith('cumulative-quarter-') ? [] : (trend?.values ?? null);
 }
 
 export async function replaceObservationSeries(

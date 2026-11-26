@@ -46,7 +46,11 @@ async function areaTrendDirections(
   areaCode: string,
 ): Promise<Map<string, TrendDirection>> {
   const { area, observation } = views;
-  const rows = await db.execute<{ indicator_id: string; values: number[] }>(sql`
+  const rows = await db.execute<{
+    indicator_id: string;
+    period_type: string;
+    values: number[];
+  }>(sql`
     with cumulative_periods as (
       select ${observation.indicatorId} as indicator_id, ${observation.dimensionKey} as segment,
         max(${observation.periodType}) as period_type
@@ -79,19 +83,24 @@ async function areaTrendDirections(
         sql`, `,
       )}, ${dimensionKeyOrder(sql`segment`, views)}
     )
-    select s.indicator_id,
+    select s.indicator_id, s.period_type,
       coalesce((array_agg(p.value order by p.from_date desc, p.to_date desc)
         filter (where p.value is not null))[1:5], '{}') as values
     from series s join points p on p.indicator_id = s.indicator_id and p.segment = s.segment
         and p.period_type = s.period_type
     where s.has_value
-    group by s.indicator_id
+    group by s.indicator_id, s.period_type
 
   `);
   return new Map(
     rows.map(
-      ({ indicator_id, values }) =>
-        [indicator_id, recentTrendDirection([...values].reverse())] as const,
+      ({ indicator_id, period_type, values }) =>
+        [
+          indicator_id,
+          period_type.startsWith('cumulative-quarter-')
+            ? null
+            : recentTrendDirection([...values].reverse()),
+        ] as const,
     ),
   );
 }

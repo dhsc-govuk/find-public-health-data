@@ -1,7 +1,7 @@
 import { isoDurationDays } from './age-range.ts';
 import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
 
-export const OBSERVATION_SERIES_VERSION = 8;
+export const OBSERVATION_SERIES_VERSION = 9;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
 export type CumulativePeriodType = `cumulative-quarter-${string}`;
