@@ -84,6 +84,13 @@ export function UploadDataTablePage({ fieldErrors = {}, formError }: UploadDataT
     return () => window.removeEventListener('pageshow', restore);
   }, []);
 
+  // Choosing a file is a fresh start, as after the publisher stops an upload with the browser's
+  // Stop button or Esc, which leaves the page as it was with no event to say so.
+  const choose = () => {
+    sending.current = false;
+    setUploading(false);
+  };
+
   // The browser refuses what the API would, before sending a file it would only send back. A
   // second press while a file is on its way is ignored: it would abandon the first upload and
   // start the wait again.
@@ -139,6 +146,7 @@ export function UploadDataTablePage({ fieldErrors = {}, formError }: UploadDataT
                 classModifiers={error === undefined ? [] : 'error'}
                 id={inputId}
                 name={FIELD}
+                onChange={choose}
                 type="file"
               />
             </div>

@@ -129,6 +129,18 @@ describe('UploadDataTablePage', () => {
     expect(submit()).toBe(true);
   });
 
+  it('sends again once another file is chosen, as after the browser stops the upload', () => {
+    renderUpload();
+    chooseFile('data.csv');
+    submit();
+
+    chooseFile('corrected.csv');
+    fireEvent.change(fileField());
+
+    expect(screen.getByRole('status').textContent).toBe('');
+    expect(submit()).toBe(true);
+  });
+
   it('steers the file picker to CSV files', () => {
     renderUpload();
 
