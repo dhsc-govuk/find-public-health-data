@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, Request } from '@playwright/test';
 
 /**
  * Where to press the button with the mouse, as a person does. Found once, before the first press:
@@ -12,18 +12,20 @@ async function pressPoint(button: Locator): Promise<{ x: number; y: number }> {
 }
 
 /**
- * Presses `button` twice, a moment apart as in a double click, while the form its first press
- * sent to `path` is still on its way: the form is held until the second press. Answers how many
- * forms the page sent to `path`.
+ * Presses `button` twice, as in a double click, while the form its first press sent to `path` is
+ * still on its way: the second press comes once that form has gone out, and the form is held
+ * until then. Answers how many forms the page sent to `path`.
  */
 export async function pressTwiceWhileSending(
   page: Page,
   button: Locator,
   path: string,
 ): Promise<() => number> {
+  const isForm = (request: Request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname === path;
   let sent = 0;
   page.on('request', (request) => {
-    if (request.method() === 'POST' && new URL(request.url()).pathname === path) sent += 1;
+    if (isForm(request)) sent += 1;
   });
   const pressedAgain = Promise.withResolvers<void>();
   await page.route(`**${path}`, async (route) => {
@@ -33,9 +35,10 @@ export async function pressTwiceWhileSending(
   });
 
   const { x, y } = await pressPoint(button);
+  // A second press straight after the first can be folded into it, so it waits for the form.
+  const firstSent = page.waitForRequest(isForm);
   await page.mouse.click(x, y);
-  // A press straight after the first sends no second form; one a moment later sends it again.
-  await page.waitForTimeout(300);
+  await firstSent;
   await page.mouse.click(x, y);
   pressedAgain.resolve();
 
