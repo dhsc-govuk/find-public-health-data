@@ -232,6 +232,29 @@ describe('valueTypeAndUnitsSection', () => {
       },
     ],
     [
+      'an other rate object over 300 characters, beside the questions left unanswered',
+      {
+        ...empty,
+        valueTypeId: VALUE_TYPE_IDS.crudeRate,
+        rateObject: 'other',
+        rateObjectDetail: 'x'.repeat(301),
+      },
+      {
+        hasCount: 'Select whether there is a count',
+        ratePer: 'Select what number the rate or proportion is per',
+        rateObjectDetail: 'What the rate or proportion is per must be 300 characters or fewer',
+      },
+    ],
+    [
+      'a rate number it does not offer, beside the questions left unanswered',
+      { ...empty, valueTypeId: VALUE_TYPE_IDS.crudeRate, ratePer: '50' },
+      {
+        hasCount: 'Select whether there is a count',
+        ratePer: 'Select what number the rate or proportion is per',
+        rateObject: 'Select what object the rate or proportion is per',
+      },
+    ],
+    [
       'a value type that is not an id',
       { ...empty, valueTypeId: 'Crude rate' },
       { valueTypeId: 'Select the value type' },

@@ -78,6 +78,15 @@ function yesNoOrNothing(error: string) {
   return z.enum(['', 'yes', 'no'], { error });
 }
 
+/** Whether every field the form sends is text, which the cross-field checks need. */
+function answersAsText(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    fields.options.every((field) => typeof (value as Record<string, unknown>)[field] === 'string')
+  );
+}
+
 /**
  * The follow-ups are required only where the value type, and the answers before them, ask them.
  * The form judges that a value type is chosen; the API also checks that it offers it.
@@ -149,11 +158,9 @@ const schema = z
       }
       if (asks.ratioFormat) unanswered('ratioFormat', SELECT_RATIO_FORMAT);
     },
-    // Also beside an unanswered value type, or refused text, so every refusal shows at once.
-    {
-      when: ({ issues }) =>
-        issues.every(({ code, path }) => code === 'custom' || path?.[0] === 'valueTypeId'),
-    },
+    // Also beside an unanswered value type, a choice not offered or text too long, so every
+    // refusal shows at once. Only answers the checks can read as text are checked.
+    { when: ({ value }) => answersAsText(value) },
   );
 
 /** A yes or no from the form as the answer it stands for, or null when it is unanswered. */
