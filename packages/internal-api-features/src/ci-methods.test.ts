@@ -18,13 +18,11 @@ const methods = [
   {
     id: '019fa38f-073f-764e-9ac6-1c4d03b1cb92',
     name: "Byar's method",
-    description: 'A standard description.',
     kind: 'standard',
   },
   {
     id: '019fa38f-0746-7e1c-8826-0ee5d2b83fef',
     name: 'Other method',
-    description: null,
     kind: 'other',
   },
 ] as const;

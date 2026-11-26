@@ -2,79 +2,56 @@
   {
     "id": "019fa38f-073f-764e-9ac6-1c4d03b1cb92",
     "name": "Byar's method",
-    "kind": "standard",
-    "description": "A confidence interval is a range of values that is used to quantify the imprecision in the estimate of a particular indicator. Specifically, it quantifies the imprecision that results from random variation in the measurement of the indicator. A wider confidence interval shows that the indicator value presented is likely to be a less precise estimate of the true underlying value.\n\nByar’s method1 gives very accurate approximate confidence intervals for counts based on the assumption of a Poisson distribution. It is sufficiently accurate for counts as low as 10 (below 10, an exact method should be used, based on Poisson tables or the Chi-squared distribution). Byar’s method is the preferred method for calculating confidence intervals for counts, crude rates, indirectly standardised rates and indirectly standardised ratios, but it can also be used for proportions, as long as the proportions are small (much closer to zero than to one) as the Poisson distribution is a very good approximation to the Binomial distribution when the proportion being measured is small. The method is described in detail in APHO Technical Briefing 3: Commonly used public health statistics and their confidence intervals.2\n\n1 Breslow NE, Day NE. Statistical methods in cancer research, volume II: The design and analysis of cohort studies. Lyon: International Agency for Research on Cancer, World Health Organization; 1987: 69.\n2 Eayres D.  APHO Technical Briefing 3: Commonly used public health statistics and their confidence intervals York: APHO; 2008."
+    "kind": "standard"
   },
   {
     "id": "01a0cf11-4181-7609-888a-b75fa1ab8550",
     "name": "Byar's method (adjusted for repeat hospital admissions)",
-    "kind": "standard",
-    "description": null
-  },
-  {
-    "id": "019fa38f-0745-712e-aca8-62b7d9bee8ec",
-    "name": "Byar's method (no small number correction)",
-    "kind": "standard",
-    "description": null
+    "kind": "standard"
   },
   {
     "id": "019fa38f-0743-7fac-b512-96bed360f0bc",
     "name": "Chiang-Silcocks method",
-    "kind": "standard",
-    "description": null
+    "kind": "standard"
   },
   {
     "id": "019fa38f-0741-7452-91ab-2078b02cca97",
     "name": "Dobson & Byar's methods",
-    "kind": "standard",
-    "description": "A confidence interval is a range of values that is used to quantify the imprecision in the estimate of a particular indicator. Specifically, it quantifies the imprecision that results from random variation in the measurement of the indicator. A wider confidence interval shows that the indicator value presented is likely to be a less precise estimate of the true underlying value.\n\nDobson & Byar’s method is used for calculating confidence intervals for directly standardised rates. A confidence interval is calculated for the observed total count of events using Byar’s method,1 which gives very accurate approximate confidence intervals for counts based on the assumption of a Poisson distribution and is sufficiently accurate for counts as low as 10, the minimum count recommended for DSRs. This interval is then weighted and scaled to give the interval for the standardised rate using the method described by Dobson.2 The method is described in detail in APHO Technical Briefing 3: Commonly used public health statistics and their confidence intervals.3\n\n1 Breslow NE, Day NE. Statistical methods in cancer research, volume II: The design and analysis of cohort studies. Lyon: International Agency for Research on Cancer, World Health Organization; 1987: 69.\n2 Dobson A et al. Confidence intervals for weighted sums of Poisson parameters. Stat Med 1991;10: 457-62.\n3 Eayres D.  APHO Technical Briefing 3: Commonly used public health statistics and their confidence intervals York: APHO; 2008."
+    "kind": "standard"
   },
   {
     "id": "01a0cf50-3cb1-74aa-9ede-367b7f04ea96",
     "name": "Exact Poisson method",
-    "kind": "standard",
-    "description": null
+    "kind": "standard"
   },
   {
     "id": "019fa38f-0740-7aaa-a695-ca2615bea066",
     "name": "Newcombe-Wilson method",
-    "kind": "standard",
-    "description": null
+    "kind": "standard"
   },
   {
     "id": "019fa38f-0748-74b5-83b2-f5dfebffaf22",
     "name": "No confidence intervals available",
-    "kind": "none",
-    "description": null
+    "kind": "none"
   },
   {
     "id": "019fa38f-0746-7e1c-8826-0ee5d2b83fef",
     "name": "Other method",
-    "kind": "other",
-    "description": null
+    "kind": "other"
   },
   {
     "id": "019fa38f-0744-72c8-811f-f7cb59dc5ad0",
     "name": "T-distribution method",
-    "kind": "standard",
-    "description": null
-  },
-  {
-    "id": "019fa38f-0747-73bb-b8a4-bb6e8f3c244e",
-    "name": "Unknown",
-    "kind": "none",
-    "description": null
+    "kind": "standard"
   },
   {
     "id": "019fa38f-0742-7c1d-9c66-b357fe36fdc5",
     "name": "Wald normal approximation",
-    "kind": "standard",
-    "description": "A confidence interval is a range of values that is used to quantify the imprecision in the estimate of a particular indicator. Specifically, it quantifies the imprecision that results from random variation in the measurement of the indicator. A wider confidence interval shows that the indicator value presented is likely to be a less precise estimate of the true underlying value.\n\nNormal approximation methods can be used to calculate approximate confidence intervals for a wide variety of indicators. Any indicator value which is calculated as a mean of the observed values can be approximated with a Normal distribution as long as the sample size is sufficiently large. Distribution-specific methods should be used whenever possible, especially when the indicator is a rate with very low values, or a proportion with values close to zero or one, and the ease with which these can be applied through computation means it is rarely necessary to use normal approximation methods. However, in cases where the underlying distribution is complex or not known, normal approximation methods may be the only approach available.\n\nThe general form of all Normal approximation methods is:\nA 100(1 − α)% confidence interval for an indicator value,x, is given by: x ± z× SE(x)\nwhere α is the significance value specifying the width of the confidence interval, SE(x) is the standard error of the indicator value (estimated by different methods according to the statistic type) and z is the 100(1 − α/2)th percentile value from the Standard Normal distribution.\n\nFor example, for a 95% confidence interval, α = 0.05 and z = 1.96 (the 97.5th percentile value from the Standard Normal distribution).\n\nFor proportions, SE(x) is estimated by: √(x(1 − x)/n)\nwhere x is the indicator value (the observed proportion) and n is the denominator of the indicator value."
+    "kind": "standard"
   },
   {
     "id": "019fa38f-073e-7134-adeb-9c51d42f047b",
     "name": "Wilson Score method",
-    "kind": "standard",
-    "description": "A confidence interval is a range of values that is used to quantify the imprecision in the estimate of a particular indicator. Specifically, it quantifies the imprecision that results from random variation in the measurement of the indicator. A wider confidence interval shows that the indicator value presented is likely to be a less precise estimate of the true underlying value.\n\nThe Wilson Score method1 gives very accurate approximate confidence intervals for proportions and odds based on the assumption of a Binomial distribution. It can be used with any data values, even when the denominator is very small and, unlike some methods, it does not fail to give an interval when the numerator count, and therefore the proportion, is zero. The Wilson Score method is the preferred method for calculating confidence intervals for proportions and odds, but it can also be used for rates, as long as the event rate is low (relatively rare events within the population) as the Binomial distribution is a very good approximation to the Poisson distribution when the event rate is low. The method is described in detail in APHO Technical Briefing 3: Commonly used public health statistics and their confidence intervals.2\n\n1 Wilson EB. Probable inference, the law of succession, and statistical inference. J Am Stat Assoc 1927;22: 209-12.\n2 Eayres D. APHO Technical Briefing 3: Commonly used public health statistics and their confidence intervals York: APHO; 2008."
+    "kind": "standard"
   }
 ]

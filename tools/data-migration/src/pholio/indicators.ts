@@ -4,6 +4,7 @@ import { translatePolarity } from '../fingertips-lookups.ts';
 import { notesAndCaveats } from '../notes-and-caveats.ts';
 import { plainTextFromHtml } from '../plain-text.ts';
 import { indicatorAnalyticalSettings, type SourceGroupingSetting } from './analytical-settings.ts';
+import { ciMethodAnswers, type PholioCiMethod } from './ci-method.ts';
 import type { PholioExportOptions } from './context.ts';
 import { sourceUpdateFrequency } from './frequency.ts';
 import { type GroupingBaselineExclusion, loadObservationGroupings } from './groupings.ts';
@@ -114,6 +115,11 @@ export async function exportIndicators(context: PholioExportOptions) {
   for (const row of ciLevelRows) {
     if (row.ci_confidence_level) ciLevelById.set(row.IndicatorID, row.ci_confidence_level);
   }
+
+  const ciMethods = await queryPholio<PholioCiMethod>(
+    pool,
+    'SELECT CIMethodID AS id, Name AS name FROM dbo.L_CIMethods',
+  );
 
   // Load indicator metadata base columns.
   const metaRows = await queryPholio<IndicatorMetaRow>(
@@ -364,9 +370,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       methodology,
       calculated_by: null,
       calculated_by_detail: null,
-      ci_method_id: row.CIMethodID ?? null,
-      has_ci_method_modifications: null,
-      ci_method_modifications_detail: null,
+      ...ciMethodAnswers(row.CIMethodID ?? null, ciMethods),
       ci_method_detail: null,
       ci_confidence_level: ciLevel,
       fingertips_formatting: JSON.stringify({

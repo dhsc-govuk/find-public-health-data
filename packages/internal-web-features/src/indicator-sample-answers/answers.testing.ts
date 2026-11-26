@@ -18,7 +18,6 @@ export const sampleAnswerOptions: SampleAnswerOptions = {
     {
       id: '019a0000-0000-7000-8000-000000000005',
       name: "Byar's method",
-      description: null,
       kind: 'standard',
     },
   ],

@@ -6,7 +6,6 @@ const { ciMethod } = schema;
 const columns = {
   id: ciMethod.id,
   name: ciMethod.name,
-  description: ciMethod.description,
   kind: ciMethod.kind,
 };
 

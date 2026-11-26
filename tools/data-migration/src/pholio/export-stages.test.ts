@@ -802,6 +802,7 @@ function indicatorQueries(
     frequency?: string;
     frequencyProse?: string;
     frequencies?: { IndicatorID: number; FrequencyID: number | null; Name: string | null }[];
+    ciMethodId?: number | null;
   } = {},
   profileMetadata: Record<string, unknown>[] = [],
 ) {
@@ -836,6 +837,12 @@ function indicatorQueries(
         FormattingMaximum: metadata.formattingMaximum ?? null,
       })),
     )
+    .mockResolvedValueOnce([
+      { id: 1, name: 'Wilson Score method' },
+      { id: 2, name: "Byar's method" },
+      { id: 8, name: "Byar's method (no small number correction)" },
+      { id: 10, name: 'Unknown' },
+    ])
     .mockResolvedValueOnce(
       indicators.map(({ IndicatorID, Name }) => ({
         IndicatorID,
@@ -846,7 +853,7 @@ function indicatorQueries(
         YearTypeName: 'Calendar',
         YearTypeID: metadata.yearTypeId === undefined ? 1 : metadata.yearTypeId,
         OwnerProfileId: metadata.ownerProfileId === undefined ? 10 : metadata.ownerProfileId,
-        CIMethodID: null,
+        CIMethodID: metadata.ciMethodId ?? null,
         EnteredAt: new Date('2020-01-01T00:00:00Z'),
       })),
     )
@@ -871,6 +878,39 @@ function indicatorQueries(
     ])
     .mockResolvedValueOnce(profileMetadata);
 }
+it.each([
+  [
+    'keeps a method the service lists',
+    1,
+    {
+      ci_method_id: '1',
+      has_ci_method_modifications: DATA_MIGRATION_NULL,
+      ci_method_modifications_detail: DATA_MIGRATION_NULL,
+    },
+  ],
+  [
+    'leaves an unknown method unanswered',
+    10,
+    {
+      ci_method_id: DATA_MIGRATION_NULL,
+      has_ci_method_modifications: DATA_MIGRATION_NULL,
+      ci_method_modifications_detail: DATA_MIGRATION_NULL,
+    },
+  ],
+  [
+    "writes Byar's method with no small number correction as Byar's method, modified",
+    8,
+    {
+      ci_method_id: '2',
+      has_ci_method_modifications: 't',
+      ci_method_modifications_detail: 'No small number correction',
+    },
+  ],
+])('%s', async (_, ciMethodId, expected) => {
+  indicatorQueries(undefined, undefined, [], { ciMethodId });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject(expected);
+});
 it('exports only the approved indicators and uses plain text without damaging inequalities', async () => {
   indicatorQueries();
   const result = await exportIndicators(options);

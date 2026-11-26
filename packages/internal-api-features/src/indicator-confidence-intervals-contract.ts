@@ -9,8 +9,6 @@ export const ciMethodKindSchema = z.enum(CI_METHOD_KINDS);
 export const ciMethodSchema = z.object({
   id: z.uuid(),
   name: z.string().min(1),
-  /** The method's standard description, which not every method has yet. */
-  description: z.string().nullable(),
   kind: ciMethodKindSchema,
 });
 
@@ -29,15 +27,19 @@ const fields = z.enum([
 
 const SELECT_CI_METHOD = 'Select the confidence interval method used';
 
+const SELECT_MODIFICATIONS = 'Select whether any modifications to the described method were used';
+
+/** The message on the method a draft holds when the list of methods no longer offers it. */
+export const CI_METHOD_NO_LONGER_OFFERED =
+  'The confidence interval method saved is no longer available. Select another method';
+
 /**
  * What the form can judge alone: that a method is chosen. Which of the other answers are
  * required depends on the method's kind, which only the API reads, so it judges them.
  */
 const schema = z.object({
   ciMethodId: z.uuid(SELECT_CI_METHOD),
-  hasCiMethodModifications: z.enum(['', 'yes', 'no'], {
-    error: 'Select whether any modifications were used',
-  }),
+  hasCiMethodModifications: z.enum(['', 'yes', 'no'], { error: SELECT_MODIFICATIONS }),
   ciMethodModificationsDetail: longText('Description of the modifications'),
   ciMethodDetail: longText('Details of the other confidence interval method'),
 });
@@ -57,14 +59,14 @@ function missingCiMethodFollowUps(
 ): Partial<Record<ConfidenceIntervalsField, string>> {
   if (kind === 'other') {
     return ciMethodDetail === ''
-      ? { ciMethodDetail: 'Enter details of the other confidence interval method used' }
+      ? { ciMethodDetail: 'Enter details of the other confidence interval method' }
       : {};
   }
 
   if (kind === 'none') return {};
 
   if (hasCiMethodModifications === '') {
-    return { hasCiMethodModifications: 'Select whether any modifications were used' };
+    return { hasCiMethodModifications: SELECT_MODIFICATIONS };
   }
 
   return hasCiMethodModifications === 'yes' && ciMethodModificationsDetail === ''

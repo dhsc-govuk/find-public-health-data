@@ -62,7 +62,8 @@ describe('confidenceIntervalsSectionFor', () => {
       'standard',
       {},
       {
-        hasCiMethodModifications: 'Select whether any modifications were used',
+        hasCiMethodModifications:
+          'Select whether any modifications to the described method were used',
       },
     ],
     ['an unmodified standard method', 'standard', { hasCiMethodModifications: 'no' }, undefined],
@@ -83,7 +84,7 @@ describe('confidenceIntervalsSectionFor', () => {
       'other',
       {},
       {
-        ciMethodDetail: 'Enter details of the other confidence interval method used',
+        ciMethodDetail: 'Enter details of the other confidence interval method',
       },
     ],
     ['an other method detailed', 'other', { ciMethodDetail: 'Bootstrap' }, undefined],

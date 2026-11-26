@@ -13,7 +13,6 @@ export const ciMethodRecordSchema = z.object({
   id: z.uuidv7(),
   name: z.string().min(1),
   kind: z.enum(CI_METHOD_KINDS),
-  description: z.string().min(1).nullable(),
 });
 
 export type CiMethodRecord = z.infer<typeof ciMethodRecordSchema>;
@@ -61,10 +60,9 @@ export async function upsertCiMethods(
         set: {
           name: sql`excluded.name`,
           kind: sql`excluded.kind`,
-          description: sql`excluded.description`,
           updatedAt: sql`now()`,
         },
-        setWhere: sql`(${ciMethod.name}, ${ciMethod.kind}, ${ciMethod.description}) IS DISTINCT FROM (excluded.name, excluded.kind, excluded.description)`,
+        setWhere: sql`(${ciMethod.name}, ${ciMethod.kind}) IS DISTINCT FROM (excluded.name, excluded.kind)`,
       })
       .returning({ id: ciMethod.id, wasInsert: sql<boolean>`xmax = 0` });
 

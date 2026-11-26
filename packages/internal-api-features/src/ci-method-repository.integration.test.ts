@@ -13,7 +13,7 @@ beforeAll(async () => {
   await db
     .insert(schema.ciMethod)
     .values([
-      { name: 'Wilson Score method', description: 'A description.' },
+      { name: 'Wilson Score method' },
       { name: 'Other method', kind: 'other' },
       { name: "Byar's method (adjusted for repeat hospital admissions)" },
       { name: "Byar's method" },
@@ -25,18 +25,14 @@ afterAll(async () => {
 });
 
 describe('listCiMethods', () => {
-  it('lists every method by name, with its description and kind', async () => {
+  it('lists every method by name, with its kind', async () => {
     const methods = await listCiMethods(db);
 
-    expect(methods.map(({ name, description, kind }) => ({ name, description, kind }))).toEqual([
-      { name: "Byar's method", description: null, kind: 'standard' },
-      {
-        name: "Byar's method (adjusted for repeat hospital admissions)",
-        description: null,
-        kind: 'standard',
-      },
-      { name: 'Other method', description: null, kind: 'other' },
-      { name: 'Wilson Score method', description: 'A description.', kind: 'standard' },
+    expect(methods.map(({ name, kind }) => ({ name, kind }))).toEqual([
+      { name: "Byar's method", kind: 'standard' },
+      { name: "Byar's method (adjusted for repeat hospital admissions)", kind: 'standard' },
+      { name: 'Other method', kind: 'other' },
+      { name: 'Wilson Score method', kind: 'standard' },
     ]);
   });
 });
