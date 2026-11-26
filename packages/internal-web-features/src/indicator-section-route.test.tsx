@@ -21,12 +21,17 @@ describe('sectionBackLinkHandle', () => {
 
 describe('useSectionForm', () => {
   function SectionForm() {
-    const { values, version } = useSectionForm<'answer'>();
+    const { values, version, fieldErrors } = useSectionForm<'answer'>();
 
-    return <p>{`${values.answer} at ${version}`}</p>;
+    return (
+      <>
+        <p>{`${values.answer} at ${version}`}</p>
+        <p>{`Error: ${fieldErrors.answer ?? 'none'}`}</p>
+      </>
+    );
   }
 
-  function renderSection(actionData?: unknown) {
+  function renderSection(actionData?: unknown, loaderFieldErrors?: Record<string, string>) {
     const Stub = createRoutesStub([
       { id: 'section', path: '/section', Component: SectionForm, loader: () => null },
     ]);
@@ -34,7 +39,13 @@ describe('useSectionForm', () => {
     render(
       <Stub
         hydrationData={{
-          loaderData: { section: { values: { answer: 'Stored' }, version: 'loaded' } },
+          loaderData: {
+            section: {
+              values: { answer: 'Stored' },
+              version: 'loaded',
+              ...(loaderFieldErrors === undefined ? {} : { fieldErrors: loaderFieldErrors }),
+            },
+          },
           ...(actionData === undefined ? {} : { actionData: { section: actionData } }),
         }}
         initialEntries={['/section']}
@@ -52,5 +63,20 @@ describe('useSectionForm', () => {
     renderSection({ values: { answer: 'Typed' }, fieldErrors: {}, version: 'shown' });
 
     expect(await screen.findByText('Typed at shown')).toBeTruthy();
+  });
+
+  it('shows the errors the loader found in the stored answers before anything is submitted', async () => {
+    renderSection(undefined, { answer: 'No longer available' });
+
+    expect(await screen.findByText('Error: No longer available')).toBeTruthy();
+  });
+
+  it("shows the action's errors in place of the loader's after a rejected save", async () => {
+    renderSection(
+      { values: { answer: 'Typed' }, fieldErrors: { answer: 'Enter an answer' }, version: 'shown' },
+      { answer: 'No longer available' },
+    );
+
+    expect(await screen.findByText('Error: Enter an answer')).toBeTruthy();
   });
 });
