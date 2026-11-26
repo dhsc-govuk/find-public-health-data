@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
+import { openIndicatorPage } from '../support/indicator-page.ts';
 import {
   describeSectionPage,
   openSectionPage,
@@ -294,6 +295,39 @@ test('saves the data values on Continue, each with its own sources', async ({ pa
   await expect(answer(page, 'No')).toBeChecked();
   await expect(addedSources(page)).toHaveText([`${ONS}: Live births`, DEFRA]);
   await expect(page.getByLabel(dataValueDefinition(2), { exact: true })).toHaveValue('Households.');
+});
+
+test('shows each data value with its sources, definition and disclosure control on the preview', async ({
+  page,
+}) => {
+  const taskListPath = await openSectionPage(page, FORMAT_AND_SOURCES);
+  await answer(page, 'No').check();
+  await addSource(page, dataValueProvider(1), ONS, 'Live births');
+  await page.getByLabel(dataValueDefinition(1), { exact: true }).fill('Live births.');
+  await disclosureControl(page, 'this data value', 0).getByLabel('Yes', { exact: true }).check();
+  await disclosureControl(page, 'this data value', 0)
+    .getByLabel('Provide details')
+    .fill('Counts under 5 are suppressed.');
+  await page.getByRole('button', { name: 'Add another data value' }).click();
+  await addSource(page, dataValueProvider(2), DEFRA, 'No specific source');
+  await page.getByLabel(dataValueDefinition(2), { exact: true }).fill('Households.');
+  await disclosureControl(page, 'this data value', 1)
+    .getByLabel('Not applicable', { exact: true })
+    .check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page).toHaveURL(taskListPath);
+
+  const id = taskListPath.split('/')[3] ?? '';
+  await openIndicatorPage(page, `/dashboard/indicators/${id}/preview`);
+  await page.getByRole('tab', { name: 'About this indicator', exact: true }).click();
+  const about = page.getByRole('tabpanel', { name: 'About this indicator' });
+
+  await expect(about.getByRole('heading', { name: 'Data value 1', exact: true })).toBeVisible();
+  await expect(about.getByRole('heading', { name: 'Data value 2', exact: true })).toBeVisible();
+  await expect(about.getByRole('heading', { name: 'Numerator', exact: true })).toHaveCount(0);
+  await expect(about).toContainText(`${ONS}: Live births`);
+  await expect(about).toContainText('Households.');
+  await expect(about).toContainText('Counts under 5 are suppressed.');
 });
 
 test('saves nothing until Continue is selected', async ({ page }) => {

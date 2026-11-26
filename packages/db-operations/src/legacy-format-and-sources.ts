@@ -21,9 +21,9 @@ export const LEGACY_STAGED_COLUMN_DEFINITIONS =
  * Gives the staged versions, already inserted, the service's indicator format and sources from
  * what Fingertips holds, and answers how many source rows it wrote:
  *
- * - A version with a numerator and a denominator, each a definition or a source, has both. The
- *   numerator takes Fingertips' disclosure control answer, and the denominator's is left
- *   unanswered.
+ * - A version with a numerator and a denominator, each a definition that is not blank or a
+ *   source, has both. The numerator takes Fingertips' disclosure control answer, and the
+ *   denominator's is left unanswered.
  * - A version with only one of them has no numerator and denominator. Its one side becomes its
  *   single data value, with the disclosure control answer.
  * - A version with neither leaves the question unanswered.
@@ -49,9 +49,10 @@ export async function applyLegacyFormatAndSources(
   await tx.unsafe(`
     CREATE TEMP TABLE "${staged}_format" ON COMMIT DROP AS
     SELECT s.id,
-      s.numerator_definition IS NOT NULL OR s.numerator_source_id IS NOT NULL AS has_numerator,
-      s.denominator_definition IS NOT NULL OR s.denominator_source_id IS NOT NULL
-        AS has_denominator,
+      NULLIF(btrim(s.numerator_definition), '') IS NOT NULL OR s.numerator_source_id IS NOT NULL
+        AS has_numerator,
+      NULLIF(btrim(s.denominator_definition), '') IS NOT NULL
+        OR s.denominator_source_id IS NOT NULL AS has_denominator,
       CASE WHEN s.disclosure_control = 'no' THEN 'not-applicable' ELSE s.disclosure_control END
         AS disclosure_control,
       CASE WHEN s.disclosure_control = 'yes' THEN s.disclosure_control_detail END
@@ -80,7 +81,8 @@ export async function applyLegacyFormatAndSources(
   await tx.unsafe(`
     INSERT INTO indicator_version_data_value
       (indicator_version_id, position, definition, disclosure_control, disclosure_control_detail)
-    SELECT f.id, 0, COALESCE(s.numerator_definition, s.denominator_definition),
+    SELECT f.id, 0,
+      CASE WHEN f.has_numerator THEN s.numerator_definition ELSE s.denominator_definition END,
       f.disclosure_control, f.disclosure_control_detail
     FROM "${staged}_format" f
     JOIN "${staged}" s ON s.id = f.id

@@ -238,6 +238,22 @@ describe('applyDataMigration', () => {
       });
     });
 
+    it('counts a blank definition as no side', async () => {
+      await baseline({
+        upserts: fingertipsVersion({
+          numerator: 'Deaths',
+          denominator: ' ',
+          sources: [SOURCE_ID, null],
+        }),
+      });
+
+      expect(await imported()).toMatchObject({
+        answers: { hasNumeratorDenominator: false },
+        dataValues: [{ position: 0, definition: 'Deaths' }],
+        sources: [{ part: 'data-value', dataValuePosition: 0 }],
+      });
+    });
+
     it('leaves the question unanswered for a version with neither', async () => {
       await baseline({ upserts: fingertipsVersion({ disclosure: ['yes', 'Suppressed'] }) });
 
