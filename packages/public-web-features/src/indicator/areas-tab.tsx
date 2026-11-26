@@ -86,8 +86,12 @@ export function CompareAreasTab({
     segments,
   );
   const shownAreas = highlightedAreas(params, areaOptions);
-  const areasTabUrl = (next: URLSearchParams) =>
-    toShowing(`${location.pathname}?${next}`, SHOWING_ID);
+  // The tab is named in the query, as the fragment names the chips rather than the tab.
+  const areasTabUrl = (next: URLSearchParams) => {
+    const withTab = new URLSearchParams(next);
+    withTab.set('tab-indicator', 'areas');
+    return toShowing(`${location.pathname}?${withTab}`, SHOWING_ID);
+  };
   const comparisonPeriod = comparison.period;
   const comparisonGeography =
     compareAreaGroup === 'Local authorities'

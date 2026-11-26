@@ -88,6 +88,8 @@ export function CompareIndicatorsTab({
     const next = new URLSearchParams(params);
     next.delete('highlight', code);
     next.delete('neighbours', code);
+    // The tab is named in the query, as the fragment names the chips rather than the tab.
+    next.set('tab-indicator', 'compare');
     return toShowing(`${location.pathname}?${next}`, SHOWING_ID);
   };
   const selected = compared

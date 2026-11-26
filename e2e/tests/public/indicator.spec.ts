@@ -747,6 +747,30 @@ test('moves focus to what the Indicator tab shows when a chip is removed', async
   await expect(showing).toBeFocused();
 });
 
+// A link that named the tab only by its fragment must stay on that tab once a chip is removed,
+// as the remove link's fragment names the chips rather than the tab.
+test('stays on a comparison tab opened by its fragment when a chip is removed', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, `${MORTALITY_PATH}?highlight=E06000001#indicator-compare-areas`);
+  const tab = page.getByRole('tab', { name: 'Compare areas' });
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+
+  await page.getByRole('link', { name: 'Remove Hartlepool filter', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Remove Hartlepool filter' })).toHaveCount(0);
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#indicator-compare-areas-showing')).toBeFocused();
+
+  await openIndicatorPage(
+    page,
+    `${MORTALITY_PATH}?compareWith=241&highlight=E10000032#indicator-compare-indicators`,
+  );
+  const remove = page
+    .locator('#indicator-compare-indicators')
+    .getByRole('link', { name: 'Remove West Sussex filter', exact: true });
+  await expect(remove).toHaveAttribute('href', /[?&]tab-indicator=compare[&#]/);
+});
+
 test('moves focus to what each tab shows when a chip is removed without JavaScript', async ({
   browser,
   baseURL,
