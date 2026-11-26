@@ -17,7 +17,7 @@ export function IndicatorWithdrawalPage({ id, submissionNumber }: WithdrawalPage
       </p>
       <form action={indicatorWithdrawalPath(id)} method="post">
         <input name="submissionNumber" type="hidden" value={submissionNumber} />
-        <Button classModifiers="warning" preventDoubleClick type="submit">
+        <Button classModifiers="warning" type="submit">
           Withdraw submission
         </Button>
       </form>

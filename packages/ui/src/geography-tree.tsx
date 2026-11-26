@@ -1,10 +1,11 @@
-import Button from '@not-govuk/button';
 import Checkboxes from '@not-govuk/checkboxes';
 import Hint from '@not-govuk/hint';
 import Input from '@not-govuk/input';
 import Label from '@not-govuk/label';
 import Radios from '@not-govuk/radios';
 import { useEffect, useId, useRef, useState } from 'react';
+
+import { Button } from './button.tsx';
 
 export interface GeographyArea {
   code: string;

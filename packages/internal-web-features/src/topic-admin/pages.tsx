@@ -101,9 +101,7 @@ function TopicFields({ fieldErrors, values, submitLabel, version }: TopicFieldsP
         label="Description"
         name="description"
       />
-      <Button preventDoubleClick type="submit">
-        {submitLabel}
-      </Button>
+      <Button type="submit">{submitLabel}</Button>
     </form>
   );
 }
@@ -221,7 +219,7 @@ export function DeleteTopicPage({ topic }: { topic: TopicAdminDetailWithLinkCoun
       </p>
       {/* Plain form so it works without JavaScript; the POST is the confirmation. */}
       <form method="post">
-        <Button classModifiers="warning" preventDoubleClick type="submit">
+        <Button classModifiers="warning" type="submit">
           Delete topic
         </Button>
       </form>

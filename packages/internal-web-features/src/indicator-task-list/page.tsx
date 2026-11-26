@@ -41,7 +41,7 @@ function SubmitForm({ taskList }: { taskList: IndicatorTaskList }) {
       </h2>
       <form action={indicatorTaskListPath(taskList.indicator.id)} method="post">
         <input name="draftUpdatedAt" type="hidden" value={taskList.draftUpdatedAt} />
-        <Button preventDoubleClick type="submit">
+        <Button type="submit">
           {taskList.isUpdate ? 'Submit for review' : 'Submit for approval'}
         </Button>
       </form>
@@ -57,7 +57,7 @@ function SampleAnswersForm({ id }: { id: string }) {
         This button is only in development environments. It replaces any answers to tasks not yet
         completed, and any data table not yet confirmed.
       </InsetText>
-      <Button classModifiers="secondary" preventDoubleClick type="submit">
+      <Button classModifiers="secondary" type="submit">
         Fill in the remaining tasks with sample answers
       </Button>
     </form>

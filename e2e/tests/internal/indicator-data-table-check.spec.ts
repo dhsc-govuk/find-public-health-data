@@ -3,6 +3,8 @@ import { expect, type Page, test } from '@playwright/test';
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { createDraft, uniqueIndicatorName } from '../support/create-indicator.ts';
 import { dataTableRows, openDataTableCheck, uploadDataTable } from '../support/data-table.ts';
+import { pressTwiceWhileSending } from '../support/double-press.ts';
+import { expectHydrated } from '../support/govuk-frontend.ts';
 import { expectNotFoundWithoutDraft, taskRow } from '../support/section-page.ts';
 import { PUBLISHER } from '../support/sign-in.ts';
 
@@ -160,6 +162,22 @@ test('confirms the data table and returns to the task list showing it completed'
   await expect(taskRow(page, 'Data table')).toContainText('Completed');
   await taskRow(page, 'Data table').getByRole('link', { name: 'Data table' }).click();
   await expect(page).toHaveURL(`/publish/indicators/${id}/data-table/check`);
+});
+
+test('confirms the data table once when Continue is pressed twice, as in a double click', async ({
+  page,
+}) => {
+  const id = await openCheckPage(page);
+  await expectHydrated(page);
+
+  const confirmations = await pressTwiceWhileSending(
+    page,
+    page.getByRole('button', { name: 'Continue' }),
+    `/publish/indicators/${id}/data-table/check`,
+  );
+
+  await expect(page).toHaveURL(`/publish/indicators/${id}/task-list`);
+  expect(confirmations()).toBe(1);
 });
 
 test('links an unconfirmed data table on the task list to its check page', async ({ page }) => {

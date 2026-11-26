@@ -118,19 +118,17 @@ export function IndicatorSectionForm<Field extends string>(
             )}
             {/* Enter presses a form's first submit button: this Continue, out of sight and reach. */}
             {continueOnEnter ? (
-              <button
+              <Button
                 aria-hidden="true"
                 className="govuk-visually-hidden"
                 tabIndex={-1}
                 type="submit"
               >
                 Continue
-              </button>
+              </Button>
             ) : null}
             {children}
-            <Button preventDoubleClick type="submit">
-              {submitLabel}
-            </Button>
+            <Button type="submit">{submitLabel}</Button>
           </form>
         </GridColumn>
       </GridRow>

@@ -33,9 +33,7 @@ export function ActionsTab({
       <h2 className="govuk-heading-m">{heading}</h2>
       {button === null ? null : button.posts ? (
         <form action={button.href} method="post">
-          <Button preventDoubleClick type="submit">
-            {button.label}
-          </Button>
+          <Button type="submit">{button.label}</Button>
         </form>
       ) : (
         <Button href={button.href}>{button.label}</Button>

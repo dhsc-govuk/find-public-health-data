@@ -154,7 +154,9 @@ describe('IndicatorSectionForm', () => {
     expect(first?.getAttribute('name')).toBeNull();
     expect(first?.getAttribute('tabindex')).toBe('-1');
     expect(first?.getAttribute('aria-hidden')).toBe('true');
-    expect(first?.className).toBe('govuk-visually-hidden');
+    expect(first?.className).toContain('govuk-visually-hidden');
+    // Enter presses this one, so two quick presses must send the answers once, as a double click does.
+    expect(first?.getAttribute('data-prevent-double-click')).toBe('true');
     // Out of the accessibility tree, so the visible Continue is the only one announced.
     expect(screen.getAllByRole('button', { name: 'Continue' })).toEqual(
       others.filter((button) => button.textContent === 'Continue'),

@@ -1,5 +1,4 @@
 export { default as BackLink } from '@not-govuk/back-link';
-export { default as Button } from '@not-govuk/button';
 export { default as Checkboxes } from '@not-govuk/checkboxes';
 export { default as DateInput } from '@not-govuk/date-input';
 export { default as Details } from '@not-govuk/details';
@@ -25,6 +24,7 @@ export { AppDocument } from './app-document.tsx';
 export { type AppNavigationItem, AppShell } from './app-shell.tsx';
 export { Autocomplete, type AutocompleteOption } from './autocomplete.tsx';
 export { type BackLinkHandle, backLinkFrom, backLinkHandle } from './back-link-handle.ts';
+export { Button } from './button.tsx';
 export { CardList, type CardListItem } from './card-list.tsx';
 export { ChartSection } from './chart-section.tsx';
 export { NotFoundPage, PageIntro } from './content-page.tsx';
