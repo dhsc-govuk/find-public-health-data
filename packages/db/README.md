@@ -69,9 +69,9 @@ src/
   `@fphd/db-operations`), and no new migration inserts its rows.
 - **Yes/no answers and details**: a yes/no answer is `has_<subject>`, always positive, the text
   beside it `<subject>_detail`, and the text beside an "other" choice `<question>_detail`
-  (`calculated_by_detail`, `unit_detail`). The checks mirror the contract: a detail it requires
-  beside a yes is held there and nowhere else, `(has_x IS TRUE) = (x_detail IS NOT NULL)`; an
-  optional one is only refused elsewhere, `has_x IS TRUE OR x_detail IS NULL`. The detail of a
+  (`calculated_by_detail`, `count_measure_detail`). The checks mirror the contract: a detail it
+  requires beside a yes is held there and nowhere else, `(has_x IS TRUE) = (x_detail IS NOT NULL)`;
+  an optional one is only refused elsewhere, `has_x IS TRUE OR x_detail IS NULL`. The detail of a
   policy goal is `policy_detail` on that goal's row of `indicator_version_goal`, as a yes to
   `has_goal_benchmark` gives several goals, each with its own.
 - **Text length**: how long an answer may be, and which characters it may hold, is the contract's

@@ -111,7 +111,6 @@ export const valueTypeAndUnitsColumns: IndicatorSectionColumns<
       hasCount: yesNoAnswer(draft.hasCount),
       countMeasure: draft.countMeasure,
       countMeasureDetail: draft.countMeasureDetail,
-      // An unticked box is the answer no, which the form shows as nothing sent.
       // The form shows an unticked box for both no and unanswered.
       countIsEstimate: draft.countIsEstimate === true ? 'yes' : null,
       ratePer: draft.ratePer === null ? null : String(draft.ratePer),
