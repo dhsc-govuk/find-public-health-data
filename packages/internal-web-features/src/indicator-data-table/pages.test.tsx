@@ -391,7 +391,7 @@ describe('CheckDataTablePage', () => {
       within(row as HTMLElement)
         .getAllByRole('cell')
         .map((cell) => cell.textContent),
-    ).toEqual(['83.8', '83.7', '83.9', '2019/20', 'E92000001', 'Female', '']);
+    ).toEqual(['83.8', '83.7', '83.9', '2019/20', 'E92000001', 'Female', 'All ages']);
     expect(screen.getByText('Showing 1 to 10 of 52,365 rows')).toBeTruthy();
   });
 

@@ -1,4 +1,6 @@
 import {
+  ALL_AGES_NAME,
+  ALL_SEXES_NAME,
   type CheckColumnKey,
   checkColumnKeys,
   type DataTableCheck,
@@ -34,8 +36,9 @@ const COLUMNS: Record<CheckColumnKey, Omit<CheckColumn, 'key'>> = {
   upperCi998: { heading: 'Upper CI 99.8 limit', cell: (row) => number(row.upperCi998) },
   period: { heading: 'Period', cell: (row, yearType) => periodLabel(row, yearType) },
   areaCode: { heading: 'Area code', cell: (row) => row.areaCode },
-  sex: { heading: 'Sex', cell: (row) => row.sex ?? '' },
-  age: { heading: 'Age', cell: (row) => row.age ?? '' },
+  // A total is stored without the sex or age, so its empty cell shows the name a file gives it.
+  sex: { heading: 'Sex', cell: (row) => row.sex ?? ALL_SEXES_NAME },
+  age: { heading: 'Age', cell: (row) => row.age ?? ALL_AGES_NAME },
   categoryType: { heading: 'Category type', cell: (row) => row.categoryType ?? '' },
   category: { heading: 'Category', cell: (row) => row.category ?? '' },
   valueNote: { heading: 'Value note', cell: (row) => row.valueNotes.join('; ') },

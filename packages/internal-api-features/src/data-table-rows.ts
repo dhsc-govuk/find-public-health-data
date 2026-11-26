@@ -46,9 +46,13 @@ export type RowReading =
   | { ok: true; row: DataTableRow }
   | { ok: false; findings: DataTableFinding[] };
 
-// These mark a total, which is stored without the dimension, as an empty cell is.
-const ALL_SEXES = nameKey('Persons');
-const ALL_AGES = nameKey('All ages');
+/** The sex a file names a total by, which is stored without the dimension, as an empty cell is. */
+export const ALL_SEXES_NAME = 'Persons';
+/** The age a file names a total by, which is stored without the dimension, as an empty cell is. */
+export const ALL_AGES_NAME = 'All ages';
+
+const ALL_SEXES = nameKey(ALL_SEXES_NAME);
+const ALL_AGES = nameKey(ALL_AGES_NAME);
 
 // The cells a row cannot do without, in the columns the header has.
 const REQUIRED_CELLS = [
