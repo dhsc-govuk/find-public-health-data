@@ -16,7 +16,6 @@ const path = '/api/internal/value-types-and-units';
 
 const options = {
   valueTypes: [{ id: '01a0d8a5-3ca2-7315-bfca-96c7324d4347', name: 'Count' }],
-  units: [{ id: '01a0d8a5-3ca2-7315-bfca-96d615820bd4', name: '%' }],
 };
 
 function createTestApp(
@@ -30,7 +29,7 @@ function createTestApp(
 }
 
 describe('GET /api/internal/value-types-and-units', () => {
-  it('lists the value types and units as the repository gives them, in the shape the contract describes', async () => {
+  it('lists the value types as the repository gives them, in the shape the contract describes', async () => {
     const response = await request(
       createTestApp({ listOptions: vi.fn().mockResolvedValue(options) }),
     )
