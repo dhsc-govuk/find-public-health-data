@@ -328,3 +328,34 @@ test('has no WCAG 2.2 AA violations when no rows match', async ({ page }, testIn
 
   await expectNoAccessibilityViolations(page, testInfo);
 });
+
+// A chip's remove link goes with its chip, so focus moves to the selected values, or to the
+// column filters once none are left, with or without JavaScript.
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(javaScriptEnabled ? 'focus with JavaScript' : 'focus without JavaScript', () => {
+    test.use({ javaScriptEnabled });
+
+    test('moves focus to the selected values when one is removed, then to the filters', async ({
+      page,
+    }) => {
+      await openDataTableCheck(page, CSV);
+      if (javaScriptEnabled) {
+        await addValues(page, 'Period', '2003', '2004');
+      } else {
+        await page.getByRole('button', { name: 'Show values in Period' }).click();
+        await page.getByLabel('2003', { exact: true }).check();
+        await page.getByLabel('2004', { exact: true }).check();
+        await page.getByRole('button', { name: 'Add values' }).click();
+      }
+      await expect(chips(page)).toHaveCount(2);
+
+      await page.getByRole('link', { name: 'Remove 2003 (Period) filter' }).click();
+      await expect(chips(page)).toHaveCount(1);
+      await expect(page.getByRole('heading', { name: 'Selected values' })).toBeFocused();
+
+      await page.getByRole('link', { name: 'Remove 2004 (Period) filter' }).click();
+      await expect(chips(page)).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Column filters' })).toBeFocused();
+    });
+  });
+}

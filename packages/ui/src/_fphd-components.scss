@@ -951,7 +951,9 @@ body.govuk-frontend-supported .fphd-filter-card {
   padding: govuk-spacing(3);
 }
 
-// The heading takes focus from a script, not the keyboard, so it shows no outline.
+// The headings take focus only to show where the user now is, after values are added or removed,
+// so they show no outline.
+.fphd-column-filters__header h2:focus,
 .fphd-column-filters__selected h3:focus {
   outline: none;
 }
