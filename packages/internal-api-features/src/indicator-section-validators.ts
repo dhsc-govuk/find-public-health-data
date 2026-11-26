@@ -17,7 +17,6 @@ import {
   type PublishingDateField,
   publishingDateSection,
   REAL_PUBLISHING_TIME,
-  SELECT_UNITS,
   SELECT_VALUE_TYPE,
   SOURCE_NO_LONGER_OFFERED,
   subtopicRequiredMessage,
@@ -133,27 +132,20 @@ export function confidenceIntervalsServerSection(
   };
 }
 
-/** The form's schema, then that the value type and unit are ones the page offers. */
+/** The form's schema, then that the value type is one the page offers. */
 export function valueTypeAndUnitsServerSection(
   valueTypesAndUnits: InternalValueTypeAndUnitRepository,
 ): IndicatorSection<ValueTypeAndUnitsField, ValueTypeAndUnits> {
   return {
     ...valueTypeAndUnitsSection,
     schema: valueTypeAndUnitsSection.schema.transform(async (answers, ctx) => {
-      const { valueTypes, units } = await valueTypesAndUnits.listOptions();
-      const offers = (options: { id: string }[], id: string) => options.some((o) => o.id === id);
-      let refused = false;
+      const { valueTypes } = await valueTypesAndUnits.listOptions();
 
-      if (!offers(valueTypes, answers.valueTypeId)) {
+      if (!valueTypes.some(({ id }) => id === answers.valueTypeId)) {
         ctx.addIssue({ code: 'custom', path: ['valueTypeId'], message: SELECT_VALUE_TYPE });
-        refused = true;
+        return z.NEVER;
       }
-      if (!offers(units, answers.unitId)) {
-        ctx.addIssue({ code: 'custom', path: ['unitId'], message: SELECT_UNITS });
-        refused = true;
-      }
-
-      return refused ? z.NEVER : answers;
+      return answers;
     }),
   };
 }

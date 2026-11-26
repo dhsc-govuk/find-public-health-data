@@ -1,4 +1,4 @@
-import { UNIT_IDS, VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
 import {
   calculationColumns,
@@ -195,38 +195,103 @@ describe('valueTypeAndUnitsColumns', () => {
     standardPopulation: 'other',
     standardPopulationOther: 'England 2021',
     referencePopulation: 'England 2019',
-    unitDetail: 'people',
+    hasCount: 'yes',
+    countMeasure: 'other',
+    countMeasureDetail: 'beds',
+    countIsEstimate: 'yes',
+    ratePer: '1000',
+    rateObject: 'other',
+    rateObjectDetail: 'procedures',
+    valueSameAsCount: 'no',
+    valueMeasure: 'other',
+    valueMeasureDetail: 'patients',
+    gapObject: 'other',
+    gapObjectDetail: 'regions',
+    ratioFormat: 'percentage',
   } as const;
+  const nothingMore = {
+    standardPopulation: null,
+    standardPopulationDetail: null,
+    hasCount: null,
+    countMeasure: null,
+    countMeasureDetail: null,
+    countIsEstimate: null,
+    ratePer: null,
+    rateObject: null,
+    rateObjectDetail: null,
+    valueSameAsCount: null,
+    valueMeasure: null,
+    valueMeasureDetail: null,
+    gapObject: null,
+    gapObjectDetail: null,
+    ratioFormat: null,
+  };
 
   it.each([
     [
-      'the 2013 European Standard Population alone beside a directly standardised rate',
+      'the 2013 European Standard Population and the rate beside a directly standardised rate',
+      { valueTypeId: DSR, standardPopulation: 'esp-2013', countIsEstimate: '' },
       {
-        valueTypeId: DSR,
         standardPopulation: 'esp-2013',
-        unitId: '01a0d8a5-3ca2-7315-bfca-96daa0c93ee9',
+        hasCount: true,
+        countMeasure: 'other',
+        countMeasureDetail: 'beds',
+        countIsEstimate: false,
+        ratePer: 1000,
+        rateObject: 'other',
+        rateObjectDetail: 'procedures',
       },
-      { standardPopulation: 'esp-2013', standardPopulationDetail: null, unitDetail: null },
     ],
     [
       'an other standard population with its detail',
-      { valueTypeId: DSR, unitId: '01a0d8a5-3ca2-7315-bfca-96daa0c93ee9' },
-      { standardPopulation: 'other', standardPopulationDetail: 'England 2021', unitDetail: null },
+      { valueTypeId: DSR, hasCount: 'no' },
+      {
+        standardPopulation: 'other',
+        standardPopulationDetail: 'England 2021',
+        hasCount: false,
+        ratePer: 1000,
+        rateObject: 'other',
+        rateObjectDetail: 'procedures',
+      },
     ],
     [
-      'the reference population beside an indirectly standardised value type',
-      { valueTypeId: ISR, unitId: '01a0d8a5-3ca2-7315-bfca-96d787920e40' },
-      { standardPopulation: null, standardPopulationDetail: 'England 2019', unitDetail: null },
+      'the reference population and the count beside an indirectly standardised ratio',
+      { valueTypeId: ISR },
+      {
+        standardPopulationDetail: 'England 2019',
+        hasCount: true,
+        countMeasure: 'other',
+        countMeasureDetail: 'beds',
+        countIsEstimate: true,
+      },
     ],
     [
-      'no population beside any other value type, and an other unit with its name',
-      { valueTypeId: '01a0d8a5-3ca2-7315-bfca-96c7324d4347', unitId: UNIT_IDS.other },
-      { standardPopulation: null, standardPopulationDetail: null, unitDetail: 'people' },
+      'what a proportion measures when it is not what it counts',
+      { valueTypeId: VALUE_TYPE_IDS.proportion, countMeasure: 'people' },
+      {
+        hasCount: true,
+        countMeasure: 'people',
+        countIsEstimate: true,
+        valueSameAsCount: false,
+        valueMeasure: 'other',
+        valueMeasureDetail: 'patients',
+      },
     ],
+    [
+      'what a gap measures and is between',
+      { valueTypeId: VALUE_TYPE_IDS.gap, valueMeasure: 'percentage-points' },
+      { valueMeasure: 'percentage-points', gapObject: 'other', gapObjectDetail: 'regions' },
+    ],
+    [
+      'the format of a ratio',
+      { valueTypeId: VALUE_TYPE_IDS.ratio, hasCount: 'no' },
+      { hasCount: false, ratioFormat: 'percentage' },
+    ],
+    ['nothing more beside a score', { valueTypeId: VALUE_TYPE_IDS.score }, {}],
   ] as const)('writes %s, clearing what is not asked', (_, answers, attributes) => {
     expect(valueTypeAndUnitsColumns.toAttributes({ ...everyFollowUp, ...answers })).toEqual({
       valueTypeId: answers.valueTypeId,
-      unitId: answers.unitId,
+      ...nothingMore,
       ...attributes,
     });
   });
@@ -241,6 +306,29 @@ describe('valueTypeAndUnitsColumns', () => {
       'a reference population',
       { valueTypeId: ISR, standardPopulationDetail: 'England 2019' },
       { standardPopulationOther: null, referencePopulation: 'England 2019' },
+    ],
+    [
+      'the answers about the count and the rate',
+      {
+        valueTypeId: VALUE_TYPE_IDS.crudeRate,
+        hasCount: true,
+        countMeasure: 'people',
+        countIsEstimate: true,
+        ratePer: 100000,
+        rateObject: 'people',
+      },
+      {
+        hasCount: 'yes',
+        countMeasure: 'people',
+        countIsEstimate: 'yes',
+        ratePer: '100000',
+        rateObject: 'people',
+      },
+    ],
+    [
+      'a count that is not an estimate as an unticked box',
+      { valueTypeId: VALUE_TYPE_IDS.count, countMeasure: 'people', countIsEstimate: false },
+      { countIsEstimate: null },
     ],
   ] as const)('reads %s back into its own field', (_, draft, answers) => {
     expect(valueTypeAndUnitsColumns.fromDraft({ ...unansweredDraft, ...draft })).toMatchObject(

@@ -36,6 +36,10 @@ of those values. Most also export a `*_LABELS` record of the words the pages sho
 - `./ci-method-kind`: what choosing a confidence interval method asks of the publisher next.
 - `./classification-dimension`: the classification dimensions, and `TAGGING_DIMENSIONS`, the ones
   the tagging page sets.
+- `./counts-and-values`: what an indicator's counts and values measure and what its rates and gaps
+  are of, which of those questions a value type asks, and the "Counts" and "Values" phrases built
+  from the answers. `valuesUnit` is the values phrase without its number, which the public reads
+  beside a value.
 - `./disclosure-control`: whether disclosure control was applied.
 - `./indicator-sort`: the sort orders of the indicator search, and `indicatorSort`, which reads one
   from a query value. `SEARCH_SORTS` and `searchSort` are the orders the search page offers.
@@ -54,9 +58,8 @@ of those values. Most also export a `*_LABELS` record of the words the pages sho
 - `./standard-methods`: the standard description of each value type's calculation method and of each
   confidence interval method, as the publisher guidance and the Confidence intervals page give them.
 - `./update-frequency`: how often an indicator's data is updated.
-- `./value-type-and-unit`: the value type and unit ids the code behaves on, the value types whose
-  count is the numerator, how a value type is standardised, and `unitLabel`, the unit as the public
-  reads it.
+- `./value-type-and-unit`: the value type ids the code behaves on, the value types whose count is
+  the numerator, and how a value type is standardised.
 
 Periods, dates and observations:
 

@@ -9,7 +9,8 @@ indicator.csv.gz keeps only the identity columns; everything a publisher edits,
 including the whole of indicator_metadata.csv.gz, moves to a single published
 indicator_version row per indicator, under the actor the export already carries.
 The Pholio polarity and frequency references become the service's values, the
-value type and unit references the service's own rows, the year type reference
+value type reference the service's own row and the unit its answers about the
+counts and values, the year type reference
 the service's period type, year type and year end, and the disclosure control,
 caveats and notes prose becomes the service's answers. indicator_metadata.csv.gz,
 polarity.csv.gz, frequency.csv.gz, value_type.csv.gz, unit.csv.gz and
@@ -26,7 +27,7 @@ from notes_and_caveats import NOTES_AND_CAVEATS_COLUMNS, notes_and_caveats
 from polarity import polarity_value
 from slug import assign_slugs
 from update_frequency import update_frequency_value
-from value_type_and_unit import UNIT_COLUMNS, unit_values, value_type_id
+from value_type_and_unit import COUNTS_AND_VALUES_COLUMNS, counts_and_values, value_type_id
 from year_type import YEAR_TYPE_COLUMNS, year_type_values
 
 IDENTITY_COLUMNS = ["id", "short_id", "data_updated_at", "created_at"]
@@ -41,7 +42,7 @@ VERSION_COLUMNS = [
     "name",
     "slug",
     "value_type_id",
-    *UNIT_COLUMNS,
+    *COUNTS_AND_VALUES_COLUMNS,
     *YEAR_TYPE_COLUMNS,
     "ci_method_id",
     "polarity",
@@ -98,15 +99,25 @@ def write_rows(path, columns, rows):
     os.replace(tmp, path)
 
 
-def translated_value_type_and_unit(row, value_type_names, unit_names):
-    """The version's value type and unit columns for a row referencing Pholio's lookup rows."""
-    columns = {"value_type_id": "", "unit_id": "", "unit_detail": ""}
+def translated_value_type_and_unit(row, value_type_names, unit_names, fingertips_id):
+    """The version's value type and counts and values columns for a row referencing Pholio's
+    lookup rows. A version with no value type answers nothing more."""
+    columns = {"value_type_id": "", **{column: "" for column in COUNTS_AND_VALUES_COLUMNS}}
     if row["value_type_id"]:
-        columns["value_type_id"] = value_type_id(value_type_names[row["value_type_id"]])
-    if row["unit_id"]:
-        unit = unit_values(unit_names[row["unit_id"]])
-        columns.update({column: value or "" for column, value in unit.items()})
+        name = value_type_names[row["value_type_id"]]
+        columns["value_type_id"] = value_type_id(name)
+        unit = unit_names[row["unit_id"]] if row["unit_id"] else "No unit"
+        answers = counts_and_values(name, unit, fingertips_id)
+        columns.update({column: _csv_value(value) for column, value in answers.items()})
     return columns
+
+
+def _csv_value(value):
+    if value is None:
+        return ""
+    if value is True or value is False:
+        return "t" if value else "f"
+    return str(value)
 
 
 def main(seed_dir):
@@ -165,7 +176,9 @@ def main(seed_dir):
                     ).items()
                 }
             )
-        version.update(translated_value_type_and_unit(row, value_type_names, unit_names))
+        version.update(
+            translated_value_type_and_unit(row, value_type_names, unit_names, row["short_id"])
+        )
         version["status"] = "published"
         version["is_locked"] = "t"
         version["published_at"] = row["updated_at"]

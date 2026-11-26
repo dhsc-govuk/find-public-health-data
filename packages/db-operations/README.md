@@ -20,8 +20,8 @@ share the receiver's format.
 
 ```
 data/                 Core content (topics.json, ci-methods.json, classifications.json,
-                      data-providers.json, value-types.json, units.json,
-                      comparator-methods.json and the upload reference catalogs), the map
+                      data-providers.json, value-types.json, comparator-methods.json
+                      and the upload reference catalogs), the map
                       from Fingertips' numerator and denominator sources onto it, the dummy
                       indicator relationship files and the committed seed (seed/)
 drizzle/              Generated migrations + drizzle-kit metadata — never edit applied ones
@@ -31,8 +31,8 @@ src/
   migrations.ts       migrateToLatest, and migration-status.ts to compare local and applied
   owner-group.ts      prepareOwnerGroup — the fphd_owner group that owns every object
   core-data.ts        importCoreData — loads the required core content (topics, CI methods,
-                      classifications, data providers, value types, units, comparator
-                      methods and upload reference data)
+                      classifications, data providers, value types, comparator methods
+                      and upload reference data)
   topic-import.ts     upsertTopics, the topics half of the core data import
   legacy-sources.ts   Maps Fingertips' numerator and denominator sources onto the providers
   indicator-topic-import.ts
@@ -113,11 +113,12 @@ records nothing in the audit log, which is for changes made through the service.
 
 Lookups a publisher chooses from are core data under the service's own names, with fixed ids, so
 every environment holds the same rows and the seed's relationship files can name them by id: the CI
-methods, data providers, value types, units and comparator methods. No new migration inserts a row
-of any of them. The value type and unit rows migration 0035 inserted carry the ids the files hold,
-and 0037 re-keys each comparator method a database already held to the id `comparator-methods.json`
-gives its name, deleting those the file lacks and stopping if a version names one of them.
-`value-types.json` and `units.json` list their rows in the order the publisher's form shows them,
+methods, data providers, value types and comparator methods. No new migration inserts a row of any
+of them. The value type rows migration 0035 inserted carry the ids the file holds, and the migration
+that replaced the units with the questions about counts and values deleted the two value types the
+file no longer lists. Migration 0037 re-keys each comparator method a database already held to the
+id `comparator-methods.json` gives its name, deleting those the file lacks and stopping if a version
+names one of them. `value-types.json` lists its rows in the order the publisher's form shows them,
 which the import stores as each row's `position`; code that behaves differently for a row keys it on
 the row's fixed id, kept as a constant in `@fphd/utils/value-type-and-unit`. The seed and the
 published snapshot still carry Pholio's `ci_method.csv.gz` and `comparator_method.csv.gz`, but
@@ -178,7 +179,7 @@ Refresh the committed catalogs when reference data changes. See
 [Refresh upload reference
 data](../../tools/data-migration/README.md#refresh-upload-reference-data).
 Deploy the operations image and run `db import-core-data` before applying a package that uses those
-new rows. The export and receiver share format version 10, which carries the reference catalogs in
+new rows. The export and receiver share format version 11, which carries the reference catalogs in
 full in incremental packages.
 
 The observation-series migrations create empty read models. For an existing environment, run

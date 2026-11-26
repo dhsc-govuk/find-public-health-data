@@ -13,6 +13,7 @@ NUMERATOR_VALUE_TYPES = (
     "Crude rate",
     "Directly standardised rate",
     "Indirectly standardised proportion",
+    "Indirectly standardised rate",
     "Indirectly standardised ratio",
     "Proportion",
     "Ratio",

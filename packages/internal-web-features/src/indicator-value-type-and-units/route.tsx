@@ -12,7 +12,7 @@ import { ValueTypeAndUnitsPage } from './page.tsx';
 
 export const loader = loadValueTypeAndUnits;
 
-// The form checks that a value type and unit are chosen; the API checks that it offers them.
+// The form checks that a value type is chosen; the API checks that it offers it.
 export const action = (args: ActionFunctionArgs) =>
   saveIndicatorSection(args, valueTypeAndUnitsSection);
 
@@ -21,10 +21,10 @@ export const meta = titleFromPage;
 export const handle = sectionBackLinkHandle;
 
 export function ValueTypeAndUnitsRoute() {
-  const { valueTypes, units } = useLoaderData<typeof loader>();
+  const { valueTypes } = useLoaderData<typeof loader>();
   const form = useSectionForm<ValueTypeAndUnitsField>();
 
-  return <ValueTypeAndUnitsPage {...form} units={units} valueTypes={valueTypes} />;
+  return <ValueTypeAndUnitsPage {...form} valueTypes={valueTypes} />;
 }
 
 export default ValueTypeAndUnitsRoute;

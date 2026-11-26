@@ -232,9 +232,9 @@ const forms: {
     'value type and units',
     valueTypeAndUnits,
     valueTypeAndUnitsSection,
-    'What are the value type and units used in this indicator?',
+    'Value types, counts and units',
     { valueTypeId: 'Select the value type' },
-    { valueTypes: [], units: [] },
+    { valueTypes: [] },
   ),
   sectionForm(
     'period type',

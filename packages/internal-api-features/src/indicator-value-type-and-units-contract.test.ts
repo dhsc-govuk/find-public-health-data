@@ -1,4 +1,4 @@
-import { UNIT_IDS, VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -15,8 +15,28 @@ const empty = {
   standardPopulation: '',
   standardPopulationOther: '',
   referencePopulation: '',
-  unitId: '',
-  unitDetail: '',
+  hasCount: '',
+  countMeasure: '',
+  countMeasureDetail: '',
+  countIsEstimate: '',
+  ratePer: '',
+  rateObject: '',
+  rateObjectDetail: '',
+  valueSameAsCount: '',
+  valueMeasure: '',
+  valueMeasureDetail: '',
+  gapObject: '',
+  gapObjectDetail: '',
+  ratioFormat: '',
+};
+
+const countedRate = {
+  ...empty,
+  valueTypeId: VALUE_TYPE_IDS.crudeRate,
+  hasCount: 'yes',
+  countMeasure: 'admissions',
+  ratePer: '100000',
+  rateObject: 'people',
 };
 
 describe('valueTypeAndUnitsSection', () => {
@@ -27,117 +47,220 @@ describe('valueTypeAndUnitsSection', () => {
         valueTypeId: DSR,
         standardPopulation: 'other',
         standardPopulationOther: ' England 2021\n',
-        unitId: UNIT_IDS.other,
-        unitDetail: '\tpeople ',
+        hasCount: 'no',
+        ratePer: '1000',
+        rateObject: 'other',
+        rateObjectDetail: '\tprocedures ',
       }),
     ).toEqual({
       ...empty,
       valueTypeId: DSR,
       standardPopulation: 'other',
       standardPopulationOther: 'England 2021',
-      unitId: UNIT_IDS.other,
-      unitDetail: 'people',
+      hasCount: 'no',
+      ratePer: '1000',
+      rateObject: 'other',
+      rateObjectDetail: 'procedures',
     });
   });
 
   it.each([
+    ['a value type that asks nothing more', { ...empty, valueTypeId: VALUE_TYPE_IDS.score }],
+    ['a counted rate', countedRate],
+    ['a counted estimate', { ...countedRate, countIsEstimate: 'yes' }],
     [
-      'a value type and unit that ask nothing more',
-      '01a0d8a5-3ca2-7315-bfca-96c7324d4347',
-      UNIT_IDS.noUnit,
+      'a count of an other measure it names',
+      {
+        ...empty,
+        valueTypeId: VALUE_TYPE_IDS.count,
+        countMeasure: 'other',
+        countMeasureDetail: 'beds',
+      },
     ],
     [
-      'a unit in the list beside any value type',
-      '01a0d8a5-3ca2-7315-bfca-96d2031a65e7',
-      '01a0d8a5-3ca2-7315-bfca-96d615820bd4',
+      'a proportion of the same thing as its count',
+      {
+        ...empty,
+        valueTypeId: VALUE_TYPE_IDS.proportion,
+        hasCount: 'yes',
+        countMeasure: 'people',
+        valueSameAsCount: 'yes',
+      },
     ],
-  ])('accepts %s', (_, valueTypeId, unitId) => {
-    expect(sectionFieldErrors(section, { ...empty, valueTypeId, unitId })).toBeUndefined();
+    [
+      'a proportion with no count, of what it measures',
+      {
+        ...empty,
+        valueTypeId: VALUE_TYPE_IDS.proportion,
+        hasCount: 'no',
+        valueMeasure: 'people',
+      },
+    ],
+    [
+      'a gap between what it names',
+      {
+        ...empty,
+        valueTypeId: VALUE_TYPE_IDS.gap,
+        valueMeasure: 'percentage-points',
+        gapObject: 'employment-rates',
+      },
+    ],
+    [
+      'a ratio as a percentage',
+      { ...empty, valueTypeId: VALUE_TYPE_IDS.ratio, hasCount: 'no', ratioFormat: 'percentage' },
+    ],
+    [
+      'the 2013 European Standard Population beside a directly standardised rate',
+      { ...countedRate, valueTypeId: DSR, standardPopulation: 'esp-2013' },
+    ],
+  ])('accepts %s', (_, body) => {
+    expect(sectionFieldErrors(section, body)).toBeUndefined();
   });
 
-  it('accepts the 2013 European Standard Population beside a directly standardised rate', () => {
+  it('asks nothing of a follow-up its value type does not show', () => {
     expect(
       sectionFieldErrors(section, {
         ...empty,
-        valueTypeId: DSR,
-        standardPopulation: 'esp-2013',
-        unitId: '01a0d8a5-3ca2-7315-bfca-96daa0c93ee9',
-      }),
-    ).toBeUndefined();
-  });
-
-  it('asks nothing of a follow-up its value type or unit does not show', () => {
-    expect(
-      sectionFieldErrors(section, {
-        ...empty,
-        valueTypeId: '01a0d8a5-3ca2-7315-bfca-96c8c77cad18',
+        valueTypeId: VALUE_TYPE_IDS.lifeExpectancy,
         standardPopulation: 'other',
-        unitId: '01a0d8a5-3ca2-7315-bfca-96d8d8d7aec2',
-        unitDetail: 'people',
+        countMeasure: 'other',
+        rateObject: 'other',
+        gapObject: 'other',
       }),
     ).toBeUndefined();
   });
 
   it.each([
-    ['an empty form', empty, { valueTypeId: 'Select the value type', unitId: 'Select the units' }],
+    ['an empty form', empty, { valueTypeId: 'Select the value type' }],
     [
-      'a directly standardised rate with no standard population, beside no unit',
+      'a directly standardised rate with nothing more',
       { ...empty, valueTypeId: DSR },
-      { standardPopulation: SELECT_STANDARD_POPULATION, unitId: 'Select the units' },
+      {
+        standardPopulation: SELECT_STANDARD_POPULATION,
+        hasCount: 'Select whether there is a count',
+        ratePer: 'Select what number the rate or proportion is per',
+        rateObject: 'Select what object the rate or proportion is per',
+      },
     ],
     [
       'an other standard population it does not name',
-      { ...empty, valueTypeId: DSR, standardPopulation: 'other', standardPopulationOther: ' ' },
-      { standardPopulationOther: ENTER_POPULATION, unitId: 'Select the units' },
+      {
+        ...countedRate,
+        valueTypeId: DSR,
+        standardPopulation: 'other',
+        standardPopulationOther: ' ',
+      },
+      { standardPopulationOther: ENTER_POPULATION },
     ],
     [
-      'an indirectly standardised value type with no reference population',
-      {
-        ...empty,
-        valueTypeId: VALUE_TYPE_IDS.indirectlyStandardisedProportion,
-        unitId: '01a0d8a5-3ca2-7315-bfca-96d615820bd4',
-      },
+      'an indirectly standardised rate with no reference population',
+      { ...countedRate, valueTypeId: VALUE_TYPE_IDS.indirectlyStandardisedRate },
       { referencePopulation: ENTER_POPULATION },
     ],
     [
-      'an other unit it does not name, beside no value type',
-      { ...empty, unitId: UNIT_IDS.other },
-      { valueTypeId: 'Select the value type', unitDetail: 'Enter the unit' },
+      'a counted rate that does not say what it counts',
+      { ...countedRate, countMeasure: '' },
+      { countMeasure: 'Select what the count is measuring' },
     ],
     [
-      'an other unit over 300 characters, beside the other refusals',
+      'an other rate object it does not name',
+      { ...countedRate, rateObject: 'other' },
+      { rateObjectDetail: 'Enter what the rate or proportion is per' },
+    ],
+    [
+      'a counted proportion that does not say whether its value measures the same thing',
+      {
+        ...empty,
+        valueTypeId: VALUE_TYPE_IDS.proportion,
+        hasCount: 'yes',
+        countMeasure: 'people',
+      },
+      { valueSameAsCount: 'Select whether the value is measuring the same thing as the count' },
+    ],
+    [
+      'a proportion of something else that does not say what',
+      {
+        ...empty,
+        valueTypeId: VALUE_TYPE_IDS.proportion,
+        hasCount: 'yes',
+        countMeasure: 'people',
+        valueSameAsCount: 'no',
+      },
+      { valueMeasure: 'Select what the value is measuring' },
+    ],
+    [
+      'a gap with nothing more',
+      { ...empty, valueTypeId: VALUE_TYPE_IDS.gap },
+      {
+        valueMeasure: 'Select what the value is measuring',
+        gapObject: 'Select what object the gap is the difference of',
+      },
+    ],
+    [
+      'an other gap object and value measure it does not name',
+      {
+        ...empty,
+        valueTypeId: VALUE_TYPE_IDS.gap,
+        valueMeasure: 'other',
+        gapObject: 'other',
+      },
+      {
+        valueMeasureDetail: 'Enter what the value is measuring',
+        gapObjectDetail: 'Enter what object the gap is the difference of',
+      },
+    ],
+    [
+      'a ratio that is neither a number nor a percentage',
+      { ...empty, valueTypeId: VALUE_TYPE_IDS.ratio, hasCount: 'no' },
+      { ratioFormat: 'Select whether the value is a number or a percentage' },
+    ],
+    [
+      'an other count measure over 300 characters, beside the other refusals',
       {
         ...empty,
         valueTypeId: DSR,
         standardPopulation: 'other',
-        unitId: UNIT_IDS.other,
-        unitDetail: 'x'.repeat(301),
+        hasCount: 'yes',
+        countMeasure: 'other',
+        countMeasureDetail: 'x'.repeat(301),
+        ratePer: '100',
+        rateObject: 'people',
       },
       {
         standardPopulationOther: ENTER_POPULATION,
-        unitDetail: 'Unit must be 300 characters or fewer',
+        countMeasureDetail: 'What the count is measuring must be 300 characters or fewer',
       },
     ],
     [
-      'a value type and unit that are not ids',
-      { ...empty, valueTypeId: 'Crude rate', unitId: 'per week' },
-      { valueTypeId: 'Select the value type', unitId: 'Select the units' },
+      'a value type that is not an id',
+      { ...empty, valueTypeId: 'Crude rate' },
+      { valueTypeId: 'Select the value type' },
     ],
     [
-      'a standard population it does not offer',
+      'choices it does not offer',
       {
-        ...empty,
+        ...countedRate,
         valueTypeId: DSR,
         standardPopulation: '1976',
-        unitId: '01a0d8a5-3ca2-7315-bfca-96daa0c93ee9',
+        countMeasure: 'hours',
+        ratePer: '50',
+        rateObject: 'beds',
       },
-      { standardPopulation: SELECT_STANDARD_POPULATION },
+      {
+        standardPopulation: SELECT_STANDARD_POPULATION,
+        countMeasure: 'Select what the count is measuring',
+        ratePer: 'Select what number the rate or proportion is per',
+        rateObject: 'Select what object the rate or proportion is per',
+      },
     ],
   ])('refuses %s', (_, body, fieldErrors) => {
     expect(sectionFieldErrors(section, body)).toEqual(fieldErrors);
   });
 
-  it.each([{}, { ...empty, unitDetail: 1 }])('refuses %o, which the form never sends', (body) => {
-    expect(sectionFieldErrors(section, body)).toBeDefined();
-  });
+  it.each([{}, { ...empty, countMeasureDetail: 1 }, { ...empty, countIsEstimate: 'no' }])(
+    'refuses %o, which the form never sends',
+    (body) => {
+      expect(sectionFieldErrors(section, body)).toBeDefined();
+    },
+  );
 });

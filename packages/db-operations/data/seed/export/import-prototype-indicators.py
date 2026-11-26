@@ -31,7 +31,11 @@ from legacy_sources import (
 from format_and_sources import format_and_sources
 from notes_and_caveats import notes_and_caveats
 from slug import slug_problem, slugify
-from value_type_and_unit import unit_name_for_label, unit_values, value_type_id
+from value_type_and_unit import (
+    counts_and_values,
+    unit_name_for_label,
+    value_type_id,
+)
 from year_type import year_type_values
 
 
@@ -390,7 +394,10 @@ def add_indicators(cur, metadata, seed_dir):
             """
             INSERT INTO indicator_version
               (id, indicator_id, status, is_locked, published_at, name, slug, value_type_id,
-               unit_id, unit_detail, period_type, year_type, year_end_day, year_end_month,
+               has_count, count_measure, count_measure_detail, count_is_estimate, rate_per,
+               rate_object, rate_object_detail, value_same_as_count, value_measure,
+               value_measure_detail, gap_object, gap_object_detail, ratio_format,
+               period_type, year_type, year_end_day, year_end_month,
                ci_method_id, polarity, update_frequency, comparator_method_id,
                ci_confidence_level, definition, rationale, methodology,
                has_numerator_denominator, numerator_definition, numerator_disclosure_control,
@@ -400,9 +407,9 @@ def add_indicators(cur, metadata, seed_dir):
                other_notes_detail, data_source_id, created_at, created_by, updated_at,
                updated_by)
             VALUES
-              (%s, %s, 'published', true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s)
+              (%s, %s, 'published', true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 version_id,
@@ -411,7 +418,7 @@ def add_indicators(cur, metadata, seed_dir):
                 descriptive["Name"],
                 version_slug(fingertips_id, descriptive["Name"]),
                 value_type_id(item["ValueType"]["Name"]),
-                *unit_values(unit_name).values(),
+                *counts_and_values(item["ValueType"]["Name"], unit_name, fingertips_id).values(),
                 *year_type_values(item["YearType"]["Name"]).values(),
                 one_id(cur, "ci_method", item["ConfidenceIntervalMethod"]["Name"]),
                 config["polarity"],

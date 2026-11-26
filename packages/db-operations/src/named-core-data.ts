@@ -40,12 +40,12 @@ export interface NamedUpsertResult {
 }
 
 /**
- * Upserts the value types or units, matched on id, each at its place in the file, which is
+ * Upserts the value types, matched on id, each at its place in the file, which is
  * the order the publisher's form lists them in. A row is rewritten only when the file disagrees.
  */
 export async function upsertOrderedNames(
   db: Database,
-  table: typeof schema.valueType | typeof schema.unit,
+  table: typeof schema.valueType,
   records: NamedRecord[],
 ): Promise<NamedUpsertResult> {
   const ids = new Set(records.map(({ id }) => id));

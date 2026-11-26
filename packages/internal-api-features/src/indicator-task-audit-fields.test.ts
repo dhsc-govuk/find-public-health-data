@@ -1,5 +1,5 @@
 import { schema } from '@fphd/db';
-import { UNIT_IDS, VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -136,8 +136,19 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       standardPopulation: 'other',
       standardPopulationOther: 'England 2021',
       referencePopulation: '',
-      unitId: UNIT_IDS.other,
-      unitDetail: 'people',
+      hasCount: 'yes',
+      countMeasure: 'other',
+      countMeasureDetail: 'beds',
+      countIsEstimate: 'yes',
+      ratePer: '100000',
+      rateObject: 'people',
+      rateObjectDetail: '',
+      valueSameAsCount: '',
+      valueMeasure: '',
+      valueMeasureDetail: '',
+      gapObject: '',
+      gapObjectDetail: '',
+      ratioFormat: '',
     }),
   'period-type': () =>
     savedFields(periodTypeColumns, {

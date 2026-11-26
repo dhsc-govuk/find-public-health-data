@@ -1,6 +1,13 @@
 import { isDeepStrictEqual } from 'node:util';
 
 import { INDICATOR_CALCULATED_BY_LABELS } from '@fphd/utils/calculated-by';
+import {
+  GAP_OBJECT_LABELS,
+  MEASURE_LABELS,
+  RATE_OBJECT_LABELS,
+  RATE_PER_LABELS,
+  RATIO_FORMAT_LABELS,
+} from '@fphd/utils/counts-and-values';
 import { INDICATOR_DISCLOSURE_CONTROL_LABELS } from '@fphd/utils/disclosure-control';
 import { monthName, PERIOD_TYPE_LABELS, YEAR_TYPE_LABELS } from '@fphd/utils/period-type';
 import { type GoalPolarity, POLARITY_LABELS } from '@fphd/utils/polarity';
@@ -269,8 +276,19 @@ const CHANGED_SECTIONS: Readonly<
     standardPopulation: option(STANDARD_POPULATION_LABELS),
     standardPopulationOther: 'text',
     referencePopulation: 'text',
-    unitId: named,
-    unitDetail: 'text',
+    hasCount: yesNo,
+    countMeasure: option(MEASURE_LABELS),
+    countMeasureDetail: 'text',
+    countIsEstimate: option({ yes: 'Count is an estimate' }),
+    ratePer: option(RATE_PER_LABELS),
+    rateObject: option(RATE_OBJECT_LABELS),
+    rateObjectDetail: 'text',
+    valueSameAsCount: yesNo,
+    valueMeasure: option(MEASURE_LABELS),
+    valueMeasureDetail: 'text',
+    gapObject: option(GAP_OBJECT_LABELS),
+    gapObjectDetail: 'text',
+    ratioFormat: option(RATIO_FORMAT_LABELS),
   }),
   'other-notes-and-caveats': sectionOf(otherNotesAndCaveatsSection, otherNotesAndCaveatsColumns, {
     hasDataQualityIssues: yesNo,
@@ -423,7 +441,6 @@ export function referencedIds(version: IndicatorTaskAnswers): string[] {
   const ids = [
     version.ciMethodId,
     version.valueTypeId,
-    version.unitId,
     ...version.numeratorSources.flatMap(({ providerId, sourceId }) => [providerId, sourceId]),
     ...version.denominatorSources.flatMap(({ providerId, sourceId }) => [providerId, sourceId]),
     ...version.dataValues.flatMap(({ sources }) =>

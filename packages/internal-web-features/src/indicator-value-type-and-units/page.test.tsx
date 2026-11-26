@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ENTER_POPULATION } from '@fphd/internal-api-features/contract';
 import { serviceName } from '@fphd/ui';
-import { UNIT_IDS, VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
@@ -16,33 +16,46 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-const TITLE = 'What are the value type and units used in this indicator?';
+const TITLE = 'Value types, counts and units';
 
 const empty = {
   valueTypeId: '',
   standardPopulation: '',
   standardPopulationOther: '',
   referencePopulation: '',
-  unitId: '',
-  unitDetail: '',
+  hasCount: '',
+  countMeasure: '',
+  countMeasureDetail: '',
+  countIsEstimate: '',
+  ratePer: '',
+  rateObject: '',
+  rateObjectDetail: '',
+  valueSameAsCount: '',
+  valueMeasure: '',
+  valueMeasureDetail: '',
+  gapObject: '',
+  gapObjectDetail: '',
+  ratioFormat: '',
 };
 
 const STANDARD_POPULATION = 'What standard population has been used?';
 
 const VALUE_TYPES = [
-  { id: '01a0d8a5-3ca2-7315-bfca-96c8c77cad18', name: 'Crude rate' },
+  { id: VALUE_TYPE_IDS.count, name: 'Count' },
+  { id: VALUE_TYPE_IDS.crudeRate, name: 'Crude rate' },
   { id: VALUE_TYPE_IDS.directlyStandardisedRate, name: 'Directly standardised rate' },
+  { id: VALUE_TYPE_IDS.gap, name: 'Gap' },
   {
     id: VALUE_TYPE_IDS.indirectlyStandardisedProportion,
     name: 'Indirectly standardised proportion',
   },
+  { id: VALUE_TYPE_IDS.indirectlyStandardisedRate, name: 'Indirectly standardised rate' },
   { id: VALUE_TYPE_IDS.indirectlyStandardisedRatio, name: 'Indirectly standardised ratio' },
-];
-
-const UNITS = [
-  { id: '01a0d8a5-3ca2-7315-bfca-96daa0c93ee9', name: 'per 100,000' },
-  { id: UNIT_IDS.noUnit, name: 'No unit' },
-  { id: UNIT_IDS.other, name: 'Other' },
+  { id: VALUE_TYPE_IDS.lifeExpectancy, name: 'Life expectancy' },
+  { id: VALUE_TYPE_IDS.mean, name: 'Mean' },
+  { id: VALUE_TYPE_IDS.proportion, name: 'Proportion' },
+  { id: VALUE_TYPE_IDS.ratio, name: 'Ratio' },
+  { id: VALUE_TYPE_IDS.score, name: 'Score' },
 ];
 
 type Props = Parameters<typeof ValueTypeAndUnitsPage>[0];
@@ -51,13 +64,7 @@ function page(props: Partial<Props>) {
   // The error summary's links read router state, so the page renders inside a router.
   return (
     <MemoryRouter>
-      <ValueTypeAndUnitsPage
-        {...noRefusal}
-        units={UNITS}
-        values={empty}
-        valueTypes={VALUE_TYPES}
-        {...props}
-      />
+      <ValueTypeAndUnitsPage {...noRefusal} values={empty} valueTypes={VALUE_TYPES} {...props} />
     </MemoryRouter>
   );
 }
@@ -72,41 +79,31 @@ function renderWithoutJavaScript(props: Partial<Props> = {}) {
   document.body.innerHTML = renderToString(page(props));
 }
 
-function valueTypeSelect() {
-  return screen.getByLabelText('Select value type') as HTMLSelectElement;
+function input(name: string) {
+  return document.getElementById(`${name}-input`) as HTMLInputElement | HTMLSelectElement;
 }
 
-function unitSelect() {
-  return screen.getByLabelText('Select units') as HTMLSelectElement;
+function choose(name: string, value: string) {
+  fireEvent.change(input(name), { target: { value } });
 }
 
-function chooseValueType(id: string) {
-  fireEvent.change(valueTypeSelect(), { target: { value: id } });
+function radio(name: string, value: string) {
+  const found = document.querySelector<HTMLInputElement>(`input[name="${name}"][value="${value}"]`);
+  if (found === null) throw new Error(`no ${value} radio for ${name}`);
+  return found;
 }
 
-function chooseUnit(id: string) {
-  fireEvent.change(unitSelect(), { target: { value: id } });
+function answer(name: string, value: string) {
+  fireEvent.click(radio(name, value));
 }
 
-function shown(element: HTMLElement) {
+function shown(element: Element) {
   return element.closest('[hidden]') === null;
 }
 
 // Found even when hidden, which the role query otherwise skips.
 function standardPopulationQuestion() {
   return screen.getByRole('group', { name: STANDARD_POPULATION, hidden: true });
-}
-
-function referencePopulation() {
-  return document.getElementById('referencePopulation-input') as HTMLInputElement;
-}
-
-function standardPopulationOther() {
-  return document.getElementById('standardPopulationOther-input') as HTMLInputElement;
-}
-
-function unitDetail() {
-  return screen.getByLabelText('Enter unit') as HTMLInputElement;
 }
 
 /** The text of whatever describes this control. */
@@ -121,130 +118,315 @@ function optionsOf(select: HTMLSelectElement) {
   return [...select.options].map((option) => [option.value, option.text]);
 }
 
+function preview() {
+  const heading = screen.queryByRole('heading', { name: 'Preview of counts and values' });
+  if (heading === null) return null;
+  return [...(heading.parentElement?.querySelectorAll('.govuk-summary-list__row') ?? [])].map(
+    (row) => [...row.children].map((cell) => cell.textContent),
+  );
+}
+
+const FOLLOW_UPS = [
+  'hasCount',
+  'countMeasure',
+  'ratePer',
+  'rateObject',
+  'valueSameAsCount',
+  'valueMeasure',
+  'gapObject',
+  'ratioFormat',
+] as const;
+
+/** The follow-ups after the value type that show. */
+function askedFollowUps() {
+  return FOLLOW_UPS.filter((name) =>
+    name === 'hasCount' || name === 'valueSameAsCount' || name === 'ratioFormat'
+      ? shown(radio(name, name === 'ratioFormat' ? 'number' : 'yes'))
+      : shown(input(name)),
+  );
+}
+
 describe('ValueTypeAndUnitsPage', () => {
-  it('offers the value types and units it is given, in order, after an empty choice', () => {
+  it('offers the value types it is given, in order, after an empty choice', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { level: 1, name: TITLE })).toBeTruthy();
-    expect(valueTypeSelect().getAttribute('name')).toBe('valueTypeId');
-    expect(optionsOf(valueTypeSelect())).toEqual([
+    const valueType = screen.getByLabelText('What is the value type?') as HTMLSelectElement;
+    expect(valueType.getAttribute('name')).toBe('valueTypeId');
+    expect(optionsOf(valueType)).toEqual([
       ['', 'Select'],
       ...VALUE_TYPES.map(({ id, name }) => [id, name]),
     ]);
-    expect(unitSelect().getAttribute('name')).toBe('unitId');
-    expect(optionsOf(unitSelect())).toEqual([
+  });
+
+  it('offers the measures, rate numbers, rate objects and gap objects', () => {
+    renderPage();
+
+    expect(optionsOf(input('countMeasure') as HTMLSelectElement).map(([, label]) => label)).toEqual(
+      [
+        'Select',
+        '£',
+        'admissions',
+        'adults',
+        'births',
+        'cases',
+        'casualties',
+        'children',
+        'days',
+        'deaths',
+        'diagnoses',
+        'households',
+        'incidences',
+        'minutes',
+        'organisations',
+        'people',
+        'percentage points',
+        'person years',
+        'tests',
+        'vaccinations',
+        'years',
+        'Other',
+      ],
+    );
+    expect(optionsOf(input('ratePer') as HTMLSelectElement)).toEqual([
       ['', 'Select'],
-      ...UNITS.map(({ id, name }) => [id, name]),
+      ['1', '1'],
+      ['10', '10'],
+      ['100', '100'],
+      ['1000', '1,000'],
+      ['10000', '10,000'],
+      ['100000', '100,000'],
+      ['1000000', 'million'],
+      ['1000000000', 'billion'],
+    ]);
+    expect(optionsOf(input('rateObject') as HTMLSelectElement).map(([, label]) => label)).toEqual([
+      'Select',
+      'bed-days',
+      'capita',
+      'days',
+      'expected deaths',
+      'expected incidences',
+      'people',
+      'person years',
+      'smokers aged 16+',
+      'smokers aged 18+',
+      're-offender',
+      'STAR-PU',
+      'vehicle miles',
+      'Other',
+    ]);
+    expect(optionsOf(input('gapObject') as HTMLSelectElement).map(([, label]) => label)).toEqual([
+      'Select',
+      'employment rates',
+      'life expectancies',
+      'Other',
     ]);
   });
 
   describe('with JavaScript', () => {
-    it('asks nothing more until a value type and unit are chosen', () => {
+    it('asks nothing more until a value type is chosen', () => {
       renderPage();
 
       expect(shown(standardPopulationQuestion())).toBe(false);
-      expect(shown(referencePopulation())).toBe(false);
-      expect(shown(unitDetail())).toBe(false);
+      expect(shown(input('referencePopulation'))).toBe(false);
+      expect(askedFollowUps()).toEqual([]);
+      expect(preview()).toBeNull();
+    });
+
+    it.each([
+      [VALUE_TYPE_IDS.count, ['countMeasure']],
+      [VALUE_TYPE_IDS.crudeRate, ['hasCount', 'ratePer', 'rateObject']],
+      [VALUE_TYPE_IDS.indirectlyStandardisedRatio, ['hasCount']],
+      [VALUE_TYPE_IDS.proportion, ['hasCount']],
+      [VALUE_TYPE_IDS.ratio, ['hasCount', 'ratioFormat']],
+      [VALUE_TYPE_IDS.mean, ['valueMeasure']],
+      [VALUE_TYPE_IDS.gap, ['valueMeasure', 'gapObject']],
+      [VALUE_TYPE_IDS.lifeExpectancy, []],
+      [VALUE_TYPE_IDS.score, []],
+    ])('asks of value type %s only its own questions', (id, followUps) => {
+      renderPage();
+
+      choose('valueTypeId', id);
+
+      expect(askedFollowUps()).toEqual(followUps);
+    });
+
+    it('asks what a count measures, and whether it is an estimate, once there is one', () => {
+      renderPage();
+      choose('valueTypeId', VALUE_TYPE_IDS.crudeRate);
+
+      answer('hasCount', 'yes');
+
+      expect(askedFollowUps()).toEqual(['hasCount', 'countMeasure', 'ratePer', 'rateObject']);
+      expect(shown(screen.getByLabelText('Count is an estimate'))).toBe(true);
+
+      answer('hasCount', 'no');
+
+      expect(askedFollowUps()).toEqual(['hasCount', 'ratePer', 'rateObject']);
+    });
+
+    it('asks a counted proportion whether its value measures the same thing, and if not, what', () => {
+      renderPage();
+      choose('valueTypeId', VALUE_TYPE_IDS.proportion);
+      answer('hasCount', 'yes');
+
+      expect(askedFollowUps()).toEqual(['hasCount', 'countMeasure', 'valueSameAsCount']);
+
+      answer('valueSameAsCount', 'no');
+
+      expect(askedFollowUps()).toEqual([
+        'hasCount',
+        'countMeasure',
+        'valueSameAsCount',
+        'valueMeasure',
+      ]);
+    });
+
+    it('asks a proportion with no count what its value measures', () => {
+      renderPage();
+      choose('valueTypeId', VALUE_TYPE_IDS.proportion);
+
+      answer('hasCount', 'no');
+
+      expect(askedFollowUps()).toEqual(['hasCount', 'valueMeasure']);
+    });
+
+    it('keeps the count answers when a change of value type moves them out of the count question', () => {
+      renderPage();
+      choose('valueTypeId', VALUE_TYPE_IDS.crudeRate);
+      answer('hasCount', 'yes');
+      choose('countMeasure', 'admissions');
+      fireEvent.click(screen.getByLabelText('Count is an estimate'));
+
+      choose('valueTypeId', VALUE_TYPE_IDS.count);
+
+      expect(input('countMeasure').value).toBe('admissions');
+      expect((screen.getByLabelText('Count is an estimate') as HTMLInputElement).checked).toBe(
+        true,
+      );
+      expect(preview()).toEqual([
+        ['Counts', '-'],
+        ['Values', '[number] admissions'],
+      ]);
+    });
+
+    it('asks for the words under Other', () => {
+      renderPage();
+      choose('valueTypeId', VALUE_TYPE_IDS.count);
+
+      expect(shown(input('countMeasureDetail'))).toBe(false);
+
+      choose('countMeasure', 'other');
+
+      expect(shown(input('countMeasureDetail'))).toBe(true);
+      expect(description(input('countMeasureDetail'))).toBe(
+        'Use lowercase letters, except for proper nouns',
+      );
     });
 
     it('asks a directly standardised rate for its standard population', () => {
       renderPage();
 
-      chooseValueType(VALUE_TYPE_IDS.directlyStandardisedRate);
+      choose('valueTypeId', VALUE_TYPE_IDS.directlyStandardisedRate);
 
       expect(shown(standardPopulationQuestion())).toBe(true);
       expect(
         within(standardPopulationQuestion())
           .getAllByRole('radio', { hidden: true })
-          .map((radio) => radio.getAttribute('value')),
+          .map((each) => each.getAttribute('value')),
       ).toEqual(['esp-2013', 'other']);
-      expect(screen.getByLabelText('2013 European Standard Population')).toBeTruthy();
-      expect(shown(referencePopulation())).toBe(false);
+      expect(shown(input('referencePopulation'))).toBe(false);
     });
 
-    it.each(VALUE_TYPES.slice(2))('asks an $name for its reference population alone', ({ id }) => {
+    it.each([
+      VALUE_TYPE_IDS.indirectlyStandardisedProportion,
+      VALUE_TYPE_IDS.indirectlyStandardisedRate,
+      VALUE_TYPE_IDS.indirectlyStandardisedRatio,
+    ])('asks value type %s for its reference population alone', (id) => {
       renderPage();
 
-      chooseValueType(id);
+      choose('valueTypeId', id);
 
-      expect(shown(referencePopulation())).toBe(true);
+      expect(shown(input('referencePopulation'))).toBe(true);
       expect(shown(standardPopulationQuestion())).toBe(false);
     });
 
-    it('asks nothing more of any other value type', () => {
+    it('previews the counts and values once every question asked is answered', () => {
       renderPage();
+      choose('valueTypeId', VALUE_TYPE_IDS.crudeRate);
+      answer('hasCount', 'yes');
+      choose('countMeasure', 'admissions');
+      choose('ratePer', '100000');
 
-      chooseValueType('01a0d8a5-3ca2-7315-bfca-96c8c77cad18');
+      expect(preview()).toBeNull();
 
-      expect(shown(standardPopulationQuestion())).toBe(false);
-      expect(shown(referencePopulation())).toBe(false);
+      choose('rateObject', 'people');
+
+      expect(preview()).toEqual([
+        ['Counts', '[number] admissions'],
+        ['Values', '[number] admissions per 100,000 people'],
+      ]);
     });
 
-    it('asks an other unit for its name', () => {
+    it('previews no counts for a value type whose value is its count', () => {
       renderPage();
+      choose('valueTypeId', VALUE_TYPE_IDS.count);
+      choose('countMeasure', 'pounds');
 
-      chooseUnit(UNIT_IDS.other);
-
-      expect(shown(unitDetail())).toBe(true);
-
-      chooseUnit(UNIT_IDS.noUnit);
-
-      expect(shown(unitDetail())).toBe(false);
+      expect(preview()).toEqual([
+        ['Counts', '-'],
+        ['Values', '£[number]'],
+      ]);
     });
 
-    it('reveals the name of an other standard population under Other', () => {
-      renderPage({ values: { ...empty, valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate } });
-
-      const conditional = standardPopulationOther().closest('.govuk-radios__conditional');
-
-      expect(conditional?.className).toContain('govuk-radios__conditional--hidden');
-
-      fireEvent.click(screen.getByLabelText('Other'));
-
-      expect(conditional?.className).not.toContain('govuk-radios__conditional--hidden');
-    });
-
-    it('follows choices made before the page was hydrated', () => {
+    it('follows answers given before the page was hydrated', () => {
       const container = document.createElement('div');
       container.innerHTML = renderToString(page({}));
       document.body.append(container);
-      const [valueType, unit] = container.querySelectorAll('select');
-      if (valueType === undefined || unit === undefined) throw new Error('no selects');
+      const valueType = container.querySelector<HTMLSelectElement>('#valueTypeId-input');
+      if (valueType === null) throw new Error('no value type');
       valueType.value = VALUE_TYPE_IDS.indirectlyStandardisedRatio;
-      unit.value = UNIT_IDS.other;
 
       render(page({}), { container, hydrate: true });
 
-      expect(shown(referencePopulation())).toBe(true);
-      expect(shown(standardPopulationQuestion())).toBe(false);
-      expect(shown(unitDetail())).toBe(true);
+      expect(shown(input('referencePopulation'))).toBe(true);
+      expect(askedFollowUps()).toEqual(['hasCount']);
     });
 
-    it('drops the hints that name the choice each follow-up is for', () => {
+    it('drops the hints that name what each follow-up is for', () => {
       renderPage();
 
-      expect(screen.queryByText(/Only needed for/)).toBeNull();
+      expect(screen.queryByText(/Only needed/)).toBeNull();
     });
   });
 
   describe('without JavaScript', () => {
-    it('shows every follow-up, hinting at the choice each is for', () => {
+    it('shows every follow-up, hinting at what each is for', () => {
       renderWithoutJavaScript();
 
       expect(shown(standardPopulationQuestion())).toBe(true);
-      expect(shown(referencePopulation())).toBe(true);
-      expect(shown(unitDetail())).toBe(true);
+      expect(shown(input('referencePopulation'))).toBe(true);
+      expect(askedFollowUps()).toEqual(FOLLOW_UPS);
+      expect(description(input('countMeasure'))).toBe(
+        'Only needed for Count, or if there is a count',
+      );
+      expect(description(input('ratePer'))).toBe(
+        'Only needed for Crude rate, Directly standardised rate or Indirectly standardised rate',
+      );
+      expect(description(input('gapObject'))).toBe('Only needed for Gap');
+      expect(description(input('rateObjectDetail'))).toBe(
+        'Only needed for Other. Use lowercase letters, except for proper nouns',
+      );
       expect(
-        within(standardPopulationQuestion()).getByText(
-          'Only needed for Directly standardised rate',
+        screen.getByText(
+          'Only needed for Crude rate, Directly standardised rate, Indirectly standardised proportion, Indirectly standardised rate, Indirectly standardised ratio, Proportion or Ratio',
         ),
       ).toBeTruthy();
       expect(
         screen.getByText(
-          'Only needed for Indirectly standardised proportion or Indirectly standardised ratio',
+          'Only needed for Indirectly standardised proportion or Proportion, if there is a count',
         ),
       ).toBeTruthy();
-      expect(screen.getByText('Only needed for Other units')).toBeTruthy();
     });
 
     it('tells the two population boxes apart by their hints', () => {
@@ -252,7 +434,24 @@ describe('ValueTypeAndUnitsPage', () => {
 
       expect(screen.getAllByLabelText(ENTER_POPULATION).map(description)).toEqual([
         'Only needed for Other standard populations',
-        'Only needed for Indirectly standardised proportion or Indirectly standardised ratio',
+        'Only needed for Indirectly standardised proportion, Indirectly standardised rate or Indirectly standardised ratio',
+      ]);
+    });
+
+    it('previews the counts and values of complete answers', () => {
+      renderWithoutJavaScript({
+        values: {
+          ...empty,
+          valueTypeId: VALUE_TYPE_IDS.proportion,
+          hasCount: 'yes',
+          countMeasure: 'people',
+          valueSameAsCount: 'yes',
+        },
+      });
+
+      expect(preview()).toEqual([
+        ['Counts', '[number] people'],
+        ['Values', '[number]% of people'],
       ]);
     });
   });
@@ -264,16 +463,28 @@ describe('ValueTypeAndUnitsPage', () => {
         valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate,
         standardPopulation: 'other',
         standardPopulationOther: 'England 2021',
-        unitId: UNIT_IDS.other,
-        unitDetail: 'people',
+        hasCount: 'yes',
+        countMeasure: 'other',
+        countMeasureDetail: 'beds',
+        countIsEstimate: 'yes',
+        ratePer: '1000',
+        rateObject: 'people',
       },
     });
 
-    expect(valueTypeSelect().value).toBe(VALUE_TYPE_IDS.directlyStandardisedRate);
-    expect((screen.getByLabelText('Other') as HTMLInputElement).checked).toBe(true);
-    expect(standardPopulationOther().value).toBe('England 2021');
-    expect(unitSelect().value).toBe(UNIT_IDS.other);
-    expect(unitDetail().value).toBe('people');
+    expect(input('valueTypeId').value).toBe(VALUE_TYPE_IDS.directlyStandardisedRate);
+    expect(radio('standardPopulation', 'other').checked).toBe(true);
+    expect(input('standardPopulationOther').value).toBe('England 2021');
+    expect(radio('hasCount', 'yes').checked).toBe(true);
+    expect(input('countMeasure').value).toBe('other');
+    expect(input('countMeasureDetail').value).toBe('beds');
+    expect((screen.getByLabelText('Count is an estimate') as HTMLInputElement).checked).toBe(true);
+    expect(input('ratePer').value).toBe('1000');
+    expect(input('rateObject').value).toBe('people');
+    expect(preview()).toEqual([
+      ['Counts', '[number] beds'],
+      ['Values', '[number] beds per 1,000 people'],
+    ]);
     expect(document.title).toBe(`${TITLE} - ${serviceName} - GOV.UK`);
   });
 
@@ -281,7 +492,8 @@ describe('ValueTypeAndUnitsPage', () => {
     renderPage({
       values: { ...empty, valueTypeId: VALUE_TYPE_IDS.directlyStandardisedRate },
       fieldErrors: {
-        unitId: 'Select the units',
+        rateObject: 'Select what object the rate or proportion is per',
+        hasCount: 'Select whether there is a count',
         standardPopulation: 'Select the standard population used',
       },
     });
@@ -290,11 +502,13 @@ describe('ValueTypeAndUnitsPage', () => {
 
     expect(links.map((link) => link.textContent)).toEqual([
       'Select the standard population used',
-      'Select the units',
+      'Select whether there is a count',
+      'Select what object the rate or proportion is per',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      `#${screen.getByLabelText('2013 European Standard Population').id}`,
-      `#${unitSelect().id}`,
+      `#${radio('standardPopulation', 'esp-2013').id}`,
+      `#${radio('hasCount', 'yes').id}`,
+      `#${input('rateObject').id}`,
     ]);
   });
 
@@ -307,15 +521,15 @@ describe('ValueTypeAndUnitsPage', () => {
     const error = container.querySelector('.govuk-error-message');
     const link = within(screen.getByRole('alert')).getByRole('link');
 
-    expect(shown(referencePopulation())).toBe(true);
-    expect(referencePopulation().className).toContain('govuk-input--error');
-    expect(referencePopulation().getAttribute('aria-describedby')).toBe(error?.id);
-    expect(link.getAttribute('href')).toBe(`#${referencePopulation().id}`);
+    expect(shown(input('referencePopulation'))).toBe(true);
+    expect(input('referencePopulation').className).toContain('govuk-input--error');
+    expect(input('referencePopulation').getAttribute('aria-describedby')).toBe(error?.id);
+    expect(link.getAttribute('href')).toBe(`#${input('referencePopulation').id}`);
   });
 
-  it('sizes the unit name for 20 characters', () => {
+  it('sizes the words under Other for 20 characters', () => {
     renderPage();
 
-    expect(unitDetail().className).toContain('govuk-input--width-20');
+    expect(input('countMeasureDetail').className).toContain('govuk-input--width-20');
   });
 });

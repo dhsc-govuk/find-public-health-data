@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 
-import { UNIT_IDS } from '@fphd/utils/value-type-and-unit';
+import type {
+  GapObject,
+  Measure,
+  RateObject,
+  RatePer,
+  RatioFormat,
+} from '@fphd/utils/counts-and-values';
+import { ESTIMATED_COUNT_INDICATOR_IDS, VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 
 const coreDataDir = new URL('../../../../packages/db-operations/data/', import.meta.url);
 
@@ -13,8 +20,11 @@ function idsFromJson(file: string): Record<string, string> {
 }
 
 const valueTypeIdsByName: Record<string, string> = idsFromJson('value-types.json');
-const unitIdsByName: Record<string, string> = idsFromJson('units.json');
 
+/**
+ * Each Fingertips value type, by the service value type it becomes. Percentage point and Excess
+ * risk have no value type in the service, so an indicator of either stops the export.
+ */
 export const VALUE_TYPES: Readonly<Record<string, string>> = {
   ...Object.fromEntries(Object.keys(valueTypeIdsByName).map((name) => [name, name])),
   'Slope Index of Inequality': 'Slope index of inequality',
@@ -22,25 +32,10 @@ export const VALUE_TYPES: Readonly<Record<string, string>> = {
   Number: 'Count',
   'Months life lost': 'Count',
   'Rate ratio': 'Ratio',
-  'Indirectly standardised rate': 'Indirectly standardised proportion',
   'Unknown value type 21': 'Gap',
 };
 
-export const UNITS: Readonly<Record<string, string>> = {
-  Percent: '%',
-  'per 100': 'per 100',
-  'per 1,000': 'per 1,000',
-  'per 10,000': 'per 10,000',
-  'per 100,000': 'per 100,000',
-  'per 1,000,000': 'per 1,000,000',
-  Minutes: 'minutes',
-  Days: 'days',
-  Years: 'years',
-  '£': '£',
-  '£ per capita': '£ per capita',
-  'No unit': 'No unit',
-};
-
+/** The Fingertips names of the units Pholio has only a placeholder for. */
 export const UNIT_PLACEHOLDERS: Readonly<Record<string, string>> = {
   'Unknown unit 54': 'admissions',
   'Unknown unit 56': '£',
@@ -62,6 +57,84 @@ export const UNIT_PLACEHOLDERS: Readonly<Record<string, string>> = {
   'Unknown unit 76': 'Centimetre',
 };
 
+/**
+ * What a Fingertips unit says about an indicator's values: nothing more, that they are
+ * percentages, what they measure, or what number and object a rate is per. A measure or rate
+ * object outside the service's lists is "Other", named as Fingertips names it.
+ */
+export type UnitReading =
+  | { kind: 'none' }
+  | { kind: 'percent' }
+  | { kind: 'measure'; measure: Measure; detail: string | null }
+  | { kind: 'rate'; per: RatePer; object: RateObject | null; detail: string | null };
+
+const NONE: UnitReading = { kind: 'none' };
+
+function measure(measure: Measure): UnitReading {
+  return { kind: 'measure', measure, detail: null };
+}
+
+function otherMeasure(detail: string): UnitReading {
+  return { kind: 'measure', measure: 'other', detail };
+}
+
+function rate(per: RatePer, object: RateObject | null = null): UnitReading {
+  return { kind: 'rate', per, object, detail: null };
+}
+
+function rateOfOther(per: RatePer, detail: string): UnitReading {
+  return { kind: 'rate', per, object: 'other', detail };
+}
+
+/** Every Fingertips unit the export can read, by its Pholio name. */
+export const UNIT_READINGS: Readonly<Record<string, UnitReading>> = {
+  'No unit': NONE,
+  Count: NONE,
+  Score: NONE,
+  Percent: { kind: 'percent' },
+  'per 100': rate(100),
+  'per 1,000': rate(1000),
+  'per 10,000': rate(10000),
+  'per 100,000': rate(100000),
+  'per 1,000,000': rate(1000000),
+  'per 1,000 bed-days': rate(1000, 'bed-days'),
+  'per 10,000 bed-days': rate(10000, 'bed-days'),
+  'per 100,000 bed-days': rate(100000, 'bed-days'),
+  'per 100,000 smoking population aged 16+': rate(100000, 'smokers-aged-16-plus'),
+  'per 100,000 smoking population aged 18+': rate(100000, 'smokers-aged-18-plus'),
+  'per STAR-PU': rate(1, 'star-pu'),
+  'per re-offender': rate(1, 're-offender'),
+  'per 1,000,000,000 vehicle miles': rate(1000000000, 'vehicle-miles'),
+  'per 100 women aged 15-17': rateOfOther(100, 'women aged 15-17'),
+  'per 1,000 births': rateOfOther(1000, 'births'),
+  'per 1,000 live births': rateOfOther(1000, 'live births'),
+  'per 100,000 aged 16+': rateOfOther(100000, 'aged 16+'),
+  'per 100,000 aged 35+': rateOfOther(100000, 'aged 35+'),
+  'per 100,000 aged 65+': rateOfOther(100000, 'aged 65+'),
+  'per 10,000 aged 65+': rateOfOther(10000, 'aged 65+'),
+  'per 1,000 aged 65+': rateOfOther(1000, 'aged 65+'),
+  'per 100 procedures': rateOfOther(100, 'procedures'),
+  'per offender': rateOfOther(1, 'offender'),
+  'per 1,000, per day': rateOfOther(1000, 'per day'),
+  '£': measure('pounds'),
+  Minutes: measure('minutes'),
+  Days: measure('days'),
+  Years: measure('years'),
+  admissions: measure('admissions'),
+  Cases: measure('cases'),
+  population: measure('people'),
+  'Percentage points': measure('percentage-points'),
+  discharges: otherMeasure('discharges'),
+  'Kg/m2': otherMeasure('kg/m2'),
+  'litres per adult': otherMeasure('litres per adult'),
+  'µg/m-3 (micrograms per cubic meter)': otherMeasure('µg/m3'),
+  'Persons per km2': otherMeasure('persons per km2'),
+  Centimetre: otherMeasure('cm'),
+  'Average daily quantity': otherMeasure('average daily quantity'),
+  'Number of items prescribed': otherMeasure('items prescribed'),
+};
+
+/** The Pholio name of each unit the public Fingertips API labels, for the prototype seed. */
 export const UNIT_NAMES_BY_LABEL: Readonly<Record<string, string>> = {
   '%': 'Percent',
   'per 100': 'per 100',
@@ -72,37 +145,8 @@ export const UNIT_NAMES_BY_LABEL: Readonly<Record<string, string>> = {
   min: 'Minutes',
   Days: 'Days',
   Years: 'Years',
-  '£ per capita': '£ per capita',
   'No unit': 'No unit',
 };
-
-const UNKNOWN_UNIT_PREFIX = 'Unknown unit ';
-
-export function valueTypeId(name: string): string {
-  const serviceName = VALUE_TYPES[name];
-  if (serviceName === undefined)
-    throw new Error(`No value type for the Fingertips value type ${JSON.stringify(name)}`);
-  const id = valueTypeIdsByName[serviceName];
-  if (id === undefined)
-    throw new Error(`No value type for the Fingertips value type ${JSON.stringify(name)}`);
-  return id;
-}
-
-export function unitValues(name: string): { unit_id: string; unit_detail: string | null } {
-  const resolved = UNIT_PLACEHOLDERS[name] ?? name;
-  if (resolved in UNITS) {
-    const unitName = UNITS[resolved] as string;
-    const id = unitIdsByName[unitName];
-    if (id === undefined)
-      throw new Error(`No unit for the Fingertips unit ${JSON.stringify(name)}`);
-    return { unit_id: id, unit_detail: null };
-  }
-  const trimmed = resolved.replace(/ +$/g, '').replace(/^ +/g, '');
-  if (!trimmed || trimmed.startsWith(UNKNOWN_UNIT_PREFIX)) {
-    throw new Error(`No unit for the Fingertips unit ${JSON.stringify(name)}`);
-  }
-  return { unit_id: UNIT_IDS.other, unit_detail: trimmed };
-}
 
 export function unitNameForLabel(label: string): string {
   const name = UNIT_NAMES_BY_LABEL[label];
@@ -111,23 +155,145 @@ export function unitNameForLabel(label: string): string {
   return name;
 }
 
+export function valueTypeId(name: string): string {
+  const serviceName = VALUE_TYPES[name];
+  const id = serviceName === undefined ? undefined : valueTypeIdsByName[serviceName];
+  if (id === undefined)
+    throw new Error(`No value type for the Fingertips value type ${JSON.stringify(name)}`);
+  return id;
+}
+
+/** What a Fingertips unit says, by its Pholio name or placeholder, or undefined for none known. */
+export function unitReading(name: string): UnitReading | undefined {
+  return UNIT_READINGS[(UNIT_PLACEHOLDERS[name] ?? name).trim()];
+}
+
+/** The answers about an indicator's counts and values, as the version's columns hold them. */
+export interface CountsAndValuesColumns {
+  has_count: boolean | null;
+  count_measure: Measure | null;
+  count_measure_detail: string | null;
+  count_is_estimate: boolean | null;
+  rate_per: RatePer | null;
+  rate_object: RateObject | null;
+  rate_object_detail: string | null;
+  value_same_as_count: boolean | null;
+  value_measure: Measure | null;
+  value_measure_detail: string | null;
+  gap_object: GapObject | null;
+  gap_object_detail: string | null;
+  ratio_format: RatioFormat | null;
+}
+
+const UNANSWERED: CountsAndValuesColumns = {
+  has_count: null,
+  count_measure: null,
+  count_measure_detail: null,
+  count_is_estimate: null,
+  rate_per: null,
+  rate_object: null,
+  rate_object_detail: null,
+  value_same_as_count: null,
+  value_measure: null,
+  value_measure_detail: null,
+  gap_object: null,
+  gap_object_detail: null,
+  ratio_format: null,
+};
+
+const RATE_TYPES: readonly string[] = [
+  VALUE_TYPE_IDS.crudeRate,
+  VALUE_TYPE_IDS.directlyStandardisedRate,
+  VALUE_TYPE_IDS.indirectlyStandardisedRate,
+];
+const PROPORTION_TYPES: readonly string[] = [
+  VALUE_TYPE_IDS.proportion,
+  VALUE_TYPE_IDS.indirectlyStandardisedProportion,
+];
+const VALUE_MEASURE_TYPES: readonly string[] = [
+  VALUE_TYPE_IDS.mean,
+  VALUE_TYPE_IDS.median,
+  VALUE_TYPE_IDS.gap,
+  VALUE_TYPE_IDS.slopeIndexOfInequality,
+  VALUE_TYPE_IDS.relativeIndexOfInequality,
+];
+const YEAR_TYPES: readonly string[] = [
+  VALUE_TYPE_IDS.lifeExpectancy,
+  VALUE_TYPE_IDS.healthyLifeExpectancy,
+];
+
+/**
+ * The answers a value type and unit give, or undefined when the unit says something the answers
+ * to that value type cannot hold. Fingertips says nothing of whether there is a count, or what it
+ * measures beside a rate or a proportion, so those stay unanswered.
+ */
+function answersOf(
+  valueTypeId: string,
+  reading: UnitReading,
+): Partial<CountsAndValuesColumns> | undefined {
+  switch (reading.kind) {
+    case 'none':
+      return valueTypeId === VALUE_TYPE_IDS.ratio ? { ratio_format: 'number' } : {};
+    case 'percent':
+      if (PROPORTION_TYPES.includes(valueTypeId)) return {};
+      return valueTypeId === VALUE_TYPE_IDS.ratio ? { ratio_format: 'percentage' } : undefined;
+    case 'rate':
+      return RATE_TYPES.includes(valueTypeId)
+        ? { rate_per: reading.per, rate_object: reading.object, rate_object_detail: reading.detail }
+        : undefined;
+    case 'measure':
+      if (valueTypeId === VALUE_TYPE_IDS.count) {
+        return { count_measure: reading.measure, count_measure_detail: reading.detail };
+      }
+      if (VALUE_MEASURE_TYPES.includes(valueTypeId)) {
+        return { value_measure: reading.measure, value_measure_detail: reading.detail };
+      }
+      return YEAR_TYPES.includes(valueTypeId) && reading.measure === 'years' ? {} : undefined;
+  }
+}
+
+/**
+ * The answers about a Fingertips indicator's counts and values, from its value type, its unit and
+ * its id, or undefined when its unit cannot be expressed beside its value type. A survey's
+ * estimated count is recorded as an estimate.
+ */
+export function countsAndValuesColumns(
+  valueTypeName: string,
+  unitName: string,
+  fingertipsId: number,
+): CountsAndValuesColumns | undefined {
+  const reading = unitReading(unitName);
+  const answers =
+    reading === undefined ? undefined : answersOf(valueTypeId(valueTypeName), reading);
+  if (answers === undefined) return undefined;
+  return {
+    ...UNANSWERED,
+    ...answers,
+    count_is_estimate: ESTIMATED_COUNT_INDICATOR_IDS.includes(fingertipsId) ? true : null,
+  };
+}
+
+/**
+ * The value type and unit pairs of these indicators the answers cannot hold, each named
+ * "value type: unit", sorted. A value type the export cannot translate is left to that check.
+ */
+export function inexpressibleUnits(
+  indicators: Iterable<{ valueType: string; unit: string }>,
+): string[] {
+  const pairs = new Set<string>();
+  for (const { valueType, unit } of indicators) {
+    if (!(valueType in VALUE_TYPES)) continue;
+    if (countsAndValuesColumns(valueType, unit, 0) === undefined)
+      pairs.add(`${valueType}: ${unit}`);
+  }
+  return [...pairs].sort();
+}
+
 export function unknownValueTypes(names: Iterable<string>): string[] {
   const result: string[] = [];
   for (const name of names) {
     try {
       valueTypeId(name);
-    } catch {
-      result.push(name);
-    }
-  }
-  return result.sort();
-}
-
-export function unknownUnits(names: Iterable<string>): string[] {
-  const result: string[] = [];
-  for (const name of names) {
-    try {
-      unitValues(name);
     } catch {
       result.push(name);
     }

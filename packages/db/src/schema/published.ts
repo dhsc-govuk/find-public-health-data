@@ -1,5 +1,12 @@
 import { AGE_UNITS } from '@fphd/utils/age-range';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
+import {
+  GAP_OBJECTS,
+  MEASURES,
+  RATE_OBJECTS,
+  RATIO_FORMATS,
+  type RatePer,
+} from '@fphd/utils/counts-and-values';
 import type { SeriesPeriodType } from '@fphd/utils/observation-series';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
@@ -68,10 +75,6 @@ export const publishedClassification = publishedSchema
 
 export const publishedValueType = publishedSchema
   .view('value_type', { id: uuid('id').notNull(), name: text('name').notNull() })
-  .existing();
-
-export const publishedUnit = publishedSchema
-  .view('unit', { id: uuid('id').notNull(), name: text('name').notNull() })
   .existing();
 
 export const publishedCiMethod = publishedSchema
@@ -224,8 +227,19 @@ export function createVersionedViews(schema: PgSchema<string>) {
         // The canonical slug: the one the latest published version carries.
         slug: text('slug').notNull(),
         valueTypeId: uuid('value_type_id'),
-        unitId: uuid('unit_id'),
-        unitDetail: text('unit_detail'),
+        hasCount: boolean('has_count'),
+        countMeasure: text('count_measure', { enum: MEASURES }),
+        countMeasureDetail: text('count_measure_detail'),
+        countIsEstimate: boolean('count_is_estimate'),
+        ratePer: integer('rate_per').$type<RatePer>(),
+        rateObject: text('rate_object', { enum: RATE_OBJECTS }),
+        rateObjectDetail: text('rate_object_detail'),
+        valueSameAsCount: boolean('value_same_as_count'),
+        valueMeasure: text('value_measure', { enum: MEASURES }),
+        valueMeasureDetail: text('value_measure_detail'),
+        gapObject: text('gap_object', { enum: GAP_OBJECTS }),
+        gapObjectDetail: text('gap_object_detail'),
+        ratioFormat: text('ratio_format', { enum: RATIO_FORMATS }),
         yearType: text('year_type', { enum: YEAR_TYPES }),
         yearEndDay: smallint('year_end_day'),
         yearEndMonth: smallint('year_end_month'),
@@ -264,8 +278,19 @@ SELECT
   v.name,
   v.slug,
   v.value_type_id,
-  v.unit_id,
-  v.unit_detail,
+  v.has_count,
+  v.count_measure,
+  v.count_measure_detail,
+  v.count_is_estimate,
+  v.rate_per,
+  v.rate_object,
+  v.rate_object_detail,
+  v.value_same_as_count,
+  v.value_measure,
+  v.value_measure_detail,
+  v.gap_object,
+  v.gap_object_detail,
+  v.ratio_format,
   v.year_type,
   v.year_end_day,
   v.year_end_month,
@@ -496,7 +521,6 @@ export const publishedViews = {
   noteType: publishedNoteType,
   subtopic: publishedSubtopic,
   topic: publishedTopic,
-  unit: publishedUnit,
   valueType: publishedValueType,
   ...publishedVersionedViews,
 };

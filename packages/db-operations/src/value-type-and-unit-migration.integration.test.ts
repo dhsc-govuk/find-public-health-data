@@ -4,6 +4,7 @@ import { createTestDb, type TestDb } from '@fphd/db/testing';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { LEGACY_UNITS, LEGACY_VALUE_TYPES } from './legacy-value-types-and-units.testing.ts';
 import { migrateBefore, migrateThrough } from './testing.ts';
 
 const MIGRATION = '0035_value-type-and-units';
@@ -16,15 +17,10 @@ const PHOLIO: {
   readFileSync(new URL('./pholio-value-types-and-units.json', import.meta.url), 'utf-8'),
 );
 
-/** A core data file's rows, whose ids are the ones this migration inserts. */
-function coreRows(file: string): { id: string; name: string }[] {
-  return JSON.parse(readFileSync(new URL(`../data/${file}`, import.meta.url), 'utf-8'));
-}
+const VALUE_TYPES = LEGACY_VALUE_TYPES;
+const UNITS = LEGACY_UNITS;
 
-const VALUE_TYPES = coreRows('value-types.json');
-const UNITS = coreRows('units.json');
-
-function serviceId(values: { id: string; name: string }[], name: string): string {
+function serviceId(values: readonly { id: string; name: string }[], name: string): string {
   const value = values.find((candidate) => candidate.name === name);
   if (!value) throw new Error(`No service value named ${name}`);
   return value.id;

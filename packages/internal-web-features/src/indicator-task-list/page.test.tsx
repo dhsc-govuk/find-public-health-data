@@ -155,7 +155,7 @@ describe('IndicatorTaskListPage', () => {
 
     expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([
       'Data table',
-      'Value type and units',
+      'Value types, counts and units',
       'Sex, gender and ethnicity',
       'Ages',
       'Period type',
@@ -179,7 +179,7 @@ describe('IndicatorTaskListPage', () => {
   const NOTES = 'Notes for reviewers (not visible to consumers)';
 
   it.each([
-    ['Data', 'Value type and units', 'value-type-and-units'],
+    ['Data', 'Value types, counts and units', 'value-type-and-units'],
     ['Data', 'Sex, gender and ethnicity', 'sex-gender-and-ethnicity'],
     ['Data', 'Ages', 'ages'],
     ['Data', 'Period type', 'period-type'],

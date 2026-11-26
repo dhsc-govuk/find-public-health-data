@@ -83,6 +83,8 @@ test('a draft whose data is not yet shown in the preview reads "[Data isn\'t sho
   );
   await openTab(page, 'About this indicator');
   await expect(answerTo(page, 'Value type')).not.toHaveText('[Not entered yet]');
+  // The sample answers make it a count of people, so its values are labelled with what they count.
+  await expect(answerTo(page, 'Unit')).toHaveText('people');
   await expect(page.getByText('[Not entered yet]')).toHaveCount(0);
   await expectNoAccessibilityViolations(page, testInfo);
 });

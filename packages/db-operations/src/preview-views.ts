@@ -13,7 +13,7 @@ import type postgres from 'postgres';
  * `current_published_version`, reading `preview.current_published_version` instead. The published views
  * that choose versions some other way have a preview view written here by hand, and any other
  * such view stops the migration until it has one. A published view that reads no versioned data,
- * such as the areas or units, has no preview view: the preview reads the published one.
+ * such as the areas or value types, has no preview view: the preview reads the published one.
  *
  * Every statement runs with an empty search path, so `pg_get_viewdef` names every relation with
  * its schema, and the hand-written views name theirs too.
@@ -91,8 +91,19 @@ SELECT i.id,
   v.name,
   CASE WHEN v.published_at IS NULL THEN COALESCE(${PREVIEW_SLUG}, v.slug) ELSE v.slug END AS slug,
   v.value_type_id,
-  v.unit_id,
-  v.unit_detail,
+  v.has_count,
+  v.count_measure,
+  v.count_measure_detail,
+  v.count_is_estimate,
+  v.rate_per,
+  v.rate_object,
+  v.rate_object_detail,
+  v.value_same_as_count,
+  v.value_measure,
+  v.value_measure_detail,
+  v.gap_object,
+  v.gap_object_detail,
+  v.ratio_format,
   v.year_type,
   v.year_end_day,
   v.year_end_month,

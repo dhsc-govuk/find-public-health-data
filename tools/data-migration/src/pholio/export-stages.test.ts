@@ -926,7 +926,7 @@ it.each([
 ])(
   'preserves source formatting settings: maximum %s, override %s',
   async (maximum, decimalPlaces) => {
-    indicatorQueries('Percent', undefined, [], { formattingMaximum: maximum, decimalPlaces });
+    indicatorQueries('No unit', undefined, [], { formattingMaximum: maximum, decimalPlaces });
     await exportIndicators(options);
     expect(JSON.parse((await rows('indicator_version'))[0]?.fingertips_formatting ?? '{}')).toEqual(
       {
@@ -938,7 +938,7 @@ it.each([
 );
 
 it('retains formatting limits even when the indicator has no confidence intervals', async () => {
-  indicatorQueries('Percent', undefined, [], { formattingMaximum: 9.99, confidenceLevel: null });
+  indicatorQueries('No unit', undefined, [], { formattingMaximum: 9.99, confidenceLevel: null });
   await exportIndicators(options);
   const [version] = await rows('indicator_version');
   expect(version?.ci_confidence_level).toBe(DATA_MIGRATION_NULL);
@@ -1208,8 +1208,8 @@ it('requires a new review when a provisionally renamed source name changes', asy
   expect(await readdir(directory)).toEqual([]);
 });
 
-it.each(['', ' '])(
-  'refuses an unmappable approved unit before writing tables (%j)',
+it.each(['', ' ', 'per 100,000'])(
+  'refuses an approved unit its value type cannot hold before writing tables (%j)',
   async (unitName) => {
     indicatorQueries(unitName);
     await expect(exportIndicators(options)).rejects.toThrow(/Cannot translate units/);

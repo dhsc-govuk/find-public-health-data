@@ -41,6 +41,12 @@
       "types": "./src/control-character.ts",
       "default": "./dist/control-character.js"
     },
+    "./counts-and-values": {
+      "browser": "./src/counts-and-values.ts",
+      "development": "./src/counts-and-values.ts",
+      "types": "./src/counts-and-values.ts",
+      "default": "./dist/counts-and-values.js"
+    },
     "./disclosure-control": {
       "browser": "./src/disclosure-control.ts",
       "development": "./src/disclosure-control.ts",

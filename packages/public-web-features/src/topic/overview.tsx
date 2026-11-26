@@ -2,7 +2,7 @@ import { GridColumn, GridRow, SummaryList, Tag } from '@fphd/ui';
 import { indicatorPath } from '@fphd/utils/indicator-path';
 import { Link } from 'react-router';
 import { Sparkline } from '../indicator/charts/sparkline.tsx';
-import { formatCalculatedValue } from '../indicator/data.ts';
+import { formatCalculatedValue, unitParts } from '../indicator/data.ts';
 import { TrendTag } from '../indicator/trend-tag.tsx';
 import { searchUrl } from '../search/url.ts';
 import { TopicGeographies } from './geographies.tsx';
@@ -10,6 +10,24 @@ import type { loadTopicPage } from './loader.ts';
 
 type TopicData = Awaited<ReturnType<typeof loadTopicPage>>;
 type Overview = NonNullable<Awaited<TopicData['overview']>>;
+
+/** A highlight's value with its unit's signs, and the unit's words beside it in grey. */
+function HighlightValue({ unit, value }: { unit: string | null; value: number }) {
+  const { before, after, words } = unitParts(unit);
+  return (
+    <>
+      {before}
+      {formatCalculatedValue(value)}
+      {after}
+      {words ? (
+        <>
+          {' '}
+          <span className="govuk-hint">{words}</span>
+        </>
+      ) : null}
+    </>
+  );
+}
 
 export function TopicOverview({
   topic,
@@ -151,17 +169,7 @@ export function TopicOverview({
                       highlight.value == null ? (
                         'No data'
                       ) : (
-                        <>
-                          {formatCalculatedValue(highlight.value)}
-                          {highlight.unit === '%' ? (
-                            '%'
-                          ) : highlight.unit ? (
-                            <>
-                              {' '}
-                              <span className="govuk-hint">{highlight.unit}</span>
-                            </>
-                          ) : null}
-                        </>
+                        <HighlightValue unit={highlight.unit} value={highlight.value} />
                       ),
                   },
                   {

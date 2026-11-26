@@ -4,7 +4,13 @@ import { Fragment, type ReactNode, useId } from 'react';
 import { SpineChartKey } from '../charts/spine-chart.tsx';
 import type { BenchmarkChoice } from '../comparison.ts';
 import { formatConfidenceLimit } from '../confidence-interval.ts';
-import { type ConfidenceLevel, formatCalculatedValue, formatValue, segmentLabel } from '../data.ts';
+import {
+  type ConfidenceLevel,
+  formatCalculatedValue,
+  formatValue,
+  segmentLabel,
+  unitParts,
+} from '../data.ts';
 import type {
   BenchmarkGeography,
   IndicatorAreaData,
@@ -118,7 +124,7 @@ export function TrendTable({
           range.segment === referenceSegment && periods.some((period) => inPeriod(period)(range)),
       ),
     );
-  const valueSuffix = indicator.unit === '%' ? '%' : '';
+  const valueSuffix = unitParts(indicator.unit).after;
   // Every distinct value note gets a sequential marker, explained under the table.
   const noteTexts = [
     ...new Set(

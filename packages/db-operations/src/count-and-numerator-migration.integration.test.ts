@@ -1,11 +1,10 @@
-import { readFileSync } from 'node:fs';
-
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
 import { NUMERATOR_VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { LEGACY_VALUE_TYPES } from './legacy-value-types-and-units.testing.ts';
 import { migrateBefore, migrateThrough } from './testing.ts';
 
 const { SYSTEM_USER_IDS } = schema;
@@ -13,9 +12,7 @@ const { SYSTEM_USER_IDS } = schema;
 const MIGRATION = '0052_count-and-numerator';
 const ACTOR = SYSTEM_USER_IDS.testSeed;
 
-const VALUE_TYPES: { id: string; name: string }[] = JSON.parse(
-  readFileSync(new URL('../data/value-types.json', import.meta.url), 'utf-8'),
-);
+const VALUE_TYPES = LEGACY_VALUE_TYPES;
 
 function valueTypeId(name: string): string {
   const valueType = VALUE_TYPES.find((candidate) => candidate.name === name);

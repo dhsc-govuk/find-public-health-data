@@ -9,7 +9,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { loadIndicatorSection } from '../indicator-section.ts';
 
-/** The draft's answers, and every value type and unit the form offers. */
+/** The draft's answers, and every value type the form offers. */
 export async function loadValueTypeAndUnits(args: LoaderFunctionArgs) {
   // Checked before either request, so an id that names nothing asks the API for neither.
   requireIndicatorId(args.params);

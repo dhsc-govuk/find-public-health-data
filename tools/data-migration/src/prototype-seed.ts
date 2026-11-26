@@ -16,7 +16,11 @@ import { formatAndSources } from './format-and-sources.ts';
 import { legacySource, legacySourceIds, readLegacyMap } from './legacy-sources.ts';
 import { notesAndCaveats } from './notes-and-caveats.ts';
 import { countAndNumerator } from './pholio/observations.ts';
-import { unitNameForLabel, unitValues, valueTypeId } from './pholio/value-type-and-unit.ts';
+import {
+  countsAndValuesColumns,
+  unitNameForLabel,
+  valueTypeId,
+} from './pholio/value-type-and-unit.ts';
 import { yearTypeValues } from './pholio/year-type.ts';
 
 const indicatorConfig = {
@@ -293,12 +297,19 @@ async function addIndicators(
       { definition: descriptive.DenomDefinition ?? null, source: descriptive.DenomSource ?? null },
       { answer: nc.disclosure_control, detail: nc.disclosure_control_detail },
     );
-    const unit = unitValues(unitNameForLabel(item.Unit.Label));
+    const countsAndValues = countsAndValuesColumns(
+      item.ValueType.Name,
+      unitNameForLabel(item.Unit.Label),
+      Number(shortId),
+    );
+    if (countsAndValues === undefined) throw new Error(`Indicator ${shortId}: unit not translated`);
     const yt = yearTypeValues(item.YearType.Name);
     await tx`
       INSERT INTO indicator_version
         (id, indicator_id, status, is_locked, published_at, name, slug,
-         value_type_id, unit_id, unit_detail, period_type, year_type, year_end_day, year_end_month,
+         value_type_id, has_count, count_measure, count_measure_detail, count_is_estimate,
+         rate_per, rate_object, rate_object_detail, value_same_as_count, value_measure,
+         value_measure_detail, gap_object, gap_object_detail, ratio_format, period_type, year_type, year_end_day, year_end_month,
          ci_method_id, polarity,
          update_frequency, comparator_method_id, ci_confidence_level,
          definition, rationale, methodology, has_numerator_denominator,
@@ -311,7 +322,9 @@ async function addIndicators(
          created_at, created_by, updated_at, updated_by)
       VALUES (${versionId}, ${id}, 'published', true, ${updatedAt}, ${name}, ${slugify(name)},
         ${valueTypeId(item.ValueType.Name)},
-        ${unit.unit_id}, ${unit.unit_detail},
+        ${countsAndValues.has_count}, ${countsAndValues.count_measure}, ${countsAndValues.count_measure_detail}, ${countsAndValues.count_is_estimate},
+        ${countsAndValues.rate_per}, ${countsAndValues.rate_object}, ${countsAndValues.rate_object_detail}, ${countsAndValues.value_same_as_count}, ${countsAndValues.value_measure},
+        ${countsAndValues.value_measure_detail}, ${countsAndValues.gap_object}, ${countsAndValues.gap_object_detail}, ${countsAndValues.ratio_format},
         ${yt.period_type}, ${yt.year_type}, ${yt.year_end_day}, ${yt.year_end_month},
         ${await namedId(tx, 'ci_method', item.ConfidenceIntervalMethod.Name)},
         ${translatePolarity(config.polarity)},

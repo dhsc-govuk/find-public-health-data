@@ -9,7 +9,7 @@ import { encodeRow } from './csv.ts';
 import { ensureDirectory } from './files.ts';
 import { translateFrequency, translatePolarity } from './fingertips-lookups.ts';
 import { notesAndCaveats } from './notes-and-caveats.ts';
-import { unitValues, valueTypeId } from './pholio/value-type-and-unit.ts';
+import { countsAndValuesColumns, valueTypeId } from './pholio/value-type-and-unit.ts';
 import { yearTypeValues } from './pholio/year-type.ts';
 import { rekeyDirectory } from './prepare-baseline.ts';
 import { ACTOR_COLUMNS, actorUserId } from './seed-writers.ts';
@@ -156,8 +156,19 @@ async function writeIndicatorSplit(
     'published_at',
     'name',
     'value_type_id',
-    'unit_id',
-    'unit_detail',
+    'has_count',
+    'count_measure',
+    'count_measure_detail',
+    'count_is_estimate',
+    'rate_per',
+    'rate_object',
+    'rate_object_detail',
+    'value_same_as_count',
+    'value_measure',
+    'value_measure_detail',
+    'gap_object',
+    'gap_object_detail',
+    'ratio_format',
     'period_type',
     'year_type',
     'year_end_day',
@@ -213,7 +224,9 @@ async function writeIndicatorSplit(
     const vtName = row.value_type_name != null ? String(row.value_type_name) : null;
     const uName = row.unit_name != null ? String(row.unit_name) : null;
     const ytName = row.year_type_name != null ? String(row.year_type_name) : null;
-    const translatedUnit = uName != null ? unitValues(uName) : { unit_id: null, unit_detail: null };
+    const countsAndValues =
+      vtName != null ? countsAndValuesColumns(vtName, uName ?? 'No unit', Number(row.id)) : null;
+    if (countsAndValues === undefined) throw new Error(`Indicator ${id}: unit not translated`);
     const translatedYt = ytName != null ? yearTypeValues(ytName) : null;
     const versionRow: Record<string, unknown> = {
       id,
@@ -223,8 +236,7 @@ async function writeIndicatorSplit(
       published_at: row.updated_at,
       name: row.name,
       value_type_id: vtName != null ? valueTypeId(vtName) : null,
-      unit_id: translatedUnit.unit_id,
-      unit_detail: translatedUnit.unit_detail,
+      ...countsAndValues,
       period_type: translatedYt?.period_type ?? null,
       year_type: translatedYt?.year_type ?? null,
       year_end_day: translatedYt?.year_end_day ?? null,

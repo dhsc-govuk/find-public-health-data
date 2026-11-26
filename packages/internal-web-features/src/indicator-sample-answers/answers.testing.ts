@@ -9,10 +9,6 @@ export const sampleAnswerOptions: SampleAnswerOptions = {
       option('019a0000-0000-7000-8000-000000000001', 'Crude rate'),
       option('019a0000-0000-7000-8000-000000000002', 'Count'),
     ],
-    units: [
-      option('019a0000-0000-7000-8000-000000000003', 'per 1,000'),
-      option('019a0000-0000-7000-8000-000000000004', 'per 100'),
-    ],
   },
   ciMethods: [
     {

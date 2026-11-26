@@ -71,14 +71,13 @@ async function insertDraftOnlyIndicator(): Promise<void> {
 
   const [version] = await owner<{ id: string }[]>`
     INSERT INTO indicator_version
-      (indicator_id, status, name, slug, value_type_id, unit_id, period_type, year_type,
+      (indicator_id, status, name, slug, value_type_id, period_type, year_type,
        polarity, update_frequency, definition, created_by, updated_by)
     SELECT ${draftIndicatorId}, 'draft', 'grants-test draft indicator',
            'grants-test-draft-indicator',
-           vt.id, u.id, 'years', 'calendar', 'lower-is-better',
+           vt.id, 'years', 'calendar', 'lower-is-better',
            'annually', 'a draft definition', ${ACTOR}, ${ACTOR}
-    FROM value_type vt, unit u
-    WHERE u.name <> 'Other'
+    FROM value_type vt
     LIMIT 1
     RETURNING id
   `;
@@ -154,8 +153,19 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.name text',
   'indicator.slug text',
   'indicator.value_type_id uuid',
-  'indicator.unit_id uuid',
-  'indicator.unit_detail text',
+  'indicator.has_count boolean',
+  'indicator.count_measure text',
+  'indicator.count_measure_detail text',
+  'indicator.count_is_estimate boolean',
+  'indicator.rate_per integer',
+  'indicator.rate_object text',
+  'indicator.rate_object_detail text',
+  'indicator.value_same_as_count boolean',
+  'indicator.value_measure text',
+  'indicator.value_measure_detail text',
+  'indicator.gap_object text',
+  'indicator.gap_object_detail text',
+  'indicator.ratio_format text',
   'indicator.year_type text',
   'indicator.year_end_day smallint',
   'indicator.year_end_month smallint',

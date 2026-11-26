@@ -298,7 +298,10 @@ export const indicatorDetailSchema = z.object({
 export const indicatorPageDetailSchema = indicatorDetailSchema.extend({
   valueType: z.string().min(1).nullable(),
   polarity: z.enum(POLARITIES).nullable(),
-  /** The questions the draft hasn't answered. A null `unit` is "No unit" unless this names it. */
+  /**
+   * The questions the draft hasn't answered. A null `unit` shows values alone, unless this names
+   * it.
+   */
   unanswered: z.array(z.enum(INDICATOR_QUESTIONS)).optional(),
   dataState: z.enum(INDICATOR_DATA_STATES).optional(),
 });
