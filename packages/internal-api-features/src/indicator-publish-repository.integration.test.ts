@@ -31,6 +31,7 @@ const {
   indicatorVersionTopic,
   indicatorVersion,
   indicatorVersionAgeRange,
+  indicatorVersionDataValue,
   indicatorVersionGoal,
   indicatorVersionSource,
 } = schema;
@@ -596,6 +597,91 @@ describe('getPublishedAnswers', () => {
         subtopicIds: expect.arrayContaining([primary.id, secondary.id]),
       });
       expect(published.classifications).toHaveLength(3);
+      expect(
+        indicatorTaskList({
+          indicator,
+          draft: { ...draft, ciMethodKind: draftCiMethodKind },
+          published,
+          review: null,
+        }).changedTasks,
+      ).toEqual([]);
+    },
+  );
+
+  seededRepositoryTest(
+    'copies the data values of a published indicator without a numerator into its update draft, each with its sources in order, so no task looks changed',
+    async ({ db }) => {
+      const { indicatorId, currentId } = await indicatorWithTwoPublications(
+        db,
+        'Data values when published',
+      );
+      const { liveBirths, onsAlone } = await onsSources(db);
+      const admissions = {
+        definition: 'Admissions',
+        disclosureControl: 'yes' as const,
+        disclosureControlDetail: 'Counts under 5 suppressed',
+      };
+      const population = {
+        definition: 'Population',
+        disclosureControl: 'not-applicable' as const,
+        disclosureControlDetail: null,
+      };
+
+      await db
+        .update(indicatorVersion)
+        .set({
+          hasNumeratorDenominator: false,
+          numeratorDefinition: null,
+          denominatorDefinition: null,
+        })
+        .where(eq(indicatorVersion.id, currentId));
+      await db
+        .delete(indicatorVersionSource)
+        .where(eq(indicatorVersionSource.indicatorVersionId, currentId));
+      await db.insert(indicatorVersionDataValue).values([
+        { indicatorVersionId: currentId, position: 0, ...admissions },
+        { indicatorVersionId: currentId, position: 1, ...population },
+      ]);
+      // The data values' sources take positions that run on through them.
+      await db.insert(indicatorVersionSource).values([
+        {
+          indicatorVersionId: currentId,
+          part: 'data-value',
+          position: 0,
+          dataValuePosition: 0,
+          ...liveBirths,
+        },
+        {
+          indicatorVersionId: currentId,
+          part: 'data-value',
+          position: 1,
+          dataValuePosition: 0,
+          ...onsAlone,
+        },
+        {
+          indicatorVersionId: currentId,
+          part: 'data-value',
+          position: 2,
+          dataValuePosition: 1,
+          ...onsAlone,
+        },
+      ]);
+
+      expect(await createDraftFromPublished(db, indicatorId, AS_ACTOR)).toMatchObject({
+        ok: true,
+      });
+      const [state, published] = await Promise.all([
+        getIndicatorDraftState(db, indicatorId),
+        getPublishedAnswers(db, indicatorId),
+      ]);
+      if (!state?.draft || published === undefined) throw new Error('expected both versions');
+      const { draft, draftCiMethodKind, ...indicator } = state;
+
+      expect(draft.hasNumeratorDenominator).toBe(false);
+      expect(draft.dataValues).toEqual([
+        { ...admissions, sources: [liveBirths, onsAlone] },
+        { ...population, sources: [onsAlone] },
+      ]);
       expect(
         indicatorTaskList({
           indicator,
