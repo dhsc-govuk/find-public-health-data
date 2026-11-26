@@ -2,9 +2,9 @@
  * What Fingertips holds about one side of an indicator's calculation: its definition and the
  * name of its source, either of which may be missing.
  */
-export interface FingertipsSide<Source> {
+export interface FingertipsSide {
   definition: string | null;
-  source: Source | null;
+  source: string | null;
 }
 
 /** The disclosure control answer Fingertips gives for the whole indicator. */
@@ -14,23 +14,28 @@ export interface FingertipsDisclosureControl {
 }
 
 /** One figure of the service's calculation, with the source Fingertips names for it. */
-export interface FigureColumns<Source> {
+export interface FigureColumns {
   definition: string | null;
   disclosureControl: string | null;
   disclosureControlDetail: string | null;
-  source: Source | null;
+  source: string | null;
 }
 
 /** The service's indicator format and sources for one Fingertips indicator. */
-export interface FormatAndSources<Source> {
+export interface FormatAndSources {
   hasNumeratorDenominator: boolean | null;
-  numerator: FigureColumns<Source> | null;
-  denominator: FigureColumns<Source> | null;
-  dataValue: FigureColumns<Source> | null;
+  numerator: FigureColumns | null;
+  denominator: FigureColumns | null;
+  dataValue: FigureColumns | null;
 }
 
-function isPresent<Source>({ definition, source }: FingertipsSide<Source>): boolean {
-  return (definition !== null && definition.trim() !== '') || source !== null;
+function isBlank(text: string | null): boolean {
+  return text === null || text.trim() === '';
+}
+
+/** A side with a definition or a source; a blank name, which names no source, is none. */
+function isPresent({ definition, source }: FingertipsSide): boolean {
+  return !isBlank(definition) || !isBlank(source);
 }
 
 /**
@@ -40,11 +45,11 @@ function isPresent<Source>({ definition, source }: FingertipsSide<Source>): bool
  * numerator and the denominator's unanswered. One side makes a single data value, with the
  * disclosure control. Neither leaves the question unanswered. "No" becomes "not-applicable".
  */
-export function formatAndSources<Source>(
-  numerator: FingertipsSide<Source>,
-  denominator: FingertipsSide<Source>,
+export function formatAndSources(
+  numerator: FingertipsSide,
+  denominator: FingertipsSide,
   { answer, detail }: FingertipsDisclosureControl,
-): FormatAndSources<Source> {
+): FormatAndSources {
   const disclosureControl = answer === 'no' ? 'not-applicable' : answer;
   const disclosureControlDetail = answer === 'yes' ? detail : null;
   const hasNumerator = isPresent(numerator);

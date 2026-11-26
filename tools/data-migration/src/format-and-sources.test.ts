@@ -41,6 +41,12 @@ describe('formatAndSources', () => {
     ).toMatchObject({ hasNumeratorDenominator: false, dataValue: { definition: 'Deaths' } });
   });
 
+  it('counts a blank source name with no definition as no side', () => {
+    expect(
+      formatAndSources(deaths, { definition: null, source: ' ' }, { answer: null, detail: null }),
+    ).toMatchObject({ hasNumeratorDenominator: false, dataValue: { definition: 'Deaths' } });
+  });
+
   it('leaves the question unanswered with neither side', () => {
     expect(formatAndSources(none, none, { answer: 'yes', detail: 'Suppressed' })).toEqual({
       hasNumeratorDenominator: null,
