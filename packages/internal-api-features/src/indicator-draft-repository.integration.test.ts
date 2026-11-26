@@ -673,8 +673,6 @@ describe('updateIndicatorDraft', () => {
     [
       'the other notes and caveats answers',
       {
-        disclosureControl: 'yes',
-        disclosureControlDetail: 'Counts under 5 are suppressed.',
         hasRounding: false,
         roundingDetail: null,
         hasCaveats: true,

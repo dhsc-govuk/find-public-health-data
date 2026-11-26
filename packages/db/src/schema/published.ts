@@ -242,8 +242,9 @@ export function createVersionedViews(schema: PgSchema<string>) {
         rationale: text('rationale'),
         methodology: text('methodology'),
         numeratorDefinition: text('numerator_definition'),
+        numeratorDisclosureControlDetail: text('numerator_disclosure_control_detail'),
         denominatorDefinition: text('denominator_definition'),
-        disclosureControlDetail: text('disclosure_control_detail'),
+        denominatorDisclosureControlDetail: text('denominator_disclosure_control_detail'),
         caveatsDetail: text('caveats_detail'),
         otherNotesDetail: text('other_notes_detail'),
         dataSourceId: uuid('data_source_id'),
@@ -281,8 +282,9 @@ SELECT
   v.rationale,
   v.methodology,
   v.numerator_definition,
+  v.numerator_disclosure_control_detail,
   v.denominator_definition,
-  v.disclosure_control_detail,
+  v.denominator_disclosure_control_detail,
   v.caveats_detail,
   v.other_notes_detail,
   v.data_source_id,
@@ -363,7 +365,10 @@ JOIN indicator_version_goal g ON g.indicator_version_id = cpv.id
         classificationId: uuid('classification_id').notNull(),
       })
       .existing(),
-    /** The providers and sources of each published indicator's numerator and denominator. */
+    /**
+     * The providers and sources of each published indicator's numerator, denominator and data
+     * values. A data value's sources name its position.
+     */
     indicatorSource: schema
       .view('indicator_source', {
         indicatorId: uuid('indicator_id').notNull(),
@@ -371,6 +376,16 @@ JOIN indicator_version_goal g ON g.indicator_version_id = cpv.id
         position: smallint('position').notNull(),
         providerId: uuid('provider_id').notNull(),
         sourceId: uuid('source_id'),
+        dataValuePosition: smallint('data_value_position'),
+      })
+      .existing(),
+    /** The data values of each published indicator without a numerator and denominator. */
+    indicatorDataValue: schema
+      .view('indicator_data_value', {
+        indicatorId: uuid('indicator_id').notNull(),
+        position: smallint('position').notNull(),
+        definition: text('definition'),
+        disclosureControlDetail: text('disclosure_control_detail'),
       })
       .existing(),
     observation: schema
@@ -444,6 +459,7 @@ export const {
   indicatorSubtopic: publishedIndicatorSubtopic,
   indicatorClassification: publishedIndicatorClassification,
   indicatorSource: publishedIndicatorSource,
+  indicatorDataValue: publishedIndicatorDataValue,
   observation: publishedObservation,
   observationDimension: publishedObservationDimension,
   observationNote: publishedObservationNote,

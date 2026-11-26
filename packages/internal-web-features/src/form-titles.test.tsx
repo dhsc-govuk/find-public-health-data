@@ -31,11 +31,10 @@ import * as calculation from './indicator-calculation/route.tsx';
 import * as confidenceIntervals from './indicator-confidence-intervals/route.tsx';
 import * as dataQuality from './indicator-data-quality/route.tsx';
 import * as definitionAndRationale from './indicator-definition-and-rationale/route.tsx';
+import * as formatAndSources from './indicator-format-and-sources/route.tsx';
 import * as justifications from './indicator-justifications/route.tsx';
 import * as editIndicatorName from './indicator-name/edit-route.tsx';
 import * as newIndicator from './indicator-name/new-route.tsx';
-import * as denominator from './indicator-numerator-denominator/denominator-route.tsx';
-import * as numerator from './indicator-numerator-denominator/numerator-route.tsx';
 import * as otherComments from './indicator-other-comments/route.tsx';
 import * as otherNotesAndCaveats from './indicator-other-notes-and-caveats/route.tsx';
 import * as overview from './indicator-overview/route.tsx';
@@ -154,7 +153,31 @@ const tagOptions = {
   riskFactors: [],
 };
 
-const providerSourcesUnanswered = { sources: [], definition: '', providerId: '', sourceId: '' };
+const formatAndSourcesUnanswered = {
+  hasNumeratorDenominator: '',
+  numeratorSources: [],
+  numeratorDefinition: '',
+  numeratorDisclosureControl: '',
+  numeratorDisclosureControlDetail: '',
+  numeratorProviderId: '',
+  numeratorSourceId: '',
+  denominatorSources: [],
+  denominatorDefinition: '',
+  denominatorDisclosureControl: '',
+  denominatorDisclosureControlDetail: '',
+  denominatorProviderId: '',
+  denominatorSourceId: '',
+  dataValues: [
+    {
+      sources: [],
+      definition: '',
+      disclosureControl: '',
+      disclosureControlDetail: '',
+      providerId: '',
+      sourceId: '',
+    },
+  ],
+};
 
 const noteAdded = { reviewerNote: '', noteId: '', version: '' };
 
@@ -236,7 +259,7 @@ const forms: {
     otherNotesAndCaveats,
     otherNotesAndCaveatsSection,
     'Provide any other notes and caveats',
-    { disclosureControl: 'Select whether disclosure control has been applied' },
+    { hasRounding: 'Select whether rounding has been applied' },
   ),
   sectionForm(
     'publishing date',
@@ -247,21 +270,18 @@ const forms: {
     { isUpdate: false },
     { ...unanswered(publishingDateSection), ...DEFAULT_PUBLISHING_TIME },
   ),
-  ...(
-    [
-      ['numerator', numerator],
-      ['denominator', denominator],
-    ] as const
-  ).map(([part, route]) => ({
-    name: part,
-    route,
-    pageTitle: `What are the details of the ${part}?`,
-    loaderData: { id: indicator.id, values: providerSourcesUnanswered, providers: [] },
+  {
+    name: 'indicator format and sources',
+    route: formatAndSources,
+    pageTitle: 'Indicator format and sources',
+    loaderData: { id: indicator.id, values: formatAndSourcesUnanswered, providers: [] },
     rejected: {
-      values: providerSourcesUnanswered,
-      fieldErrors: { sources: `Add at least one data provider for the ${part}` },
+      values: formatAndSourcesUnanswered,
+      fieldErrors: {
+        hasNumeratorDenominator: 'Select whether this indicator has a numerator and denominator',
+      },
     },
-  })),
+  },
   sectionForm(
     'variance and quality',
     varianceAndQuality,

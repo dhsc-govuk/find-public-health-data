@@ -10,8 +10,6 @@ import { OtherNotesAndCaveatsPage } from './page.tsx';
 afterEach(cleanup);
 
 const empty = {
-  disclosureControl: '',
-  disclosureControlDetail: '',
   hasRounding: '',
   roundingDetail: '',
   hasCaveats: '',
@@ -21,7 +19,6 @@ const empty = {
 };
 
 const QUESTIONS = [
-  ['Has disclosure control been applied?', 'disclosureControl', 'disclosureControlDetail'],
   ['Has any rounding been applied?', 'hasRounding', 'roundingDetail'],
   ['Are there any caveats needed?', 'hasCaveats', 'caveatsDetail'],
   ['Are there any other notes needed?', 'hasOtherNotes', 'otherNotesDetail'],
@@ -64,7 +61,7 @@ describe('OtherNotesAndCaveatsPage', () => {
     );
   });
 
-  it('asks the four questions under the page heading, each a medium heading in its legend', () => {
+  it('asks the three questions under the page heading, each a medium heading in its legend', () => {
     const { container } = renderPage();
 
     expect(
@@ -79,7 +76,7 @@ describe('OtherNotesAndCaveatsPage', () => {
           heading.parentElement?.className.includes('govuk-fieldset__legend--m'),
         ]),
     ).toEqual(QUESTIONS.map(([legend]) => [legend, 'LEGEND', true]));
-    expect(container.querySelectorAll('h1, h2, h3, h4, h5, h6')).toHaveLength(5);
+    expect(container.querySelectorAll('h1, h2, h3, h4, h5, h6')).toHaveLength(4);
   });
 
   it.each(QUESTIONS)('answers "%s" with %s', (legend, name) => {
@@ -88,18 +85,13 @@ describe('OtherNotesAndCaveatsPage', () => {
     const radios = question(legend).getAllByRole('radio') as HTMLInputElement[];
 
     expect(radios.every((radio) => radio.name === name)).toBe(true);
-    expect(radios.map((radio) => radio.value)).toEqual(
-      name === 'disclosureControl' ? ['yes', 'no', 'not-applicable'] : ['yes', 'no'],
-    );
+    expect(radios.map((radio) => radio.value)).toEqual(['yes', 'no']);
   });
 
-  it('offers "Not applicable" for disclosure control alone', () => {
+  it('asks nothing about disclosure control, which the indicator format and sources page asks', () => {
     renderPage();
 
-    expect(option('Has disclosure control been applied?', 'Not applicable').value).toBe(
-      'not-applicable',
-    );
-    expect(screen.getAllByLabelText('Not applicable')).toHaveLength(1);
+    expect(screen.queryByText(/disclosure control/i)).toBeNull();
   });
 
   it.each(QUESTIONS)(
@@ -117,7 +109,6 @@ describe('OtherNotesAndCaveatsPage', () => {
     renderPage({
       values: {
         ...empty,
-        disclosureControl: 'not-applicable',
         hasRounding: 'no',
         hasCaveats: 'yes',
         caveatsDetail: 'Survey data.',
@@ -125,7 +116,6 @@ describe('OtherNotesAndCaveatsPage', () => {
       },
     });
 
-    expect(option('Has disclosure control been applied?', 'Not applicable').checked).toBe(true);
     expect(option('Has any rounding been applied?', 'No').checked).toBe(true);
     expect(option('Are there any caveats needed?', 'Yes').checked).toBe(true);
     expect(detailsField('Are there any caveats needed?').value).toBe('Survey data.');
@@ -146,22 +136,22 @@ describe('OtherNotesAndCaveatsPage', () => {
     renderPage({
       fieldErrors: {
         hasOtherNotes: 'Select whether there are any other notes needed',
-        disclosureControlDetail: 'Provide details of the disclosure control',
+        caveatsDetail: 'Provide details of the caveats',
         hasRounding: 'Select whether rounding has been applied',
       },
-      values: { ...empty, disclosureControl: 'yes' },
+      values: { ...empty, hasCaveats: 'yes' },
     });
 
     const links = within(screen.getByRole('alert')).getAllByRole('link');
 
     expect(links.map((link) => link.textContent)).toEqual([
-      'Provide details of the disclosure control',
       'Select whether rounding has been applied',
+      'Provide details of the caveats',
       'Select whether there are any other notes needed',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      `#${detailsField('Has disclosure control been applied?').id}`,
       `#${option('Has any rounding been applied?', 'Yes').id}`,
+      `#${detailsField('Are there any caveats needed?').id}`,
       `#${option('Are there any other notes needed?', 'Yes').id}`,
     ]);
   });

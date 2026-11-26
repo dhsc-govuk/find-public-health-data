@@ -6,43 +6,81 @@ import {
   type Benchmarking,
   type BenchmarkingAnswers,
   type BenchmarkingField,
+  type FormatAndSources,
+  type FormatAndSourcesAnswers,
+  type FormatAndSourcesField,
   goalValue,
-  type ProviderSources,
-  type ProviderSourcesAnswers,
-  type ProviderSourcesField,
   TAG_LIST_DETAILS,
   type Tagging,
   type TaggingAnswers,
   type TaggingField,
   type TagList,
 } from './contract.ts';
-import { type IndicatorSectionColumns, yesNoAnswer } from './indicator-section.ts';
+import { detailOf, type IndicatorSectionColumns, yesNoAnswer } from './indicator-section.ts';
 import type { IndicatorDraftClassification } from './indicator-version-lists-repository.ts';
 
-export const numeratorColumns: IndicatorSectionColumns<
-  ProviderSourcesField,
-  ProviderSources,
-  ProviderSourcesAnswers
-> = {
-  fromDraft: (draft) => ({
-    sources: draft.numeratorSources,
-    definition: draft.numeratorDefinition,
-  }),
-  toAttributes: ({ definition }) => ({ numeratorDefinition: definition }),
-  toLists: ({ sources }) => ({ numeratorSources: sources }),
-};
+/** An answer to a question that may be unanswered, which the form sends as empty. */
+function answered<Answer extends string>(answer: Answer | ''): Answer | null {
+  return answer === '' ? null : answer;
+}
 
-export const denominatorColumns: IndicatorSectionColumns<
-  ProviderSourcesField,
-  ProviderSources,
-  ProviderSourcesAnswers
+/**
+ * The answers of the branch the publisher chose are kept: the numerator and denominator beside a
+ * yes, and the data values beside a no. The other branch is cleared, whatever the form sent.
+ */
+export const formatAndSourcesColumns: IndicatorSectionColumns<
+  FormatAndSourcesField,
+  FormatAndSources,
+  FormatAndSourcesAnswers
 > = {
   fromDraft: (draft) => ({
-    sources: draft.denominatorSources,
-    definition: draft.denominatorDefinition,
+    hasNumeratorDenominator: yesNoAnswer(draft.hasNumeratorDenominator),
+    numeratorSources: draft.numeratorSources,
+    numeratorDefinition: draft.numeratorDefinition,
+    numeratorDisclosureControl: draft.numeratorDisclosureControl,
+    numeratorDisclosureControlDetail: draft.numeratorDisclosureControlDetail,
+    denominatorSources: draft.denominatorSources,
+    denominatorDefinition: draft.denominatorDefinition,
+    denominatorDisclosureControl: draft.denominatorDisclosureControl,
+    denominatorDisclosureControlDetail: draft.denominatorDisclosureControlDetail,
+    dataValues: draft.dataValues,
   }),
-  toAttributes: ({ definition }) => ({ denominatorDefinition: definition }),
-  toLists: ({ sources }) => ({ denominatorSources: sources }),
+  toAttributes: (answers) => {
+    const kept = answers.hasNumeratorDenominator === 'yes';
+
+    return {
+      hasNumeratorDenominator: kept,
+      numeratorDefinition: kept ? answers.numeratorDefinition : null,
+      numeratorDisclosureControl: kept ? answered(answers.numeratorDisclosureControl) : null,
+      numeratorDisclosureControlDetail: kept
+        ? detailOf(answers.numeratorDisclosureControl, answers.numeratorDisclosureControlDetail)
+        : null,
+      denominatorDefinition: kept ? answers.denominatorDefinition : null,
+      denominatorDisclosureControl: kept ? answered(answers.denominatorDisclosureControl) : null,
+      denominatorDisclosureControlDetail: kept
+        ? detailOf(answers.denominatorDisclosureControl, answers.denominatorDisclosureControlDetail)
+        : null,
+    };
+  },
+  toLists: (answers) => {
+    const kept = answers.hasNumeratorDenominator === 'yes';
+
+    return {
+      numeratorSources: kept ? answers.numeratorSources : [],
+      denominatorSources: kept ? answers.denominatorSources : [],
+      dataValues: kept
+        ? []
+        : answers.dataValues.map((dataValue) => ({
+            sources: dataValue.sources,
+            definition: dataValue.definition,
+            disclosureControl: answered(dataValue.disclosureControl),
+            disclosureControlDetail: detailOf(
+              dataValue.disclosureControl,
+              dataValue.disclosureControlDetail,
+            ),
+          })),
+    };
+  },
 };
 
 // A limit or age the form accepted, which is a whole number or nothing.

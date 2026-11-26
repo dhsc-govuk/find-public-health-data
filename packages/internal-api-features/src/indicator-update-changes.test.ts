@@ -141,14 +141,56 @@ describe('updateChanges', () => {
     });
 
     expect(change).toEqual({
-      task: 'numerator',
+      task: 'format-and-sources',
       parts: [
         {
           kind: 'value',
-          field: 'sources',
+          field: 'numeratorSources',
           value: 'Office for National Statistics: Live births, Office for National Statistics',
         },
       ],
+    });
+  });
+
+  it('gives each data value with its sources, definition and disclosure control', () => {
+    const [change] = updateChanges({
+      published,
+      submitted: {
+        ...published,
+        hasNumeratorDenominator: false,
+        numeratorSources: [],
+        numeratorDefinition: null,
+        numeratorDisclosureControl: null,
+        numeratorDisclosureControlDetail: null,
+        denominatorSources: [],
+        denominatorDefinition: null,
+        denominatorDisclosureControl: null,
+        denominatorDisclosureControlDetail: null,
+        dataValues: [
+          {
+            sources: [ons],
+            definition: 'Admissions',
+            disclosureControl: 'yes',
+            disclosureControlDetail: 'Rounded to 5',
+          },
+          {
+            sources: [ons],
+            definition: 'Population',
+            disclosureControl: 'not-applicable',
+            disclosureControlDetail: null,
+          },
+        ],
+      },
+      names,
+      replacedValues: 0,
+    });
+
+    expect(change?.parts).toContainEqual({
+      kind: 'value',
+      field: 'dataValues',
+      value:
+        'Data value 1. Office for National Statistics. Admissions. Yes. Rounded to 5\n' +
+        'Data value 2. Office for National Statistics. Population. Not applicable',
     });
   });
 

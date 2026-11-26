@@ -115,15 +115,19 @@ moves to this service. The operations image applies the packages with `db migrat
 - An increment carries `ci_method`, `comparator_method` and `numerator_denominator_source` in full:
   the importer maps versions through them by name and stores none of their rows. When any reference
   list changes, the increment resends all remaining versions so their core methods and provider
-  links are resolved again. Version files require both legacy source columns. Batches identify their
-  owning version; versions point at their batch, and observation keys carry sorted dimension-value
-  UUIDs. The receiver resolves the version/batch cycle inside its import transaction.
+  links are resolved again. Version files require both legacy source columns, and the
+  `disclosure_control` and `disclosure_control_detail` Fingertips holds for the whole indicator. The
+  importer gives a version with a numerator and a denominator both, a version with one of them that
+  one side as its single data value, and the disclosure control to the numerator or the data value,
+  with "no" as "not-applicable". Batches identify their owning version; versions point at their
+  batch, and observation keys carry sorted dimension-value UUIDs. The receiver resolves the
+  version/batch cycle inside its import transaction.
 - The service lists neither of two Fingertips confidence interval methods. The export leaves a
   version on "Unknown" with no method, and writes "Byar's method (no small number correction)" as
   Byar's method, modified, with the detail "No small number correction".
-- Deleting a version also deletes the topic, classification and source rows the migration wrote for
-  it. A version a publisher has added age ranges to is never deleted; the import stops and names the
-  count.
+- Deleting a version also deletes the topic, classification, source and data value rows the
+  migration wrote for it. A version a publisher has added age ranges to is never deleted; the import
+  stops and names the count.
 - Financial cumulative-quarter data retains its cumulative date ranges. Repeated canonical
   observation keys stop the export with source-row diagnostics.
 - Financial and academic monthly periods count Month 1 from April, matching Fingertips.

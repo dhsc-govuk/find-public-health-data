@@ -3,22 +3,23 @@ import { ukDaysUntil, ukInstant } from '@fphd/utils/uk-time';
 
 import {
   addIssues,
-  areProviderSourcesOffered,
+  CALCULATION_PART_FIELDS,
   CI_METHOD_NO_LONGER_OFFERED,
   type ConfidenceIntervalsField,
   confidenceIntervalsSection,
   confidenceIntervalsSectionFor,
+  type FormatAndSourcesSection,
   FUTURE_PUBLISHING_DATE,
-  type ProviderSourcesSection,
+  isProviderSourceOffered,
   PUBLISHING_DATE_FIELDS,
   PUBLISHING_NOTICE_DAYS,
   PUBLISHING_NOTICE_WEEKS,
   type PublishingDateField,
   publishingDateSection,
   REAL_PUBLISHING_TIME,
-  SELECT_DATA_PROVIDER,
   SELECT_UNITS,
   SELECT_VALUE_TYPE,
+  SOURCE_NO_LONGER_OFFERED,
   subtopicRequiredMessage,
   subtopicsOf,
   TAG_LIST_DETAILS,
@@ -205,18 +206,38 @@ export function publishingDateServerSection(
   };
 }
 
-/** The form's schema, then that every source is one the providers list offers. */
-export function providerSourcesServerSection(
-  section: ProviderSourcesSection,
+/** The form's schema, then that every source the chosen branch keeps is one still offered. */
+export function formatAndSourcesServerSection(
+  section: FormatAndSourcesSection,
   dataProviders: InternalDataProviderRepository,
-): ProviderSourcesSection {
+): FormatAndSourcesSection {
   return {
     ...section,
     schema: section.schema.transform(async (answers, ctx) => {
-      if (areProviderSourcesOffered(answers.sources, await dataProviders.list())) return answers;
+      const providers = await dataProviders.list();
+      const lists: [
+        (string | number)[],
+        readonly { providerId: string; sourceId: string | null }[],
+      ][] =
+        answers.hasNumeratorDenominator === 'yes'
+          ? (['numerator', 'denominator'] as const).map((part) => {
+              const field = CALCULATION_PART_FIELDS[part].sources;
+              return [[field], answers[field]];
+            })
+          : answers.dataValues.map(({ sources }, index) => [
+              ['dataValues', index, 'sources'],
+              sources,
+            ]);
+      let refused = false;
 
-      ctx.addIssue({ code: 'custom', path: ['sources'], message: SELECT_DATA_PROVIDER });
-      return z.NEVER;
+      for (const [path, sources] of lists) {
+        if (sources.some((source) => !isProviderSourceOffered(source, providers))) {
+          ctx.addIssue({ code: 'custom', path, message: SOURCE_NO_LONGER_OFFERED });
+          refused = true;
+        }
+      }
+
+      return refused ? z.NEVER : answers;
     }),
   };
 }

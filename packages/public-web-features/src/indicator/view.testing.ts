@@ -32,12 +32,14 @@ export function indicatorDetail(
     methodology: null,
     numeratorDefinition: null,
     denominatorDefinition: null,
-    disclosureControl: null,
+    numeratorDisclosureControl: null,
+    denominatorDisclosureControl: null,
     caveats: null,
     notes: null,
     dataSource: null,
     numeratorSources: [],
     denominatorSources: [],
+    dataValues: [],
     areaTypes: [],
     topics: [],
     classifications: [],
@@ -88,6 +90,7 @@ export function selected(shortId = 108): SelectedIndicator {
       yearType: null,
       polarity: 'higher-is-better',
       comparatorMethod: 'Confidence intervals overlapping reference value',
+      dataValues: [] as IndicatorDetail['dataValues'],
     } as IndicatorDetail,
     areaData: [
       {

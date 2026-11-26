@@ -12,6 +12,7 @@ import { parse } from 'csv-parse';
 import postgres, { type TransactionSql } from 'postgres';
 import { ensureDirectory, writeGzipped } from './files.ts';
 import { translateFrequency, translatePolarity } from './fingertips-lookups.ts';
+import { formatAndSources } from './format-and-sources.ts';
 import { legacySource, legacySourceIds, readLegacyMap } from './legacy-sources.ts';
 import { notesAndCaveats } from './notes-and-caveats.ts';
 import { countAndNumerator } from './pholio/observations.ts';
@@ -287,6 +288,11 @@ async function addIndicators(
       caveats: descriptive.Caveats ?? null,
       notes: descriptive.Notes ?? null,
     });
+    const format = formatAndSources(
+      { definition: descriptive.CountDefinition ?? null, source: descriptive.CountSource ?? null },
+      { definition: descriptive.DenomDefinition ?? null, source: descriptive.DenomSource ?? null },
+      { answer: nc.disclosure_control, detail: nc.disclosure_control_detail },
+    );
     const unit = unitValues(unitNameForLabel(item.Unit.Label));
     const yt = yearTypeValues(item.YearType.Name);
     await tx`
@@ -295,9 +301,10 @@ async function addIndicators(
          value_type_id, unit_id, unit_detail, period_type, year_type, year_end_day, year_end_month,
          ci_method_id, polarity,
          update_frequency, comparator_method_id, ci_confidence_level,
-         definition, rationale, methodology, numerator_definition,
-         denominator_definition,
-         disclosure_control, disclosure_control_detail,
+         definition, rationale, methodology, has_numerator_denominator,
+         numerator_definition, numerator_disclosure_control, numerator_disclosure_control_detail,
+         denominator_definition, denominator_disclosure_control,
+         denominator_disclosure_control_detail,
          has_rounding, rounding_detail,
          has_caveats, caveats_detail,
          has_other_notes, other_notes_detail,
@@ -312,9 +319,12 @@ async function addIndicators(
         ${translateFrequency('Annual')},
         ${await namedId(tx, 'comparator_method', config.comparator)}, ${config.confidence},
         ${descriptive.Definition ?? null}, ${descriptive.Rationale ?? null},
-        ${descriptive.IndMethod ?? null}, ${descriptive.CountDefinition ?? null},
-        ${descriptive.DenomDefinition ?? null},
-        ${nc.disclosure_control}, ${nc.disclosure_control_detail},
+        ${descriptive.IndMethod ?? null}, ${format.hasNumeratorDenominator},
+        ${format.numerator?.definition ?? null}, ${format.numerator?.disclosureControl ?? null},
+        ${format.numerator?.disclosureControlDetail ?? null},
+        ${format.denominator?.definition ?? null},
+        ${format.denominator?.disclosureControl ?? null},
+        ${format.denominator?.disclosureControlDetail ?? null},
         ${nc.has_rounding}, ${nc.rounding_detail},
         ${nc.has_caveats}, ${nc.caveats_detail},
         ${nc.has_other_notes}, ${nc.other_notes_detail},
@@ -322,10 +332,23 @@ async function addIndicators(
         ${updatedAt}, ${TEST_SEED_USER_ID}, ${updatedAt}, ${TEST_SEED_USER_ID})
     `;
 
-    for (const [part, sourceName] of [
-      ['numerator', descriptive.CountSource],
-      ['denominator', descriptive.DenomSource],
+    if (format.dataValue !== null) {
+      await tx`
+        INSERT INTO indicator_version_data_value
+          (indicator_version_id, position, definition, disclosure_control,
+           disclosure_control_detail)
+        VALUES (${versionId}, 0, ${format.dataValue.definition},
+          ${format.dataValue.disclosureControl}, ${format.dataValue.disclosureControlDetail})
+      `;
+    }
+
+    // A single data value's sources name its position, 0; the calculation's parts name none.
+    for (const [part, figure, dataValuePosition] of [
+      ['numerator', format.numerator, null],
+      ['denominator', format.denominator, null],
+      ['data-value', format.dataValue, 0],
     ] as const) {
+      const sourceName = figure?.source;
       const [, pairs] = legacySource(sourceName ?? null, sourceIds, legacyMap);
       const typedPairs = pairs as { provider: string; source: string | null }[];
       const rows = typedPairs.map((pair, position) => {
@@ -341,6 +364,7 @@ async function addIndicators(
           position,
           provider_id: ids.providerId,
           source_id: ids.sourceId,
+          data_value_position: dataValuePosition,
         };
       });
       if (rows.length > 0) await tx`INSERT INTO indicator_version_source ${tx(rows)}`;

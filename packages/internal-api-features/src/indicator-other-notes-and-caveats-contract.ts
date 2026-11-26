@@ -1,5 +1,4 @@
 import { z } from '@fphd/config/zod';
-import { INDICATOR_DISCLOSURE_CONTROL } from '@fphd/utils/disclosure-control';
 
 import {
   type DetailedQuestion,
@@ -11,8 +10,6 @@ import {
 import { longText } from './text-contract.ts';
 
 const fields = z.enum([
-  'disclosureControl',
-  'disclosureControlDetail',
   'hasRounding',
   'roundingDetail',
   'hasCaveats',
@@ -22,13 +19,6 @@ const fields = z.enum([
 ]);
 
 export type OtherNotesAndCaveatsField = z.infer<typeof fields>;
-
-/** Answered yes, no or "Not applicable", so stored as its answer rather than as a yes/no. */
-const disclosureControlQuestion = {
-  answer: 'disclosureControl',
-  detail: 'disclosureControlDetail',
-  detailRequired: 'Provide details of the disclosure control',
-} as const satisfies DetailedQuestion<OtherNotesAndCaveatsField>;
 
 /** The yes/no questions whose yes asks for details. */
 export const otherNotesAndCaveatsQuestions = [
@@ -51,10 +41,6 @@ export const otherNotesAndCaveatsQuestions = [
 
 const schema = requireDetails(
   z.object({
-    disclosureControl: z.enum(INDICATOR_DISCLOSURE_CONTROL, {
-      error: 'Select whether disclosure control has been applied',
-    }),
-    disclosureControlDetail: longText('Details of the disclosure control'),
     hasRounding: yesNoSchema('Select whether rounding has been applied'),
     roundingDetail: longText('Details of the rounding'),
     hasCaveats: yesNoSchema('Select whether there are any caveats needed'),
@@ -62,7 +48,7 @@ const schema = requireDetails(
     hasOtherNotes: yesNoSchema('Select whether there are any other notes needed'),
     otherNotesDetail: longText('Details of the other notes'),
   }),
-  [disclosureControlQuestion, ...otherNotesAndCaveatsQuestions],
+  otherNotesAndCaveatsQuestions,
 );
 
 export type OtherNotesAndCaveats = z.infer<typeof schema>;

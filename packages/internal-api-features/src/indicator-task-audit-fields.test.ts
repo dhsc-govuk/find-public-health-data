@@ -25,11 +25,10 @@ import {
 import {
   agesColumns,
   benchmarkingColumns,
-  denominatorColumns,
-  numeratorColumns,
+  formatAndSourcesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
-import { mortality, publishingDate, tagging } from './indicator-sections.testing.ts';
+import { formatAndSources, publishingDate, tagging } from './indicator-sections.testing.ts';
 import {
   changesTask,
   type SavedTaskKey,
@@ -103,9 +102,14 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
     savedFields(definitionAndRationaleColumns, { definition: 'Deaths', rationale: 'Why' }),
   polarity: () => savedFields(polarityColumns, { polarity: 'lower-is-better' }),
   'data-quality': () => savedFields(dataQualityColumns, { hasDataQualityIssues: 'yes' }),
-  numerator: () => savedFields(numeratorColumns, { sources: [mortality], definition: 'Deaths' }),
-  denominator: () =>
-    savedFields(denominatorColumns, { sources: [mortality], definition: 'Population' }),
+  'format-and-sources': () =>
+    savedFields(formatAndSourcesColumns, {
+      ...formatAndSources,
+      hasNumeratorDenominator: 'yes',
+      numeratorDisclosureControl: 'yes',
+      numeratorDisclosureControlDetail: 'Suppressed under 5',
+      denominatorDisclosureControl: 'not-applicable',
+    }),
   calculation: () =>
     savedFields(calculationColumns, {
       methodology: 'Counted',
@@ -147,8 +151,6 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
     }),
   'other-notes-and-caveats': () =>
     savedFields(otherNotesAndCaveatsColumns, {
-      disclosureControl: 'yes',
-      disclosureControlDetail: 'Suppressed under 5',
       hasRounding: 'yes',
       roundingDetail: 'To 5',
       hasCaveats: 'yes',

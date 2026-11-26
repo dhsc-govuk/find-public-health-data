@@ -2,9 +2,8 @@ import type postgres from 'postgres';
 
 import { receiverColumns, tableColumns } from './data-migration-actors.ts';
 import { dataMigrationKey } from './data-migration-manifest.ts';
+import { LEGACY_STAGED_COLUMNS } from './legacy-format-and-sources.ts';
 import { readCsvHeader } from './seeding.ts';
-
-const LEGACY_SOURCE_COLUMNS = ['numerator_source_id', 'denominator_source_id'] as const;
 
 interface TableColumnInfo {
   name: string;
@@ -32,7 +31,7 @@ export async function validateMigrationHeader(
   const rawHeader = await readCsvHeader(file);
   const targetInfo = await tableColumnInfo(tx, table);
   const targetNames = new Set(targetInfo.map(({ name }) => name));
-  const legacySet = new Set<string>(LEGACY_SOURCE_COLUMNS);
+  const legacySet = new Set<string>(LEGACY_STAGED_COLUMNS);
 
   const columns = tableColumns(
     table,
@@ -64,7 +63,7 @@ export async function validateMigrationHeader(
     .map(({ name }) => name)
     .filter((name) => !columnSet.has(name));
   if (table === 'indicator_version') {
-    missing.push(...LEGACY_SOURCE_COLUMNS.filter((column) => !rawHeader.includes(column)));
+    missing.push(...LEGACY_STAGED_COLUMNS.filter((column) => !rawHeader.includes(column)));
     const batchColumns = ['upload_batch_id', 'data_table_confirmed_at'];
     if (batchColumns.some((column) => columnSet.has(column))) {
       missing.push(...batchColumns.filter((column) => !columnSet.has(column)));

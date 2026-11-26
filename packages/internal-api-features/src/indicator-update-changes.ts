@@ -24,14 +24,14 @@ import {
   benchmarkingSection,
   calculationSection,
   confidenceIntervalsSection,
+  type DataValueFormValues,
   dataQualitySection,
   definitionAndRationaleSection,
-  denominatorSection,
+  formatAndSourcesSection,
   goalValueText,
   type IndicatorSection,
   type IndicatorTaskKey,
   justificationsSection,
-  numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
   type PolicyGoalFormValues,
@@ -65,8 +65,7 @@ import {
 import {
   agesColumns,
   benchmarkingColumns,
-  denominatorColumns,
-  numeratorColumns,
+  formatAndSourcesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import { changedTasks, type IndicatorTaskAnswers } from './indicator-task-list.ts';
@@ -78,7 +77,10 @@ export type ReferenceNames = ReadonlyMap<string, string>;
  * How the History tab shows a changed answer: free text as the words added and removed, or any
  * other answer as its new value in words, from the answer as its form holds it.
  */
-type FieldDisplay = 'text' | ((value: unknown, names: ReferenceNames) => string | null);
+type FieldDisplay = 'text' | ShownValue;
+
+/** An answer other than free text, in words. */
+type ShownValue = (value: unknown, names: ReferenceNames) => string | null;
 
 /** A section an update can change, with how each of its fields is shown. */
 interface ChangedSection {
@@ -103,7 +105,7 @@ function isAnswered(value: unknown): value is string {
 }
 
 /** A choice, in the words its page offers it in. */
-function option(labels: Readonly<Record<string, string>>): FieldDisplay {
+function option(labels: Readonly<Record<string, string>>): ShownValue {
   return (value) => (isAnswered(value) ? (labels[value] ?? value) : null);
 }
 
@@ -131,7 +133,7 @@ const namedList: FieldDisplay = (value, names) =>
     : null;
 
 /** Providers of data, each with its source where it names one, as the public page shows them. */
-const providerSources: FieldDisplay = (value, names) => {
+const providerSources: ShownValue = (value, names) => {
   const sources = value as ProviderSource[];
   if (sources.length === 0) return null;
   return sources
@@ -140,6 +142,30 @@ const providerSources: FieldDisplay = (value, names) => {
       return sourceId === null ? provider : `${provider}: ${names.get(sourceId) ?? sourceId}`;
     })
     .join(', ');
+};
+
+const disclosureControl = option(INDICATOR_DISCLOSURE_CONTROL_LABELS);
+
+/**
+ * Each data value, numbered, with its sources, its definition and whether disclosure control was
+ * applied, and how, where it was.
+ */
+const dataValues: FieldDisplay = (value, names) => {
+  const rows = value as DataValueFormValues[];
+  if (rows.length === 0) return null;
+  return rows
+    .map((row, index) =>
+      [
+        `Data value ${index + 1}`,
+        providerSources(row.sources, names),
+        row.definition,
+        disclosureControl(row.disclosureControl, names),
+        row.disclosureControlDetail,
+      ]
+        .filter(isAnswered)
+        .join('. '),
+    )
+    .join('\n');
 };
 
 function ageLimit(limit: string, unit: string): string {
@@ -213,13 +239,17 @@ const CHANGED_SECTIONS: Readonly<
   'data-quality': sectionOf(dataQualitySection, dataQualityColumns, {
     hasDataQualityIssues: yesNo,
   }),
-  numerator: sectionOf(numeratorSection, numeratorColumns, {
-    sources: providerSources,
-    definition: 'text',
-  }),
-  denominator: sectionOf(denominatorSection, denominatorColumns, {
-    sources: providerSources,
-    definition: 'text',
+  'format-and-sources': sectionOf(formatAndSourcesSection, formatAndSourcesColumns, {
+    hasNumeratorDenominator: yesNo,
+    numeratorSources: providerSources,
+    numeratorDefinition: 'text',
+    numeratorDisclosureControl: disclosureControl,
+    numeratorDisclosureControlDetail: 'text',
+    denominatorSources: providerSources,
+    denominatorDefinition: 'text',
+    denominatorDisclosureControl: disclosureControl,
+    denominatorDisclosureControlDetail: 'text',
+    dataValues,
   }),
   calculation: sectionOf(calculationSection, calculationColumns, {
     methodology: 'text',
@@ -248,8 +278,6 @@ const CHANGED_SECTIONS: Readonly<
     unitDetail: 'text',
   }),
   'other-notes-and-caveats': sectionOf(otherNotesAndCaveatsSection, otherNotesAndCaveatsColumns, {
-    disclosureControl: option(INDICATOR_DISCLOSURE_CONTROL_LABELS),
-    disclosureControlDetail: 'text',
     hasRounding: yesNo,
     roundingDetail: 'text',
     hasCaveats: yesNo,
@@ -404,6 +432,9 @@ export function referencedIds(version: IndicatorTaskAnswers): string[] {
     version.unitId,
     ...version.numeratorSources.flatMap(({ providerId, sourceId }) => [providerId, sourceId]),
     ...version.denominatorSources.flatMap(({ providerId, sourceId }) => [providerId, sourceId]),
+    ...version.dataValues.flatMap(({ sources }) =>
+      sources.flatMap(({ providerId, sourceId }) => [providerId, sourceId]),
+    ),
     ...version.topicIds,
     ...version.subtopicIds,
     ...version.classifications.map(({ id }) => id),

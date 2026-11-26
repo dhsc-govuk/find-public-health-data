@@ -30,6 +30,8 @@ export const VERSION_COLUMNS = [
   'ci_method_id',
   'comparator_method_id',
   'is_locked',
+  'disclosure_control',
+  'disclosure_control_detail',
   'numerator_source_id',
   'denominator_source_id',
 ];
@@ -45,6 +47,8 @@ export const VERSION_ROW = [
   null,
   null,
   't',
+  null,
+  null,
   null,
   null,
 ];

@@ -22,12 +22,13 @@ from psycopg2.extras import execute_values
 
 from count_and_numerator import count_is_numerator
 from legacy_sources import (
-    LEGACY_COLUMNS,
+    FINGERTIPS_VERSION_COLUMNS,
     legacy_source,
     legacy_source_ids,
     read_legacy_map,
     version_legacy_sources,
 )
+from format_and_sources import format_and_sources
 from notes_and_caveats import notes_and_caveats
 from slug import slug_problem, slugify
 from value_type_and_unit import unit_name_for_label, unit_values, value_type_id
@@ -284,7 +285,13 @@ def add_areas(cur, registry):
     return area_ids, len(rows)
 
 
-def add_version_sources(cur, version_id, part, pairs):
+def figure_column(figures, name, column):
+    """One column of a figure the indicator has, or None for a figure it lacks."""
+    figure = figures[name]
+    return None if figure is None else figure[column]
+
+
+def add_version_sources(cur, version_id, part, pairs, data_value_position=None):
     """Writes the providers and sources a legacy source maps to, as the seed load does."""
     for position, pair in enumerate(pairs):
         provider_id = one_id(cur, "data_provider", pair["provider"])
@@ -301,10 +308,10 @@ def add_version_sources(cur, version_id, part, pairs):
         cur.execute(
             """
             INSERT INTO indicator_version_source
-              (indicator_version_id, part, position, provider_id, source_id)
-            VALUES (%s, %s, %s, %s, %s)
+              (indicator_version_id, part, position, provider_id, source_id, data_value_position)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (version_id, part, position, provider_id, source_id),
+            (version_id, part, position, provider_id, source_id, data_value_position),
         )
 
 
@@ -338,7 +345,36 @@ def add_indicators(cur, metadata, seed_dir):
         denominator_id, denominator_pairs = legacy_source(
             descriptive.get("DenomSource"), source_ids, legacy_map
         )
-        version_sources[version_id] = (numerator_id, denominator_id)
+        answers = notes_and_caveats(
+            {
+                "disclosure_control": descriptive.get("DiscControl"),
+                "caveats": descriptive.get("Caveats"),
+                "notes": descriptive.get("Notes"),
+            }
+        )
+        # The export writes the version back as Fingertips shaped it, as the seed keeps it.
+        version_sources[version_id] = (
+            descriptive.get("CountDefinition"),
+            descriptive.get("DenomDefinition"),
+            numerator_id,
+            denominator_id,
+            answers["disclosure_control"],
+            answers["disclosure_control_detail"],
+        )
+        figures = format_and_sources(
+            {
+                "definition": descriptive.get("CountDefinition"),
+                "source": descriptive.get("CountSource"),
+                "pairs": numerator_pairs,
+            },
+            {
+                "definition": descriptive.get("DenomDefinition"),
+                "source": descriptive.get("DenomSource"),
+                "pairs": denominator_pairs,
+            },
+            answers["disclosure_control"],
+            answers["disclosure_control_detail"],
+        )
 
         unit_name = unit_name_for_label(item["Unit"]["Label"])
         updated_at = item["DataChange"]["LastUploadedAt"]
@@ -357,13 +393,15 @@ def add_indicators(cur, metadata, seed_dir):
                unit_id, unit_detail, period_type, year_type, year_end_day, year_end_month,
                ci_method_id, polarity, update_frequency, comparator_method_id,
                ci_confidence_level, definition, rationale, methodology,
-               numerator_definition, denominator_definition, disclosure_control,
-               disclosure_control_detail, has_rounding, rounding_detail, has_caveats,
-               caveats_detail, has_other_notes, other_notes_detail, data_source_id,
-               created_at, created_by, updated_at, updated_by)
+               has_numerator_denominator, numerator_definition, numerator_disclosure_control,
+               numerator_disclosure_control_detail, denominator_definition,
+               denominator_disclosure_control, denominator_disclosure_control_detail,
+               has_rounding, rounding_detail, has_caveats, caveats_detail, has_other_notes,
+               other_notes_detail, data_source_id, created_at, created_by, updated_at,
+               updated_by)
             VALUES
               (%s, %s, 'published', true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                %s, %s, %s, %s)
             """,
             (
@@ -383,15 +421,19 @@ def add_indicators(cur, metadata, seed_dir):
                 descriptive.get("Definition"),
                 descriptive.get("Rationale"),
                 descriptive.get("IndMethod"),
-                descriptive.get("CountDefinition"),
-                descriptive.get("DenomDefinition"),
-                *notes_and_caveats(
-                    {
-                        "disclosure_control": descriptive.get("DiscControl"),
-                        "caveats": descriptive.get("Caveats"),
-                        "notes": descriptive.get("Notes"),
-                    }
-                ).values(),
+                figures["has_numerator_denominator"],
+                figure_column(figures, "numerator", "definition"),
+                figure_column(figures, "numerator", "disclosure_control"),
+                figure_column(figures, "numerator", "disclosure_control_detail"),
+                figure_column(figures, "denominator", "definition"),
+                figure_column(figures, "denominator", "disclosure_control"),
+                figure_column(figures, "denominator", "disclosure_control_detail"),
+                answers["has_rounding"],
+                answers["rounding_detail"],
+                answers["has_caveats"],
+                answers["caveats_detail"],
+                answers["has_other_notes"],
+                answers["other_notes_detail"],
                 optional_id(cur, "data_source", descriptive.get("DataSource")),
                 updated_at,
                 TEST_SEED_USER_ID,
@@ -399,8 +441,26 @@ def add_indicators(cur, metadata, seed_dir):
                 TEST_SEED_USER_ID,
             ),
         )
-        add_version_sources(cur, version_id, "numerator", numerator_pairs)
-        add_version_sources(cur, version_id, "denominator", denominator_pairs)
+        for part in ("numerator", "denominator"):
+            if figures[part] is not None:
+                add_version_sources(cur, version_id, part, figures[part]["pairs"])
+        if figures["data_value"] is not None:
+            data_value = figures["data_value"]
+            cur.execute(
+                """
+                INSERT INTO indicator_version_data_value
+                  (indicator_version_id, position, definition, disclosure_control,
+                   disclosure_control_detail)
+                VALUES (%s, 0, %s, %s, %s)
+                """,
+                (
+                    version_id,
+                    data_value["definition"],
+                    data_value["disclosure_control"],
+                    data_value["disclosure_control_detail"],
+                ),
+            )
+            add_version_sources(cur, version_id, "data-value", data_value["pairs"], 0)
 
         cur.execute(
             """
@@ -573,10 +633,13 @@ def validate(cur):
 def export_tables(conn, seed_dir, out_dir, new_version_sources):
     out_dir.mkdir(parents=True, exist_ok=True)
     with conn.cursor() as cur:
-        # The versions' legacy source ids live in the seed CSV alone, so the export joins them back.
+        # The versions' Fingertips-shaped columns live in the seed CSV alone, so the export joins
+        # them back.
         cur.execute(
             "CREATE TEMP TABLE legacy_version_source "
-            "(id uuid PRIMARY KEY, numerator_source_id uuid, denominator_source_id uuid)"
+            "(id uuid PRIMARY KEY, numerator_definition text, denominator_definition text, "
+            "numerator_source_id uuid, denominator_source_id uuid, disclosure_control text, "
+            "disclosure_control_detail text)"
         )
         legacy = {**version_legacy_sources(seed_dir), **new_version_sources}
         execute_values(
@@ -593,7 +656,7 @@ def export_tables(conn, seed_dir, out_dir, new_version_sources):
                 columns = [column for column in columns if column != "created_by"]
             if table == "indicator_version":
                 selected = ", ".join(
-                    f'l."{column}"' if column in LEGACY_COLUMNS else f't."{column}"'
+                    f'l."{column}"' if column in FINGERTIPS_VERSION_COLUMNS else f't."{column}"'
                     for column in columns
                 )
                 relation = f'"{table}" t LEFT JOIN legacy_version_source l ON l.id = t.id'

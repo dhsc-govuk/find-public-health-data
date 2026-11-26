@@ -7,12 +7,15 @@ import type { Database } from './client.ts';
 import {
   ciMethod,
   classification,
+  dataProvider,
   IMPORTED_INDICATOR_TEAM_ID,
   type IndicatorVersionStatus,
   indicator,
   indicatorVersion,
   indicatorVersionClassification,
+  indicatorVersionDataValue,
   indicatorVersionGoal,
+  indicatorVersionSource,
   indicatorVersionTopic,
   SYSTEM_USER_IDS,
   topic,
@@ -461,22 +464,33 @@ describe('indicator_version', () => {
     });
   });
 
-  it('refuses a disclosure control answer the publisher form does not offer', async () => {
-    const [draft] = await addVersion(await newIndicatorId(), 'draft');
+  it.each(['numerator', 'denominator'])(
+    'refuses a %s disclosure control answer the publisher form does not offer',
+    async (part) => {
+      const [draft] = await addVersion(await newIndicatorId(), 'draft');
 
-    await expect(
-      db.execute(
-        sql`UPDATE indicator_version SET disclosure_control = 'Not applied' WHERE id = ${draft?.id ?? ''}`,
-      ),
-    ).rejects.toMatchObject({ cause: { code: CHECK_VIOLATION } });
-  });
+      await expect(
+        db.execute(
+          sql`UPDATE indicator_version SET ${sql.identifier(`${part}_disclosure_control`)} = 'no' WHERE id = ${draft?.id ?? ''}`,
+        ),
+      ).rejects.toMatchObject({
+        cause: {
+          code: CHECK_VIOLATION,
+          constraint_name: `indicator_version_${part}_disclosure_control_check`,
+        },
+      });
+    },
+  );
 
   it.each([
-    ['disclosure control of nobody', { disclosureControlDetail: 'Suppressed' }],
-    ['disclosure control that is no', { disclosureControl: 'no', disclosureControlDetail: 'x' }],
+    ['numerator disclosure control of nobody', { numeratorDisclosureControlDetail: 'Suppressed' }],
     [
-      'disclosure control that is not applicable',
-      { disclosureControl: 'not-applicable', disclosureControlDetail: 'x' },
+      'numerator disclosure control that is not applicable',
+      { numeratorDisclosureControl: 'not-applicable', numeratorDisclosureControlDetail: 'x' },
+    ],
+    [
+      'denominator disclosure control that is not applicable',
+      { denominatorDisclosureControl: 'not-applicable', denominatorDisclosureControlDetail: 'x' },
     ],
     ['rounding not applied', { hasRounding: false, roundingDetail: 'To the nearest 5' }],
     ['caveats of nobody', { caveatsDetail: 'Survey data' }],
@@ -503,8 +517,10 @@ describe('indicator_version', () => {
   it('accepts a detail beside a yes', async () => {
     await expect(
       addVersion(await newIndicatorId(), 'draft', {
-        disclosureControl: 'yes',
-        disclosureControlDetail: 'Suppressed',
+        numeratorDisclosureControl: 'yes',
+        numeratorDisclosureControlDetail: 'Suppressed',
+        denominatorDisclosureControl: 'yes',
+        denominatorDisclosureControlDetail: 'Rounded',
         hasRounding: true,
         roundingDetail: 'To the nearest 5',
         hasCaveats: true,
@@ -555,9 +571,43 @@ describe('indicator_version', () => {
     });
   });
 
+  it.each([
+    ['a numerator definition', { numeratorDefinition: 'Deaths' }],
+    ['a numerator disclosure control answer', { numeratorDisclosureControl: 'not-applicable' }],
+    ['a denominator definition', { denominatorDefinition: 'Population' }],
+    ['a denominator disclosure control answer', { denominatorDisclosureControl: 'not-applicable' }],
+  ] as const)('refuses %s beside no numerator and denominator', async (_, values) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', { hasNumeratorDenominator: false, ...values }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_numerator_denominator_check',
+      },
+    });
+  });
+
+  it('accepts a numerator and denominator beside a yes, and beside an unanswered question', async () => {
+    const answers = { numeratorDefinition: 'Deaths', denominatorDefinition: 'Population' };
+
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', { hasNumeratorDenominator: true, ...answers }),
+    ).resolves.toHaveLength(1);
+    await expect(addVersion(await newIndicatorId(), 'draft', answers)).resolves.toHaveLength(1);
+  });
+
   // The contract requires each of these details beside a yes, so the table does too.
   it.each([
-    ['disclosure control', { disclosureControl: 'yes' }, 'disclosure_control_detail'],
+    [
+      'numerator disclosure control',
+      { numeratorDisclosureControl: 'yes' },
+      'numerator_disclosure_control_detail',
+    ],
+    [
+      'denominator disclosure control',
+      { denominatorDisclosureControl: 'yes' },
+      'denominator_disclosure_control_detail',
+    ],
     ['rounding', { hasRounding: true }, 'rounding_detail'],
     ['caveats', { hasCaveats: true }, 'caveats_detail'],
     ['other notes', { hasOtherNotes: true }, 'other_notes_detail'],
@@ -684,9 +734,11 @@ describe("a version's child tables", () => {
       'indicator_version_age_range_version_fk',
       'indicator_version_classification_classification_fk',
       'indicator_version_classification_version_fk',
+      'indicator_version_data_value_version_fk',
       'indicator_version_goal_version_fk',
       'indicator_version_review_note_author_fk',
       'indicator_version_review_note_submission_fk',
+      'indicator_version_source_data_value_fk',
       'indicator_version_source_provider_fk',
       'indicator_version_source_source_fk',
       'indicator_version_source_version_fk',
@@ -707,6 +759,97 @@ describe("a version's child tables", () => {
       'indicator_version_topic_topic_fk',
       'indicator_version_topic_version_fk',
     ]);
+  });
+});
+
+describe("a version's data values", () => {
+  async function newProviderId(): Promise<string> {
+    const [row] = await db
+      .insert(dataProvider)
+      .values({ name: `Schema test provider ${crypto.randomUUID()}` })
+      .returning({ id: dataProvider.id });
+    if (!row) throw new Error('inserted no provider');
+    return row.id;
+  }
+
+  async function draftWithDataValue(): Promise<string> {
+    const [version] = await addVersion(await newIndicatorId(), 'draft');
+    if (!version) throw new Error('added no version');
+    await db
+      .insert(indicatorVersionDataValue)
+      .values({ indicatorVersionId: version.id, position: 0, definition: 'Admissions' });
+    return version.id;
+  }
+
+  it("holds a data value's sources beside it", async () => {
+    const versionId = await draftWithDataValue();
+    const providerId = await newProviderId();
+
+    await expect(
+      db.insert(indicatorVersionSource).values({
+        indicatorVersionId: versionId,
+        part: 'data-value',
+        position: 0,
+        providerId,
+        dataValuePosition: 0,
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['a data value source that names no data value', 'data-value', null],
+    ['a numerator source that names a data value', 'numerator', 0],
+  ] as const)('refuses %s', async (_, part, dataValuePosition) => {
+    const versionId = await draftWithDataValue();
+
+    await expect(
+      db.insert(indicatorVersionSource).values({
+        indicatorVersionId: versionId,
+        part,
+        position: 0,
+        providerId: await newProviderId(),
+        dataValuePosition,
+      }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_source_data_value_check',
+      },
+    });
+  });
+
+  it('refuses a source naming a data value the version does not have', async () => {
+    const versionId = await draftWithDataValue();
+
+    await expect(
+      db.insert(indicatorVersionSource).values({
+        indicatorVersionId: versionId,
+        part: 'data-value',
+        position: 0,
+        providerId: await newProviderId(),
+        dataValuePosition: 1,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint_name: 'indicator_version_source_data_value_fk' },
+    });
+  });
+
+  it('refuses disclosure control details beside anything but a yes', async () => {
+    const [version] = await addVersion(await newIndicatorId(), 'draft');
+
+    await expect(
+      db.insert(indicatorVersionDataValue).values({
+        indicatorVersionId: version?.id ?? '',
+        position: 0,
+        disclosureControl: 'not-applicable',
+        disclosureControlDetail: 'Suppressed',
+      }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_data_value_disclosure_control_detail_check',
+      },
+    });
   });
 });
 
@@ -904,12 +1047,13 @@ describe('the published views', () => {
     const rows = (await db.execute(
       sql`SELECT column_name FROM information_schema.columns
           WHERE table_schema = 'published' AND table_name = 'indicator'
-            AND column_name ~ '^(disclosure_control|rounding|caveats|other_notes)'
+            AND column_name ~ '(disclosure_control|rounding|caveats|other_notes)'
           ORDER BY ordinal_position`,
     )) as unknown as { column_name: string }[];
 
     expect(rows.map((row) => row.column_name)).toEqual([
-      'disclosure_control_detail',
+      'numerator_disclosure_control_detail',
+      'denominator_disclosure_control_detail',
       'caveats_detail',
       'other_notes_detail',
     ]);

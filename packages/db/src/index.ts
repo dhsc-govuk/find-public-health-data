@@ -29,6 +29,7 @@ export {
   getIndicatorDetailById,
   getIndicatorObservations,
   type IndicatorAreaData,
+  type IndicatorDataValue,
   type IndicatorDetail,
   type IndicatorFacets,
   type IndicatorObservation,

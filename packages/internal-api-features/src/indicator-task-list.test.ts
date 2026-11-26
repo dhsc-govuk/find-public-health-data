@@ -132,18 +132,40 @@ describe('indicatorTaskList', () => {
   );
 
   it.each([
-    ['nothing', {}, 'not_started'],
-    ['sources alone', { numeratorSources: [ons] }, 'not_started'],
-    ['a definition alone', { numeratorDefinition: complete.numeratorDefinition }, 'not_started'],
+    ['nothing', { hasNumeratorDenominator: null }, 'not_started'],
+    ['a numerator without sources', { numeratorSources: [] }, 'not_started'],
     [
-      'sources and a definition',
-      { numeratorSources: [ons], numeratorDefinition: complete.numeratorDefinition },
+      'a numerator without its disclosure control answer',
+      { numeratorDisclosureControl: null },
+      'not_started',
+    ],
+    ['a complete numerator and denominator', {}, 'completed'],
+    [
+      'a no without a data value',
+      { hasNumeratorDenominator: false, numeratorSources: [], denominatorSources: [] },
+      'not_started',
+    ],
+    [
+      'a no with a complete data value',
+      {
+        hasNumeratorDenominator: false,
+        dataValues: [
+          {
+            sources: [ons],
+            definition: 'Admissions',
+            disclosureControl: 'not-applicable',
+            disclosureControlDetail: null,
+          },
+        ],
+      },
       'completed',
     ],
   ] satisfies [string, Partial<IndicatorTaskListDraft>, string][])(
-    'judges the numerator with %s',
+    'judges the indicator format and sources with %s',
     (_, draft, status) => {
-      expect(indicatorTaskList(withDraft(draft)).tasks.numerator).toBe(status);
+      expect(
+        indicatorTaskList(withDraft({ ...complete, ...draft })).tasks['format-and-sources'],
+      ).toBe(status);
     },
   );
 
@@ -204,13 +226,6 @@ describe('indicatorTaskList', () => {
     },
   );
 
-  it('judges the denominator from its own answers', () => {
-    const numeratorOnly = { numeratorSources: [ons], numeratorDefinition: 'Deaths' };
-
-    expect(indicatorTaskList(withDraft(numeratorOnly)).tasks.denominator).toBe('not_started');
-    expect(indicatorTaskList(withDraft(complete)).tasks.denominator).toBe('completed');
-  });
-
   it.each([
     ['new', false],
     ['live', true],
@@ -263,7 +278,7 @@ describe('the changes an update makes', () => {
     ['data-table', { uploadBatchId: '019fa38f-073f-764e-9ac6-1c4d03b1cb94' }],
     ['definition-and-rationale', { rationale: 'A summary measure of health.' }],
     ['polarity', { polarity: 'higher-is-better' }],
-    ['numerator', { numeratorSources: [] }],
+    ['format-and-sources', { numeratorSources: [] }],
     ['update-frequency', { updateFrequency: 'annually' }],
     [
       'update-frequency',

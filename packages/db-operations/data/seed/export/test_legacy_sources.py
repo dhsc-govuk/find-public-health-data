@@ -71,7 +71,10 @@ class SeedReadingTest(unittest.TestCase):
             )
 
             self.assertEqual(legacy_source_ids(directory), {"Estimated": "s1"})
-            self.assertEqual(version_legacy_sources(directory), {"v1": ("s1", None)})
+            self.assertEqual(
+                version_legacy_sources(directory),
+                {"v1": (None, None, "s1", None, None, None)},
+            )
 
     def test_maps_every_source_the_committed_seed_names(self):
         legacy_map = read_legacy_map()

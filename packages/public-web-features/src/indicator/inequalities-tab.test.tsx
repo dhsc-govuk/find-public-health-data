@@ -27,6 +27,25 @@ it('renders the inequalities values on the server without the interactive canvas
   router.dispose();
 });
 
+it("names the data values' sources under the table of an indicator with no numerator", () => {
+  const primary = selected();
+  primary.detail.numeratorSources = [];
+  primary.detail.dataValues = [
+    {
+      sources: [{ provider: 'NHS England (NHSE)', source: 'Hospital Episode Statistics (HES)' }],
+      definition: 'Admissions',
+      disclosureControl: null,
+    },
+  ];
+  const router = createMemoryRouter([
+    { path: '/', element: <InequalitiesTab primary={primary} /> },
+  ]);
+  const html = renderToStaticMarkup(<RouterProvider router={router} />);
+
+  expect(html).toContain('Source: NHS England (NHSE): Hospital Episode Statistics (HES)');
+  router.dispose();
+});
+
 it.each([
   ['', 'Similar to England'],
   ['?ci-108=95', 'Better than England'],

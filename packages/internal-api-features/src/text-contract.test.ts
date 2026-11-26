@@ -5,11 +5,8 @@ import { benchmarkingSection } from './indicator-benchmarking-contract.ts';
 import { calculationSection } from './indicator-calculation-contract.ts';
 import { confidenceIntervalsSection } from './indicator-confidence-intervals-contract.ts';
 import { definitionAndRationaleSection } from './indicator-definition-and-rationale-contract.ts';
+import { formatAndSourcesSection } from './indicator-format-and-sources-contract.ts';
 import { justificationsSection } from './indicator-justifications-contract.ts';
-import {
-  denominatorSection,
-  numeratorSection,
-} from './indicator-numerator-denominator-contract.ts';
 import { otherCommentsSection } from './indicator-other-comments-contract.ts';
 import { otherNotesAndCaveatsSection } from './indicator-other-notes-and-caveats-contract.ts';
 import type { IndicatorSection } from './indicator-section-contract.ts';
@@ -202,16 +199,22 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
     },
   ],
   [
-    'numerator',
+    'indicator format and sources',
     10_000,
-    refusalsOf(numeratorSection, { sources: [] }),
-    { definition: 'Definition of the numerator' },
-  ],
-  [
-    'denominator',
-    10_000,
-    refusalsOf(denominatorSection, { sources: [] }),
-    { definition: 'Definition of the denominator' },
+    refusalsOf(formatAndSourcesSection, {
+      ...Object.fromEntries(formatAndSourcesSection.fields.options.map((field) => [field, ''])),
+      numeratorSources: [],
+      denominatorSources: [],
+      dataValues: [],
+    }),
+    {
+      numeratorDefinition: 'Numerator definition',
+      numeratorDisclosureControlDetail:
+        'Details of the disclosure control applied to the numerator',
+      denominatorDefinition: 'Denominator definition',
+      denominatorDisclosureControlDetail:
+        'Details of the disclosure control applied to the denominator',
+    },
   ],
   [
     'other comments',
@@ -224,7 +227,6 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
     10_000,
     refusalsOf(otherNotesAndCaveatsSection),
     {
-      disclosureControlDetail: 'Details of the disclosure control',
       roundingDetail: 'Details of the rounding',
       caveatsDetail: 'Details of the caveats',
       otherNotesDetail: 'Details of the other notes',

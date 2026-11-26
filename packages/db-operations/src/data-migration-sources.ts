@@ -1,13 +1,14 @@
 import type postgres from 'postgres';
 import { copyInto } from './data-migration-copy.ts';
 import { validateMigrationHeader } from './data-migration-header.ts';
+import { applyLegacyFormatAndSources } from './legacy-format-and-sources.ts';
 import { type LegacySourceMap, mapLegacySources } from './legacy-sources.ts';
 
 /**
- * Resolves legacy numerator/denominator source references to core provider/source pairs and
- * inserts rows into indicator_version_source. Requires migration_source_indicator_version (with
- * numerator_source_id and denominator_source_id columns) to be alive in the transaction, as
- * applyIndicatorVersionRows leaves it.
+ * Resolves legacy numerator/denominator source references to core provider/source pairs, then
+ * gives each staged version its indicator format and sources (see
+ * `applyLegacyFormatAndSources`). Requires migration_source_indicator_version, with its legacy
+ * columns, to be alive in the transaction, as applyIndicatorVersionRows leaves it.
  */
 export async function applyLegacySources(
   tx: postgres.TransactionSql,
@@ -66,18 +67,9 @@ export async function applyLegacySources(
     )}`;
   }
 
-  await tx`
-    DELETE FROM indicator_version_source
-    WHERE indicator_version_id IN (SELECT id FROM migration_source_indicator_version)
-  `;
-  await tx`
-    INSERT INTO indicator_version_source
-      (indicator_version_id, part, position, provider_id, source_id)
-    SELECT v.id, p.part, m.position, m.provider_id, m.source_id
-    FROM migration_source_indicator_version v
-    CROSS JOIN LATERAL (
-      VALUES ('numerator', v.numerator_source_id), ('denominator', v.denominator_source_id)
-    ) AS p (part, legacy_id)
-    JOIN migration_source_pair_map m ON m.legacy_id = p.legacy_id
-  `;
+  await applyLegacyFormatAndSources(
+    tx,
+    'migration_source_indicator_version',
+    'migration_source_pair_map',
+  );
 }

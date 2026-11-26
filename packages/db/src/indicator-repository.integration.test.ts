@@ -346,6 +346,59 @@ describe('getIndicatorDetailById', () => {
       { provider: 'Office for National Statistics (ONS)', source: 'Mid-year population estimates' },
     ]);
   });
+
+  it('lists each data value with its own sources and disclosure control, in order', async () => {
+    const [version] = await db.execute<{ id: string }>(
+      sql`SELECT id FROM current_published_version WHERE indicator_id = ${diabetesId}`,
+    );
+    await db.execute(
+      sql`DELETE FROM indicator_version_source WHERE indicator_version_id = ${version?.id}`,
+    );
+    await db.execute(
+      sql`INSERT INTO indicator_version_data_value
+            (indicator_version_id, position, definition, disclosure_control,
+             disclosure_control_detail)
+          VALUES
+            (${version?.id}, 1, 'Population', 'not-applicable', NULL),
+            (${version?.id}, 0, 'Admissions', 'yes', 'Counts under 5 suppressed')`,
+    );
+    await db.execute(
+      sql`INSERT INTO indicator_version_source
+            (indicator_version_id, part, position, provider_id, source_id, data_value_position)
+          SELECT ${version?.id}, 'data-value', entry.position, p.id, s.id, entry.data_value
+          FROM (VALUES
+            (2, 1, 'Office for National Statistics (ONS)', 'Mid-year population estimates'),
+            (1, 0, 'Estimated', NULL),
+            (0, 0, 'NHS England (NHSE)', 'Hospital Episode Statistics (HES)')
+          ) AS entry (position, data_value, provider, source)
+          JOIN data_provider p ON p.name = entry.provider
+          LEFT JOIN data_provider_source s ON s.provider_id = p.id AND s.name = entry.source`,
+    );
+
+    const indicator = await getIndicatorDetailById(db, publishedViews, diabetesId);
+
+    expect(indicator?.numeratorSources).toEqual([]);
+    expect(indicator?.dataValues).toEqual([
+      {
+        definition: 'Admissions',
+        disclosureControl: 'Counts under 5 suppressed',
+        sources: [
+          { provider: 'NHS England (NHSE)', source: 'Hospital Episode Statistics (HES)' },
+          { provider: 'Estimated', source: null },
+        ],
+      },
+      {
+        definition: 'Population',
+        disclosureControl: null,
+        sources: [
+          {
+            provider: 'Office for National Statistics (ONS)',
+            source: 'Mid-year population estimates',
+          },
+        ],
+      },
+    ]);
+  });
 });
 
 describe('getIndicatorObservations', () => {

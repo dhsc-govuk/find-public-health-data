@@ -49,13 +49,6 @@ const SECTIONS: YesNoSection[] = [
     textQuestions: [],
     questions: [
       {
-        legend: 'Has disclosure control been applied?',
-        details: 'Provide details',
-        refusal: 'Select whether disclosure control has been applied',
-        detailsRefusal: 'Provide details of the disclosure control',
-        otherAnswer: 'Not applicable',
-      },
-      {
         legend: 'Has any rounding been applied?',
         details: 'Provide details',
         refusal: 'Select whether rounding has been applied',

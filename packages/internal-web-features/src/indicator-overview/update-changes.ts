@@ -5,13 +5,13 @@ import {
   type CalculationField,
   type ConfidenceIntervalsField,
   type DefinitionAndRationaleField,
+  type FormatAndSourcesField,
   INDICATOR_TASK_TITLES,
   type IndicatorTaskKey,
   type JustificationsField,
   type OtherCommentsField,
   type OtherNotesAndCaveatsField,
   type PeriodTypeField,
-  type ProviderSourcesField,
   type SexGenderAndEthnicityField,
   type TaggingField,
   type UpdateChange,
@@ -41,8 +41,7 @@ export interface ChangeRow {
 interface SectionFields {
   'definition-and-rationale': DefinitionAndRationaleField;
   'period-type': PeriodTypeField;
-  numerator: ProviderSourcesField;
-  denominator: ProviderSourcesField;
+  'format-and-sources': FormatAndSourcesField;
   calculation: CalculationField;
   'confidence-intervals': ConfidenceIntervalsField;
   'update-frequency': UpdateFrequencyField;
@@ -71,8 +70,18 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
       yearEndDay: 'Year end day',
       yearEndMonth: 'Year end month',
     },
-    numerator: { sources: 'Data providers and sources', definition: 'Numerator definition' },
-    denominator: { sources: 'Data providers and sources', definition: 'Denominator definition' },
+    'format-and-sources': {
+      hasNumeratorDenominator: 'Has a numerator and denominator',
+      numeratorSources: 'Numerator data providers and sources',
+      numeratorDefinition: 'Numerator definition',
+      numeratorDisclosureControl: 'Numerator disclosure control',
+      numeratorDisclosureControlDetail: 'Numerator disclosure control detail',
+      denominatorSources: 'Denominator data providers and sources',
+      denominatorDefinition: 'Denominator definition',
+      denominatorDisclosureControl: 'Denominator disclosure control',
+      denominatorDisclosureControlDetail: 'Denominator disclosure control detail',
+      dataValues: 'Data values',
+    },
     calculation: {
       methodology: 'Methodology',
       calculatedBy: 'Who calculated the indicator',
@@ -100,8 +109,6 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
       unitDetail: 'Other unit',
     },
     'other-notes-and-caveats': {
-      disclosureControl: 'Disclosure control',
-      disclosureControlDetail: 'Disclosure control detail',
       hasRounding: 'Rounding',
       roundingDetail: 'Rounding detail',
       hasCaveats: 'Caveats needed',

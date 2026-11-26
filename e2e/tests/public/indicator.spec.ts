@@ -551,6 +551,20 @@ test('shows inequalities and methodology', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Calculation' })).toBeVisible();
 });
 
+test("shows the numerator's disclosure control under it, not under Other notes and caveats", async ({
+  page,
+}) => {
+  await page.getByRole('tab', { name: 'About this indicator' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'About this indicator' });
+
+  const numerator = panel
+    .getByRole('heading', { name: 'Numerator', exact: true })
+    .locator('xpath=following-sibling::dl[1]');
+  await expect(numerator.getByText('Disclosure control', { exact: true })).toBeVisible();
+  await expect(numerator).toContainText('For ICBs that are almost');
+  await expect(panel.getByText('Disclosure control', { exact: true })).toHaveCount(1);
+});
+
 test("offers a rate's numerator as its Count, never a Numerator, on the page and in its download", async ({
   page,
 }) => {
@@ -608,6 +622,7 @@ test('downloads the indicator table and complete data', async ({ page }) => {
   expect(metadata.filename).toMatch(/metadata\.txt$/);
   expect(metadata.text).toContain(MORTALITY_NAME);
   expect(metadata.text).toContain('Numerator definition:');
+  expect(metadata.text).toContain('Numerator disclosure control: For ICBs');
 });
 
 test('ticks every local authority in a statistical region and lists highlights above England', async ({

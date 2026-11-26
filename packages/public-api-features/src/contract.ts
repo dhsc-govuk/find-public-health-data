@@ -252,13 +252,23 @@ export const indicatorDetailSchema = z.object({
   rationale: z.string().nullable(),
   methodology: z.string().nullable(),
   numeratorDefinition: z.string().nullable(),
+  /** The details of the disclosure control applied to the numerator, where some was. */
+  numeratorDisclosureControl: z.string().nullable(),
   denominatorDefinition: z.string().nullable(),
-  disclosureControl: z.string().nullable(),
+  denominatorDisclosureControl: z.string().nullable(),
   caveats: z.string().nullable(),
   notes: z.string().nullable(),
   dataSource: indicatorSourceSchema.nullable(),
   numeratorSources: z.array(indicatorProviderSourceSchema),
   denominatorSources: z.array(indicatorProviderSourceSchema),
+  /** The figures an indicator without a numerator and denominator is calculated from, in order. */
+  dataValues: z.array(
+    z.object({
+      sources: z.array(indicatorProviderSourceSchema),
+      definition: z.string().nullable(),
+      disclosureControl: z.string().nullable(),
+    }),
+  ),
   areaTypes: z.array(z.object({ name: z.string().min(1), areaCount: z.number().int() })),
   topics: z.array(
     z.object({

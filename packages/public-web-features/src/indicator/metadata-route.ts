@@ -2,7 +2,7 @@ import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import type { IndicatorQuestion } from './loader.ts';
-import { providerSourceText, updateFrequencyLine } from './metadata-data.ts';
+import { dataValueTitle, providerSourceText, updateFrequencyLine } from './metadata-data.ts';
 import { indicatorPageContext } from './page-context.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
 import { isUnanswered, NOT_ENTERED_YET } from './placeholders.ts';
@@ -34,12 +34,21 @@ export async function loadIndicatorMetadata({
     ['Data source URL', detail.dataSource?.url],
     ['Numerator definition', detail.numeratorDefinition],
     ['Numerator sources', providerSourceText(detail.numeratorSources)],
+    ['Numerator disclosure control', detail.numeratorDisclosureControl],
     ['Denominator definition', detail.denominatorDefinition],
     ['Denominator sources', providerSourceText(detail.denominatorSources)],
+    ['Denominator disclosure control', detail.denominatorDisclosureControl],
+    ...detail.dataValues.flatMap(({ definition, sources, disclosureControl }, index) => {
+      const title = dataValueTitle(index, detail.dataValues.length);
+      return [
+        [`${title} definition`, definition],
+        [`${title} sources`, providerSourceText(sources)],
+        [`${title} disclosure control`, disclosureControl],
+      ];
+    }),
     ['Methodology', detail.methodology],
     ['Confidence interval method', detail.ciMethod],
     ['Benchmarking method', detail.comparatorMethod],
-    ['Disclosure control', detail.disclosureControl],
     ['Notes', detail.notes],
     ['Caveats', detail.caveats],
   ];

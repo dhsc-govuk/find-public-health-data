@@ -15,6 +15,11 @@ import {
   applyIndicatorTopics,
   type IndicatorTopicImportSummary,
 } from './indicator-topic-import.ts';
+import {
+  applyLegacyFormatAndSources,
+  LEGACY_STAGED_COLUMN_DEFINITIONS,
+  LEGACY_STAGED_COLUMNS,
+} from './legacy-format-and-sources.ts';
 import { type LegacySourceMap, mapLegacySources, readLegacySourceMap } from './legacy-sources.ts';
 import {
   needsReferenceMapping,
@@ -507,7 +512,10 @@ const PHOLIO_CI_METHOD_NAMES: Record<string, string> = {
 };
 
 /** The Fingertips columns naming a version's single numerator and denominator source. */
-const LEGACY_SOURCE_COLUMNS = ['numerator_source_id', 'denominator_source_id'];
+const LEGACY_SOURCE_COLUMNS: readonly string[] = ['numerator_source_id', 'denominator_source_id'];
+
+/** The Fingertips columns the service holds in another form, which the versions' insert leaves out. */
+const LEGACY_COLUMNS: readonly string[] = LEGACY_STAGED_COLUMNS;
 
 /** A list the source carries its own rows of, whose versions point at the core rows instead. */
 interface CoreDataLookup {
@@ -629,7 +637,7 @@ export async function loadIndicatorVersions(
   legacySourceMap: LegacySourceMap = readLegacySourceMap(),
 ): Promise<LoadedIndicatorVersions> {
   await tx`CREATE TEMP TABLE source_indicator_version (LIKE indicator_version INCLUDING DEFAULTS) ON COMMIT DROP`;
-  await tx`ALTER TABLE source_indicator_version ADD COLUMN numerator_source_id uuid, ADD COLUMN denominator_source_id uuid`;
+  await tx.unsafe(`ALTER TABLE source_indicator_version ${LEGACY_STAGED_COLUMN_DEFINITIONS}`);
   await loadTable(
     tx,
     'indicator_version',
@@ -656,7 +664,7 @@ export async function loadIndicatorVersions(
 
   const header = await readCsvHeader(`${directory}/indicator_version.csv.gz`);
   // The id is always carried over, so the sources below find the versions they belong to.
-  const columns = ['id', ...header.filter((c) => c !== 'id' && !LEGACY_SOURCE_COLUMNS.includes(c))];
+  const columns = ['id', ...header.filter((c) => c !== 'id' && !LEGACY_COLUMNS.includes(c))];
   const columnList = columns.map((c) => `"${c}"`).join(', ');
   const mapped = new Map<string, string>(
     CORE_DATA_LOOKUPS.map(({ table, column }) => [column, `${table}_map.core_id`]),
@@ -683,7 +691,10 @@ export async function loadIndicatorVersions(
   return { ciMethods, comparatorMethods, versions: inserted.count, ...sources };
 }
 
-/** Gives the staged versions the core providers and sources their Fingertips sources map to. */
+/**
+ * Gives the staged versions the core providers and sources their Fingertips sources map to, as
+ * their numerator and denominator or their single data value.
+ */
 async function loadLegacySources(
   tx: postgres.TransactionSql,
   directory: string,
@@ -733,16 +744,11 @@ async function loadLegacySources(
     )}`;
   }
 
-  const inserted = await tx`
-    INSERT INTO indicator_version_source
-      (indicator_version_id, part, position, provider_id, source_id)
-    SELECT v.id, p.part, m.position, m.provider_id, m.source_id
-    FROM source_indicator_version v
-    CROSS JOIN LATERAL (
-      VALUES ('numerator', v.numerator_source_id), ('denominator', v.denominator_source_id)
-    ) AS p (part, legacy_id)
-    JOIN source_pair_map m ON m.legacy_id = p.legacy_id
-  `;
+  const sources = await applyLegacyFormatAndSources(
+    tx,
+    'source_indicator_version',
+    'source_pair_map',
+  );
 
-  return { legacySources, sources: inserted.count };
+  return { legacySources, sources };
 }
