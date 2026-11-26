@@ -125,6 +125,10 @@ moves to this service. The operations image applies the packages with `db migrat
 - The service lists neither of two Fingertips confidence interval methods. The export leaves a
   version on "Unknown" with no method, and writes "Byar's method (no small number correction)" as
   Byar's method, modified, with the detail "No small number correction".
+- Fingertips never says whether a value type's standard calculation method was used. The export
+  answers No for a version with a methodology, keeping its text as the indicator's own, and leaves
+  the question unanswered for a version with no methodology or a value type with no standard method,
+  such as Score (`src/standard-method.ts`).
 - Deleting a version also deletes the topic, classification, source and data value rows the
   migration wrote for it. A version a publisher has added age ranges to is never deleted; the import
   stops and names the count.
