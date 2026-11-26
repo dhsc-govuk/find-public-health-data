@@ -875,14 +875,12 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-bottom: 0;
 }
 
-// A select beside the button that acts on its choice: level at the foot, spaced as one control.
-.fphd-field-row--with-button {
-  row-gap: govuk-spacing(2);
-  margin-bottom: 0;
-}
-
-.fphd-field-row--with-button > .govuk-button {
-  margin-bottom: 0;
+// An Add button (tagging, reviewer assignment) under its select: the same gap between them wherever the picker sits. GOV.UK
+// drops the bottom margin of a form group nested in another, as a select is inside a revealed
+// radio option, so without this the button sat flush against its select there and 30px away
+// elsewhere. The extra :not() keeps this above that rule.
+.govuk-form-group:has(> .govuk-select):has(+ .fphd-add-button):not(:last-child) {
+  margin-bottom: govuk-spacing(4);
 }
 
 // A table's summary beside its controls (rows per page, pagination), wrapping on narrow screens.

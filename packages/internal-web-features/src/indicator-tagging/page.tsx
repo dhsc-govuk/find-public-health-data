@@ -120,7 +120,7 @@ function addedTopics(
  * The topic question: a select and its Add button. Choosing a topic with subtopics asks for one
  * of them instead, in a select whose button adds the two together. In the browser the subtopic
  * select follows the topic as it is chosen. Without JavaScript, Add topic sends the form back
- * to ask for the subtopic, so it stays beside the topic select.
+ * to ask for the subtopic, so it stays under the topic select.
  */
 function TopicPicker({
   options,
@@ -141,25 +141,23 @@ function TopicPicker({
 
   return (
     <div className="govuk-!-margin-bottom-6">
-      <div className="fphd-field-row fphd-field-row--with-button">
-        <Select
-          defaultValue={values.addTopic}
-          // A topic without the subtopic it needs is refused on the topic question.
-          error={fieldErrors.addTopic ?? fieldErrors.topicIds ?? fieldErrors.subtopicIds}
-          label="Select a topic"
-          labelHeading="h2"
-          name="addTopic"
-          onChange={selected.onChange}
-          options={selectOptions(options.topics)}
-        />
-        {selected.hides(subtopics.length === 0) ? null : (
-          <Button name="intent" value={addIntent('topicIds')}>
-            Add topic
-          </Button>
-        )}
-      </div>
+      <Select
+        defaultValue={values.addTopic}
+        // A topic without the subtopic it needs is refused on the topic question.
+        error={fieldErrors.addTopic ?? fieldErrors.topicIds ?? fieldErrors.subtopicIds}
+        label="Select a topic"
+        labelHeading="h2"
+        name="addTopic"
+        onChange={selected.onChange}
+        options={selectOptions(options.topics)}
+      />
+      {selected.hides(subtopics.length === 0) ? null : (
+        <Button className="fphd-add-button" name="intent" value={addIntent('topicIds')}>
+          Add topic
+        </Button>
+      )}
       {chosen === undefined || subtopics.length === 0 ? null : (
-        <div className="fphd-field-row fphd-field-row--with-button govuk-!-margin-top-3">
+        <>
           <Select
             defaultValue={chosen.id === values.addTopic ? values.addSubtopic : ''}
             // The refusal was for the topic sent, not one chosen since.
@@ -171,10 +169,10 @@ function TopicPicker({
             name="addSubtopic"
             options={selectOptions(subtopics)}
           />
-          <Button name="intent" value={addIntent('subtopicIds')}>
+          <Button className="fphd-add-button" name="intent" value={addIntent('subtopicIds')}>
             Add topic and subtopic
           </Button>
-        </div>
+        </>
       )}
       <HiddenIds ids={topicIds} list="topicIds" />
       <HiddenIds ids={subtopicIds} list="subtopicIds" />
@@ -206,21 +204,18 @@ function TagPicker({
 
   return (
     <div className="govuk-!-margin-bottom-6">
-      {/* The select and its Add button side by side, as one control. */}
-      <div className="fphd-field-row fphd-field-row--with-button">
-        <Select
-          // A list refused as a whole is shown on the select that adds to it.
-          defaultValue={values[field]}
-          error={fieldErrors[field] ?? fieldErrors[list]}
-          label={`Select ${article} ${noun}`}
-          labelHeading={labelHeading}
-          name={field}
-          options={selectOptions(options)}
-        />
-        <Button name="intent" value={addIntent(list)}>
-          Add {noun}
-        </Button>
-      </div>
+      <Select
+        // A list refused as a whole is shown on the select that adds to it.
+        defaultValue={values[field]}
+        error={fieldErrors[field] ?? fieldErrors[list]}
+        label={`Select ${article} ${noun}`}
+        labelHeading={labelHeading}
+        name={field}
+        options={selectOptions(options)}
+      />
+      <Button className="fphd-add-button" name="intent" value={addIntent(list)}>
+        Add {noun}
+      </Button>
       <HiddenIds ids={added.map(({ id }) => id)} list={list} />
       <AddedTags added={added.map(({ name }, index) => ({ name, list, index }))} noun={noun} />
     </div>
