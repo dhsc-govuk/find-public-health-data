@@ -884,12 +884,6 @@ body.govuk-frontend-supported .fphd-filter-card {
   margin-bottom: 0;
 }
 
-// The button under its select rather than beside it, however wide the button's label.
-.fphd-field-row--button-below {
-  flex-direction: column;
-  align-items: flex-start;
-}
-
 // A table's summary beside its controls (rows per page, pagination), wrapping on narrow screens.
 .fphd-table-controls {
   display: flex;
