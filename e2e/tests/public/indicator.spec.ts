@@ -671,6 +671,8 @@ test('shows the highlighted areas next to Showing, removes one from its chip and
   await panel.getByRole('link', { name: 'Remove Hartlepool filter', exact: true }).click();
   await expect(chips).toHaveCount(size);
   await expect(chips.filter({ hasText: /Hartlepool$/ })).toHaveCount(0);
+  // The chip's link has gone, so focus moves to what the tab is still showing.
+  await expect(panel.locator('#indicator-compare-areas-showing')).toBeFocused();
   await expect(panel.getByRole('checkbox', { name: 'Hartlepool', exact: true })).not.toBeChecked();
   await expect(northEast).not.toBeChecked();
   await expect(
@@ -681,6 +683,7 @@ test('shows the highlighted areas next to Showing, removes one from its chip and
   await panel.getByRole('link', { name: 'Clear all', exact: true }).click();
   await expect(chips).toHaveText(['Local authorities']);
   await expect(panel.getByRole('link', { name: 'Clear all', exact: true })).toHaveCount(0);
+  await expect(panel.locator('#indicator-compare-areas-showing')).toBeFocused();
   await expect(
     panel
       .getByRole('table', { name: /Table of area comparisons/ })
@@ -718,9 +721,60 @@ test('removes an area highlighted through its region from its chip without JavaS
     await withoutJs.getByRole('link', { name: 'Remove Hartlepool filter', exact: true }).click();
     await expect(chips).toHaveCount(count - 1);
     await expect(chips.filter({ hasText: /Hartlepool$/ })).toHaveCount(0);
+    // The chip's link has gone, so its fragment moves focus to what the tab is still showing.
+    const showing = withoutJs.locator('#indicator-compare-areas-showing');
+    await expect(showing).toBeFocused();
     await expect(
       withoutJs.getByRole('checkbox', { name: 'Hartlepool', exact: true }),
     ).not.toBeChecked();
+    await withoutJs.getByRole('link', { name: 'Clear all', exact: true }).click();
+    await expect(withoutJs.getByRole('link', { name: 'Clear all', exact: true })).toHaveCount(0);
+    await expect(showing).toBeFocused();
+  } finally {
+    await context.close();
+  }
+});
+
+test('moves focus to what the Indicator tab shows when a chip is removed', async ({ page }) => {
+  await openIndicatorPage(page, `${MORTALITY_PATH}?as=E08000003&as=E08000001&cmp-108=england`);
+  const showing = page.locator('#indicator-data-showing');
+
+  await page.getByRole('link', { name: 'Remove Manchester filter', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Remove Manchester filter' })).toHaveCount(0);
+  await expect(showing).toBeFocused();
+  await page.getByRole('link', { name: 'Remove England filter', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Remove England filter' })).toHaveCount(0);
+  await expect(showing).toBeFocused();
+});
+
+test('moves focus to what each tab shows when a chip is removed without JavaScript', async ({
+  browser,
+  baseURL,
+}) => {
+  if (baseURL === undefined) throw new Error('A base URL is required');
+  const context = await browser.newContext({
+    baseURL,
+    storageState: INVITEE_STORAGE_STATE,
+    javaScriptEnabled: false,
+  });
+  const withoutJs = await context.newPage();
+  try {
+    await withoutJs.goto(`${MORTALITY_PATH}?as=E08000003&as=E08000001&cmp-108=england`);
+    const showing = withoutJs.locator('#indicator-data-showing');
+    await withoutJs.getByRole('link', { name: 'Remove Manchester filter', exact: true }).click();
+    await expect(withoutJs.getByRole('link', { name: 'Remove Manchester filter' })).toHaveCount(0);
+    await expect(showing).toBeFocused();
+    await withoutJs.getByRole('link', { name: 'Remove England filter', exact: true }).click();
+    await expect(withoutJs.getByRole('link', { name: 'Remove England filter' })).toHaveCount(0);
+    await expect(showing).toBeFocused();
+
+    await withoutJs.goto(
+      `${MORTALITY_PATH}?tab-indicator=compare&compareWith=241&highlight=E10000032`,
+    );
+    const compare = withoutJs.locator('#indicator-compare-indicators');
+    await compare.getByRole('link', { name: 'Remove West Sussex filter', exact: true }).click();
+    await expect(compare.getByRole('link', { name: 'Remove West Sussex filter' })).toHaveCount(0);
+    await expect(compare.locator('#indicator-compare-indicators-showing')).toBeFocused();
   } finally {
     await context.close();
   }
@@ -1650,6 +1704,8 @@ test('switches the scatter between all local authorities and statistical neighbo
   await expect(marks).toHaveCount(all);
   await panel.getByRole('link', { name: 'Remove West Sussex filter' }).click();
   await expect(chart.locator('.recharts-scatter-symbol polygon')).toHaveCount(0);
+  // The chip's link has gone, so focus moves to what the tab is still showing.
+  await expect(panel.locator('#indicator-compare-indicators-showing')).toBeFocused();
   await expect(
     panel.getByRole('checkbox', { name: 'Statistical neighbours for West Sussex' }),
   ).toHaveCount(0);

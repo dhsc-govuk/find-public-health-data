@@ -26,8 +26,12 @@ import {
 } from './data.ts';
 import type { IndicatorObservation } from './loader.ts';
 import { PanelOptionsPanel, usePanelOptions } from './options.tsx';
+import { Showing, toShowing } from './showing.tsx';
 import { AreaComparisonTable } from './tables/area-comparison-table.tsx';
 import { IndicatorViewDownload } from './view-download.tsx';
+
+/** The chips of the areas shown, which take focus when one is removed or all are cleared. */
+const SHOWING_ID = 'indicator-compare-areas-showing';
 
 export function CompareAreasTab({
   primary,
@@ -83,7 +87,7 @@ export function CompareAreasTab({
   );
   const shownAreas = highlightedAreas(params, areaOptions);
   const areasTabUrl = (next: URLSearchParams) =>
-    `${location.pathname}?${next}#indicator-compare-areas`;
+    toShowing(`${location.pathname}?${next}`, SHOWING_ID);
   const comparisonPeriod = comparison.period;
   const comparisonGeography =
     compareAreaGroup === 'Local authorities'
@@ -128,8 +132,7 @@ export function CompareAreasTab({
         </GridColumn>
         <GridColumn width="three-quarters">
           {englandOnly ? null : (
-            <div className="fphd-indicator-showing">
-              <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
+            <Showing id={SHOWING_ID}>
               <FilterChips collapse>
                 <FilterChip value={compareAreaGroup}>{compareAreaGroup}</FilterChip>
                 {shownAreas.map(({ code, name }) => (
@@ -154,7 +157,7 @@ export function CompareAreasTab({
                   Clear all
                 </Link>
               ) : null}
-            </div>
+            </Showing>
           )}
           <IndicatorViewDownload slug={detail.slug} tab="areas" />
           <AgeWarning age={uncertainAge} />

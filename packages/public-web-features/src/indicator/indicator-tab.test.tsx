@@ -99,6 +99,12 @@ it('uses every new checkbox label for its showing chip', () => {
     'Policy goal',
   ])
     expect(screen.getByRole('link', { name: `Remove ${label} filter` })).toBeTruthy();
+  // A remove link goes with its chip, so its fragment moves focus to what is still shown.
+  const showing = screen.getByRole('group', { name: 'Showing:' });
+  expect(showing.id).toBe('indicator-data-showing');
+  expect(showing.getAttribute('tabindex')).toBe('-1');
+  for (const link of screen.getAllByRole('link', { name: /^Remove .* filter$/ }))
+    expect(link.getAttribute('href')).toMatch(/#indicator-data-showing$/);
   const chips = [
     ...document.querySelectorAll('.fphd-indicator-showing .fphd-filter-chip span'),
   ].map((chip) => chip.textContent);

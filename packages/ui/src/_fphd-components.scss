@@ -735,6 +735,12 @@ body.govuk-frontend-supported .fphd-filter-card {
   }
 }
 
+// The chips take focus only to show where the user now is, after one is removed, so they show no
+// outline.
+.fphd-indicator-showing:focus {
+  outline: none;
+}
+
 .fphd-inline-download .govuk-details__summary {
   @include govuk-font-size($size: 19);
 }

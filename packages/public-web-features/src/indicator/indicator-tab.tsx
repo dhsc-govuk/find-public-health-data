@@ -33,6 +33,7 @@ import {
   usePanelOptions,
 } from './options.tsx';
 import { indicatorSelectionUrl } from './paths.ts';
+import { Showing, toShowing } from './showing.tsx';
 import { TrendTable } from './tables/trend-table.tsx';
 import {
   selectedTrendColumns,
@@ -40,6 +41,9 @@ import {
   trendColumnsParam,
   trendTableModel,
 } from './trend.ts';
+
+/** The chips of the areas and benchmarks shown, which take focus when one is removed. */
+const SHOWING_ID = 'indicator-data-showing';
 
 export function IndicatorTab({
   primary,
@@ -174,10 +178,9 @@ export function IndicatorTab({
     return [...next];
   };
   const selectionUrl = (areaCodes: string[], areaLevels: string[]) =>
-    indicatorSelectionUrl(location, areaCodes, areaLevels, id);
+    toShowing(indicatorSelectionUrl(location, areaCodes, areaLevels, id), SHOWING_ID);
   const showing = (
-    <div className="fphd-indicator-showing">
-      <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
+    <Showing id={SHOWING_ID}>
       <FilterChips collapse>
         {!hasPickedAreas ? <FilterChip value="E92000001">England</FilterChip> : null}
         {defaultAreaLevel ? (
@@ -226,7 +229,7 @@ export function IndicatorTab({
                 key={value}
                 value={value}
                 removeLabel={label}
-                onRemove={`${location.pathname}?${next}`}
+                onRemove={toShowing(`${location.pathname}?${next}`, SHOWING_ID)}
                 replace
               >
                 {label}
@@ -234,7 +237,7 @@ export function IndicatorTab({
             );
           })}
       </FilterChips>
-    </div>
+    </Showing>
   );
   const nothingShown = !hasEngland && !hasPickedAreas;
   const download = (

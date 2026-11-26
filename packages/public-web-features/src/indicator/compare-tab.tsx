@@ -24,6 +24,7 @@ import type {
   SelectedIndicator,
 } from './loader.ts';
 import { usePanelOptions } from './options.tsx';
+import { Showing, toShowing } from './showing.tsx';
 import { IndicatorPairTable } from './tables/indicator-pair-table.tsx';
 import { IndicatorViewDownload } from './view-download.tsx';
 
@@ -35,6 +36,9 @@ export interface ComparisonTabProps extends IndicatorComparisonModel {
   /** Whether England is the only geography the indicator has data for. */
   englandOnly: boolean;
 }
+
+/** The chips of the areas highlighted, which take focus when one is removed. */
+const SHOWING_ID = 'indicator-compare-indicators-showing';
 
 export function CompareIndicatorsTab({
   primary,
@@ -84,7 +88,7 @@ export function CompareIndicatorsTab({
     const next = new URLSearchParams(params);
     next.delete('highlight', code);
     next.delete('neighbours', code);
-    return `${location.pathname}?${next}#indicator-compare-indicators`;
+    return toShowing(`${location.pathname}?${next}`, SHOWING_ID);
   };
   const selected = compared
     ? scatterPair([{ detail }, { detail: compared }], params).filter((entry) => entry !== undefined)
@@ -157,8 +161,7 @@ export function CompareIndicatorsTab({
           </div>
           {compared && pair ? (
             <>
-              <div className="fphd-indicator-showing">
-                <p className="govuk-body-s govuk-!-margin-bottom-1">Showing:</p>
+              <Showing id={SHOWING_ID}>
                 <FilterChips>
                   {highlighted.length ? (
                     highlighted.map(({ code, name }) => (
@@ -176,7 +179,7 @@ export function CompareIndicatorsTab({
                     <FilterChip value="E92000001">England</FilterChip>
                   )}
                 </FilterChips>
-              </div>
+              </Showing>
               <IndicatorViewDownload slug={detail.slug} tab="compare" />
               <div className="fphd-indicator-chart fphd-indicator-chart--scatter">
                 <CompareIndicatorsChart
