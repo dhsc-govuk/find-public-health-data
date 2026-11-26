@@ -242,7 +242,7 @@ it.each(publishedTrends.samples)(
       });
     }
     await database.db.transaction((tx) =>
-      replaceObservationSeries(tx, fixture.id, fixture.batchId),
+      replaceObservationSeries(tx, fixture.id, fixture.batchId, null),
     );
     await assertDirections();
     for (const mode of ['recent', 'latest', 'sparkline'] as const) {

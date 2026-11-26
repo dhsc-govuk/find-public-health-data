@@ -394,7 +394,7 @@ describe('recreating the preview views around a migration', () => {
     await asOwnerGroup(sql, () =>
       withPreviewViewsRecreated(sql, async () => {
         await sql`DROP VIEW published.observation_series_batch`;
-        await sql`ALTER TABLE observation_series_batch DROP COLUMN trend_values`;
+        await sql`ALTER TABLE observation_series_batch DROP COLUMN trend`;
         await sql`
           CREATE VIEW published.observation_series_batch AS
           SELECT b.indicator_id FROM observation_series_batch b

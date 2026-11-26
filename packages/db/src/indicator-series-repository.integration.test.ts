@@ -152,7 +152,7 @@ it.each([
               }),
           )
           .returning();
-        await replaceObservationSeries(tx, model.indicatorId, model.uploadBatchId);
+        await replaceObservationSeries(tx, model.indicatorId, model.uploadBatchId, null);
         rows.sort((a, b) => a.fromDate.localeCompare(b.fromDate));
         const summary = seriesTrend(rows);
         expect(summary).toMatchObject({
