@@ -56,6 +56,13 @@ function TabPanels({
   const paramIndex = Math.max(0, matchingIndex);
   const hasLinkedSelection = linkSelection && tabParam !== null && matchingIndex >= 0;
   const [selected, setSelected] = useState(paramIndex);
+  // A new tab parameter selects its tab in the same render, so the tab's panel is shown when the
+  // route announcer moves focus into it, as it does for a link that names a part of the panel.
+  const [selectedParam, setSelectedParam] = useState(fromParam);
+  if (selectedParam !== fromParam) {
+    setSelectedParam(fromParam);
+    setSelected(paramIndex);
+  }
   const [mounted, setMounted] = useState(false);
   const [tabMode, setTabMode] = useState(false);
   const hashIndex = mounted ? items.findIndex(({ id }) => location.hash === `#${id}`) : -1;
@@ -99,13 +106,6 @@ function TabPanels({
       panels.current[committedIndex]?.scrollIntoView({ block: 'start' });
     }
   }, [mounted, tabMode, committedIndex, contentReady]);
-
-  const previousParam = useRef(fromParam);
-  useEffect(() => {
-    if (previousParam.current === fromParam) return;
-    previousParam.current = fromParam;
-    setSelected(paramIndex);
-  }, [fromParam, paramIndex]);
 
   const searchFor = (index: number, includeDefault = false) => {
     const params = new URLSearchParams(location.search);
