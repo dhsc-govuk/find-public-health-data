@@ -272,6 +272,9 @@ export const indicatorVersion = pgTable(
     denominatorDisclosureControlDetail: text(),
     dataSourceId: uuid().references(() => dataSource.id),
     // How the indicator was calculated
+    // Not asked of a value type with no standard method, such as Score, nor before a value type
+    // is chosen. The methodology is asked under a no, and alone where the question is not asked.
+    standardMethodUsed: boolean(),
     methodology: text(),
     calculatedBy: text({ enum: INDICATOR_CALCULATED_BY }),
     calculatedByDetail: text(),
@@ -428,6 +431,10 @@ export const indicatorVersion = pgTable(
     check(
       'indicator_version_ci_method_modifications_detail_check',
       detailBesideYes(t.hasCiMethodModifications, t.ciMethodModificationsDetail),
+    ),
+    check(
+      'indicator_version_methodology_check',
+      sql`${t.standardMethodUsed} IS NULL OR (${t.standardMethodUsed} IS FALSE) = (${t.methodology} IS NOT NULL)`,
     ),
     check(
       'indicator_version_calculated_by_check',

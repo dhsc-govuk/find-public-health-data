@@ -1,3 +1,4 @@
+import { standardCalculationMethodOf } from '@fphd/utils/standard-methods';
 import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -256,6 +257,19 @@ describe('getIndicatorDetailById', () => {
 
     expect((await getIndicatorDetailById(db, publishedViews, id))?.unit).toBe(
       'admissions per 10,000 children aged 0 to 4',
+    );
+  });
+
+  it("shows the value type's standard method for a version that used it", async () => {
+    const id = await resolvedId(GASTROENTERITIS_ADMISSIONS);
+    await db.execute(
+      sql`UPDATE indicator_version SET value_type_id = ${VALUE_TYPE_IDS.crudeRate},
+            standard_method_used = true, methodology = NULL
+          WHERE indicator_id = ${id}`,
+    );
+
+    expect((await getIndicatorDetailById(db, publishedViews, id))?.methodology).toBe(
+      standardCalculationMethodOf(VALUE_TYPE_IDS.crudeRate),
     );
   });
 

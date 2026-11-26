@@ -1,5 +1,11 @@
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
-import { completeIndicatorDetail, type FoundIndicatorDetail } from './indicator-repository.ts';
+
+import {
+  completeIndicatorDetail,
+  type FoundIndicatorDetail,
+  methodologyShown,
+} from './indicator-repository.ts';
 
 const found: FoundIndicatorDetail = {
   goal: null,
@@ -63,5 +69,36 @@ describe('completeIndicatorDetail', () => {
         unanswered: ['updateFrequency'],
       }),
     ).toMatchObject({ updateFrequency: null });
+  });
+});
+
+describe('methodologyShown', () => {
+  const proportion = VALUE_TYPE_IDS.proportion;
+
+  it("shows the value type's standard method when the publisher used it", () => {
+    expect(
+      methodologyShown({ valueTypeId: proportion, standardMethodUsed: true, methodology: null }),
+    ).toBe(
+      'The numerator is divided by the denominator. It can then be multiplied by 100 to be presented as a percentage.',
+    );
+  });
+
+  it.each([false, null])(
+    "shows the publisher's own methodology when the standard method answer is %s",
+    (standardMethodUsed) => {
+      expect(
+        methodologyShown({ valueTypeId: proportion, standardMethodUsed, methodology: 'Our own' }),
+      ).toBe('Our own');
+    },
+  );
+
+  it('shows nothing for a standard method its value type does not have', () => {
+    expect(
+      methodologyShown({
+        valueTypeId: VALUE_TYPE_IDS.score,
+        standardMethodUsed: true,
+        methodology: null,
+      }),
+    ).toBeNull();
   });
 });

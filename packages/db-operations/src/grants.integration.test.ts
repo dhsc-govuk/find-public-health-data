@@ -180,6 +180,7 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.ci_confidence_level text',
   'indicator.definition text',
   'indicator.rationale text',
+  'indicator.standard_method_used boolean',
   'indicator.methodology text',
   'indicator.numerator_definition text',
   'indicator.numerator_disclosure_control_detail text',
