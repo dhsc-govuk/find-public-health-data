@@ -1292,44 +1292,47 @@ describe('area deprivation memberships', () => {
 });
 
 describe('published policy goals', () => {
-  it('returns numeric single-value and interval goals and null without a goal', async () => {
+  it('returns the first goal with its comparisons, and null without a goal', async () => {
     const indicatorId = await resolvedId(GASTROENTERITIS_ADMISSIONS);
     const publicDb = testDb.connectDb({ login: apiLogin('public_api') });
+    const [{ id: published } = { id: '' }] = await testDb.sql<{ id: string }[]>`
+      SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId}
+    `;
+    const goalOf = async () =>
+      (await getIndicatorDetailById(publicDb, publishedViews, indicatorId))?.goal;
     try {
-      for (const upper of [null, 95.5]) {
-        await testDb.sql`
-          UPDATE indicator_version SET has_goal_benchmark = true, goal_lower_value = 90.25,
-            goal_upper_value = ${upper}, goal_polarity = 'higher-is-better', goal_policy_detail = 'Policy target'
-          WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
-        `;
-        expect((await getIndicatorDetailById(publicDb, publishedViews, indicatorId))?.goal).toEqual(
-          {
-            lower: 90.25,
-            upper,
-            polarity: 'higher-is-better',
-            policyDetail: 'Policy target',
-          },
-        );
-      }
+      await testDb.sql`UPDATE indicator_version SET has_goal_benchmark = true WHERE id = ${published}`;
       await testDb.sql`
-        UPDATE indicator_version SET has_goal_benchmark = true, goal_lower_value = 10,
-          goal_upper_value = null, goal_polarity = 'lower-is-better', goal_policy_detail = null
-        WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
+        INSERT INTO indicator_version_goal (indicator_version_id, position, lower_comparison,
+          lower_value, upper_comparison, upper_value, polarity, policy_detail)
+        VALUES
+          (${published}, 0, 'less-than', 90.25, 'more-than-or-equal', 95.5, 'higher-is-better', 'Policy target'),
+          (${published}, 1, 'less-than-or-equal', 10, null, null, 'lower-is-better', null)
       `;
-      expect((await getIndicatorDetailById(publicDb, publishedViews, indicatorId))?.goal).toEqual({
+      expect(await goalOf()).toEqual({
+        lower: 90.25,
+        lowerComparison: 'less-than',
+        upper: 95.5,
+        upperComparison: 'more-than-or-equal',
+        polarity: 'higher-is-better',
+        policyDetail: 'Policy target',
+      });
+
+      await testDb.sql`DELETE FROM indicator_version_goal WHERE indicator_version_id = ${published} AND position = 0`;
+      await testDb.sql`UPDATE indicator_version_goal SET position = 0 WHERE indicator_version_id = ${published}`;
+      expect(await goalOf()).toEqual({
         lower: 10,
+        lowerComparison: 'less-than-or-equal',
         upper: null,
+        upperComparison: null,
         polarity: 'lower-is-better',
         policyDetail: null,
       });
     } finally {
-      await testDb.sql`
-        UPDATE indicator_version SET has_goal_benchmark = false, goal_lower_value = null,
-          goal_upper_value = null, goal_polarity = null, goal_policy_detail = null
-        WHERE id = (SELECT id FROM current_published_version WHERE indicator_id = ${indicatorId})
-      `;
+      await testDb.sql`DELETE FROM indicator_version_goal WHERE indicator_version_id = ${published}`;
+      await testDb.sql`UPDATE indicator_version SET has_goal_benchmark = false WHERE id = ${published}`;
     }
-    expect((await getIndicatorDetailById(publicDb, publishedViews, indicatorId))?.goal).toBeNull();
+    expect(await goalOf()).toBeNull();
   });
 });
 

@@ -597,6 +597,16 @@ describe('applyDataMigration', () => {
     ]);
     await assertRolledBack();
   });
+  it('protects publisher policy goal rows when source versions are deleted', async () => {
+    await baseline();
+    await db.sql`INSERT INTO indicator_version_goal (indicator_version_id, position, lower_comparison, lower_value, polarity) VALUES (${VERSION_ID}, 0, 'less-than', 10, 'higher-is-better')`;
+    const options = {
+      deletes: { indicator: [INDICATOR_ID], indicator_version: [VERSION_ID] },
+      relationships: { indicators: [], indicatorTopics: [] },
+    };
+    await expect(apply(options)).rejects.toThrow('1 publisher policy goals');
+    await assertRolledBack();
+  });
   it('protects publisher age range rows when source versions are deleted', async () => {
     await baseline();
     await db.sql`INSERT INTO indicator_version_age_range (indicator_version_id, position, lower_limit, lower_limit_unit) VALUES (${VERSION_ID}, 0, 18, 'years')`;

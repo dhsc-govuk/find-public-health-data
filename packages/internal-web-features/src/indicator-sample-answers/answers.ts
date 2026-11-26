@@ -1,6 +1,7 @@
 import {
   agesAnswersSchema,
   agesSection,
+  benchmarkingAnswersSchema,
   benchmarkingSection,
   type CiMethod,
   calculationSection,
@@ -157,7 +158,7 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
       ciMethodId: named(ciMethods, "Byar's method", 'confidence interval method').id,
       hasCiMethodModifications: 'no',
     }),
-    text(benchmarkingSection, { hasGoalBenchmark: 'no' }),
+    sample(benchmarkingSection, { hasGoalBenchmark: 'no', goals: [] }, benchmarkingAnswersSchema),
     text(otherNotesAndCaveatsSection, {
       disclosureControl: 'not-applicable',
       hasRounding: 'no',

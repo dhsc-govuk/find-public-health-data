@@ -12,6 +12,7 @@ import {
   type YearType,
 } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
+import { GOAL_LOWER_COMPARISONS, GOAL_UPPER_COMPARISONS } from '@fphd/utils/policy-goal';
 import {
   DEMOGRAPHICS,
   type Demographic,
@@ -261,12 +262,8 @@ export const indicatorVersion = pgTable(
     fingertipsFormatting: jsonb().$type<FingertipsFormatting>(),
     // Benchmarking
     comparatorMethodId: uuid().references(() => comparatorMethod.id),
-    // A goal is kept beside a yes alone; a single goal value has no upper value.
+    // The goals a yes gives are rows of indicator_version_goal.
     hasGoalBenchmark: boolean(),
-    goalLowerValue: doublePrecision(),
-    goalUpperValue: doublePrecision(),
-    goalPolarity: text({ enum: GOAL_POLARITIES }),
-    goalPolicyDetail: text(),
     // Other notes and caveats
     // Each answer's detail is asked for, and required, only when the answer is yes.
     disclosureControl: text({ enum: INDICATOR_DISCLOSURE_CONTROL }),
@@ -408,33 +405,6 @@ export const indicatorVersion = pgTable(
     check(
       'indicator_version_other_notes_detail_check',
       detailBesideYes(t.hasOtherNotes, t.otherNotesDetail),
-    ),
-    check(
-      'indicator_version_goal_polarity_check',
-      sql`${t.goalPolarity} IN (${literals(GOAL_POLARITIES)})`,
-    ),
-    // A yes has its goal, which is a lower value and a polarity; nothing else has one.
-    check(
-      'indicator_version_goal_check',
-      sql`(${t.hasGoalBenchmark} IS TRUE) = (${t.goalLowerValue} IS NOT NULL)`,
-    ),
-    check(
-      'indicator_version_goal_pair_check',
-      sql`(${t.goalLowerValue} IS NULL) = (${t.goalPolarity} IS NULL)`,
-    ),
-    check(
-      'indicator_version_goal_upper_value_check',
-      sql`${t.goalUpperValue} IS NULL OR (${t.goalLowerValue} IS NOT NULL AND ${t.goalUpperValue} > ${t.goalLowerValue})`,
-    ),
-    // The policy detail is optional beside a yes.
-    check(
-      'indicator_version_goal_policy_detail_check',
-      sql`${t.hasGoalBenchmark} IS TRUE OR ${t.goalPolicyDetail} IS NULL`,
-    ),
-    // Postgres orders NaN above Infinity, so these bounds refuse it too.
-    check(
-      'indicator_version_goal_values_check',
-      sql`${t.goalLowerValue} > '-Infinity' AND ${t.goalLowerValue} < 'Infinity' AND ${t.goalUpperValue} < 'Infinity'`,
     ),
     check(
       'indicator_version_exclusions_detail_check',
@@ -594,6 +564,60 @@ export const indicatorVersionAgeRange = pgTable(
     check(
       'indicator_version_age_range_order_check',
       sql`${ageInDays(t.upperLimit, t.upperLimitUnit)} >= ${ageInDays(t.lowerLimit, t.lowerLimitUnit)}`,
+    ),
+  ],
+);
+
+/**
+ * The policy goals a version gives, in the order the publisher gave them. A goal with a single
+ * value has no upper value. How the values and comparisons make bands is in
+ * `@fphd/utils/policy-goal`.
+ */
+export const indicatorVersionGoal = pgTable(
+  'indicator_version_goal',
+  {
+    indicatorVersionId: uuid().notNull(),
+    position: smallint().notNull(),
+    lowerComparison: text({ enum: GOAL_LOWER_COMPARISONS }).notNull(),
+    lowerValue: doublePrecision().notNull(),
+    upperComparison: text({ enum: GOAL_UPPER_COMPARISONS }),
+    upperValue: doublePrecision(),
+    polarity: text({ enum: GOAL_POLARITIES }).notNull(),
+    policyDetail: text(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.indicatorVersionId, t.position] }),
+    foreignKey({
+      name: 'indicator_version_goal_version_fk',
+      columns: [t.indicatorVersionId],
+      foreignColumns: [indicatorVersion.id],
+    }),
+    check('indicator_version_goal_position_check', sql`${t.position} >= 0`),
+    check(
+      'indicator_version_goal_lower_comparison_check',
+      sql`${t.lowerComparison} IN (${literals(GOAL_LOWER_COMPARISONS)})`,
+    ),
+    check(
+      'indicator_version_goal_upper_comparison_check',
+      sql`${t.upperComparison} IN (${literals(GOAL_UPPER_COMPARISONS)})`,
+    ),
+    check(
+      'indicator_version_goal_polarity_check',
+      sql`${t.polarity} IN (${literals(GOAL_POLARITIES)})`,
+    ),
+    // An upper value has its comparison, and is higher than the lower value.
+    check(
+      'indicator_version_goal_upper_pair_check',
+      sql`(${t.upperValue} IS NULL) = (${t.upperComparison} IS NULL)`,
+    ),
+    check(
+      'indicator_version_goal_upper_value_check',
+      sql`${t.upperValue} IS NULL OR ${t.upperValue} > ${t.lowerValue}`,
+    ),
+    // Postgres orders NaN above Infinity, so these bounds refuse it too.
+    check(
+      'indicator_version_goal_values_check',
+      sql`${t.lowerValue} > '-Infinity' AND ${t.lowerValue} < 'Infinity' AND ${t.upperValue} < 'Infinity'`,
     ),
   ],
 );

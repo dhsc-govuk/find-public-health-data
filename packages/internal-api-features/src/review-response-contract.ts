@@ -27,7 +27,7 @@ export const INDICATOR_TASK_TITLES: Readonly<Record<IndicatorTaskKey, string>> =
   denominator: 'Denominator',
   calculation: 'How the indicator was calculated',
   'confidence-intervals': 'Confidence intervals',
-  benchmarking: 'Benchmarking',
+  benchmarking: 'Policy goals',
   'other-notes-and-caveats': 'Other notes and caveats',
   tagging: 'Tagging',
   'update-frequency': 'Update frequency',

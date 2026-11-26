@@ -712,16 +712,6 @@ describe('updateIndicatorDraft', () => {
         reviewerCommentsDetail: 'Replaces indicator 108.',
       },
     ],
-    [
-      'a goal, its values as they were given',
-      {
-        hasGoalBenchmark: true,
-        goalLowerValue: 0.956000001,
-        goalUpperValue: 1.161000001,
-        goalPolarity: 'lower-is-better',
-        goalPolicyDetail: 'Below the England value for 2013/14.',
-      },
-    ],
   ])('writes %s to the draft', async ([answers, attributes], { db }) => {
     const created = await newDraft(db, `Answered with ${answers}`);
 
@@ -1038,6 +1028,62 @@ describe('the audit log of draft writes', () => {
     });
     expect(replaced?.changes).toEqual({ ageRanges: { before: first, after: second } });
   });
+
+  repositoryTest(
+    'writes the policy goals in order, their values as they were given',
+    async ({ db }) => {
+      const created = await newDraft(db, 'Policy goals answered');
+      const goals = [
+        {
+          lowerComparison: 'less-than',
+          lowerValue: 0.956000001,
+          upperComparison: 'more-than-or-equal',
+          upperValue: 1.161000001,
+          polarity: 'lower-is-better',
+          policyDetail: 'Below the England value for 2013/14.',
+        },
+        {
+          lowerComparison: 'less-than-or-equal',
+          lowerValue: -2,
+          upperComparison: null,
+          upperValue: null,
+          polarity: 'higher-is-better',
+          policyDetail: null,
+        },
+      ] as const;
+
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'benchmarking',
+        { hasGoalBenchmark: true },
+        { goals: [...goals] },
+        AS_ACTOR,
+      );
+      const answered = await getIndicatorDraftState(db, created.indicatorId);
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'benchmarking',
+        { hasGoalBenchmark: false },
+        { goals: [] },
+        AS_ACTOR,
+      );
+      const cleared = await getIndicatorDraftState(db, created.indicatorId);
+
+      expect(answered?.draft).toMatchObject({ hasGoalBenchmark: true, goals });
+      expect(cleared?.draft).toMatchObject({ hasGoalBenchmark: false, goals: [] });
+      const [, withGoals, withoutGoals] = await auditEntriesFor(db, created.indicatorId);
+      expect(withGoals?.changes).toEqual({
+        hasGoalBenchmark: { before: null, after: true },
+        goals: { before: [], after: goals },
+      });
+      expect(withoutGoals?.changes).toEqual({
+        hasGoalBenchmark: { before: true, after: false },
+        goals: { before: goals, after: [] },
+      });
+    },
+  );
 
   repositoryTest('records nothing for a save that changes nothing', async ({ db }) => {
     const created = await newDraft(db, 'Audited no-op');

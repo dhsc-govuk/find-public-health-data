@@ -9,6 +9,7 @@ import {
 } from '@fphd/utils/observation-series';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
+import { GOAL_LOWER_COMPARISONS, GOAL_UPPER_COMPARISONS } from '@fphd/utils/policy-goal';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import { tidyName } from '@fphd/utils/tidy-name';
 import {
@@ -172,9 +173,12 @@ export const indicatorProviderSourceSchema = z.object({
   source: z.string().min(1).nullable(),
 });
 
+/** The first policy goal the publisher gave. Its bands are described in `@fphd/utils/policy-goal`. */
 export const indicatorGoalSchema = z.object({
   lower: z.number(),
+  lowerComparison: z.enum(GOAL_LOWER_COMPARISONS),
   upper: z.number().nullable(),
+  upperComparison: z.enum(GOAL_UPPER_COMPARISONS).nullable(),
   polarity: z.enum(GOAL_POLARITIES),
   policyDetail: z.string().nullable(),
 });

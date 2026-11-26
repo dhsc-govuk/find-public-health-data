@@ -249,7 +249,7 @@ for (const {
       );
 
       // The details a Yes asks for follow the question rather than asking one, so they are not
-      // headings. Benchmarking reveals further questions instead, and makes those headings.
+      // headings. Policy goals reveals further questions instead, and makes those headings.
       await expectQuestionStyles(
         page,
         [

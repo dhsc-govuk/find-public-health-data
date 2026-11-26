@@ -119,6 +119,7 @@ export function sectionFieldErrors<Field extends string, Values, Input, ErrorFie
 export const unansweredDraft: IndicatorSectionDraft = {
   ...nullColumns(schema.indicatorVersion),
   ageRanges: [],
+  goals: [],
   topicIds: [],
   subtopicIds: [],
   classifications: [],

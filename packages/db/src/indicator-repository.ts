@@ -9,7 +9,8 @@ import {
   type YearEnd,
   yearTypeValuesLabelled,
 } from '@fphd/utils/period-type';
-import type { GoalPolarity, Polarity } from '@fphd/utils/polarity';
+import type { Polarity } from '@fphd/utils/polarity';
+import type { PolicyGoalBands } from '@fphd/utils/policy-goal';
 import { isShortId, SHORT_ID_PATTERN } from '@fphd/utils/short-id';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import type { IndicatorSourcePart } from '@fphd/utils/source-part';
@@ -186,12 +187,8 @@ export interface IndicatorTopic {
 }
 
 export interface IndicatorDetail {
-  goal: {
-    lower: number;
-    upper: number | null;
-    polarity: GoalPolarity;
-    policyDetail: string | null;
-  } | null;
+  /** The first policy goal the publisher gave, which the charts, tables and downloads compare with. */
+  goal: (PolicyGoalBands & { policyDetail: string | null }) | null;
   shortId: number;
   /** The canonical slug: the one the latest published version carries. */
   slug: string;
@@ -333,6 +330,7 @@ export async function getIndicatorDetailsByIds(
     dataProviderSource,
     dataSource,
     indicator,
+    indicatorGoal,
     indicatorSource,
     indicatorUpdateSummary,
     unit,
@@ -358,10 +356,12 @@ export async function getIndicatorDetailsByIds(
       updateFrequencyYears: indicator.updateFrequencyYears,
       polarity: indicator.polarity,
       hasGoalBenchmark: indicator.hasGoalBenchmark,
-      goalLowerValue: indicator.goalLowerValue,
-      goalUpperValue: indicator.goalUpperValue,
-      goalPolarity: indicator.goalPolarity,
-      goalPolicyDetail: indicator.goalPolicyDetail,
+      goalLowerComparison: indicatorGoal.lowerComparison,
+      goalLowerValue: indicatorGoal.lowerValue,
+      goalUpperComparison: indicatorGoal.upperComparison,
+      goalUpperValue: indicatorGoal.upperValue,
+      goalPolarity: indicatorGoal.polarity,
+      goalPolicyDetail: indicatorGoal.policyDetail,
       ciMethod: ciMethod.name,
       ciConfidenceLevel: indicator.ciConfidenceLevel,
       fingertipsFormatting: indicator.fingertipsFormatting,
@@ -405,6 +405,10 @@ export async function getIndicatorDetailsByIds(
     .leftJoin(ciMethod, eq(indicator.ciMethodId, ciMethod.id))
     .leftJoin(comparatorMethod, eq(indicator.comparatorMethodId, comparatorMethod.id))
     .leftJoin(dataSource, eq(indicator.dataSourceId, dataSource.id))
+    .leftJoin(
+      indicatorGoal,
+      and(eq(indicatorGoal.indicatorId, indicator.id), eq(indicatorGoal.position, 0)),
+    )
     .where(inArray(indicator.id, indicatorIds));
 
   const [topics, classifications, sources] = await Promise.all([
@@ -435,11 +439,14 @@ export async function getIndicatorDetailsByIds(
         {
           goal:
             row.hasGoalBenchmark === true &&
+            row.goalLowerComparison !== null &&
             row.goalLowerValue !== null &&
             row.goalPolarity !== null
               ? {
                   lower: row.goalLowerValue,
+                  lowerComparison: row.goalLowerComparison,
                   upper: row.goalUpperValue,
+                  upperComparison: row.goalUpperComparison,
                   polarity: row.goalPolarity,
                   policyDetail: row.goalPolicyDetail,
                 }

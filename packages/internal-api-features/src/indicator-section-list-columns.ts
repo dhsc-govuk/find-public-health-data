@@ -3,6 +3,10 @@ import {
   type Ages,
   type AgesAnswers,
   type AgesField,
+  type Benchmarking,
+  type BenchmarkingAnswers,
+  type BenchmarkingField,
+  goalValue,
   type ProviderSources,
   type ProviderSourcesAnswers,
   type ProviderSourcesField,
@@ -74,6 +78,50 @@ export const agesColumns: IndicatorSectionColumns<AgesField, Ages, AgesAnswers> 
             upperLimit: age(upperLimit),
             upperLimitUnit: upperLimitUnit === '' ? null : upperLimitUnit,
           }))
+        : [],
+  }),
+};
+
+/** A value the form accepted, which is a number or nothing. */
+function goalNumber(text: string): number | null {
+  return goalValue(text) ?? null;
+}
+
+/** A part of a goal the schema requires beside a yes, so every goal it accepts has one. */
+function required<Value>(value: Value | '' | null, part: string): Value {
+  if (value === '' || value === null)
+    throw new Error(`a policy goal was accepted without its ${part}`);
+  return value;
+}
+
+export const benchmarkingColumns: IndicatorSectionColumns<
+  BenchmarkingField,
+  Benchmarking,
+  BenchmarkingAnswers
+> = {
+  fromDraft: (draft) => ({
+    hasGoalBenchmark: yesNoAnswer(draft.hasGoalBenchmark),
+    goals: draft.goals,
+  }),
+  toAttributes: ({ hasGoalBenchmark }) => ({ hasGoalBenchmark: hasGoalBenchmark === 'yes' }),
+  // The goals are kept beside a yes alone, whatever the form sent. An upper comparison without an
+  // upper value is dropped, and a blank detail is none.
+  toLists: ({ hasGoalBenchmark, goals }) => ({
+    goals:
+      hasGoalBenchmark === 'yes'
+        ? goals.map((goal) => {
+            const upperValue = goalNumber(goal.upperValue);
+
+            return {
+              lowerComparison: required(goal.lowerComparison, 'lower comparison'),
+              lowerValue: required(goalNumber(goal.lowerValue), 'lower value'),
+              upperComparison:
+                upperValue === null ? null : required(goal.upperComparison, 'upper comparison'),
+              upperValue,
+              polarity: required(goal.polarity, 'polarity'),
+              policyDetail: goal.detail || null,
+            };
+          })
         : [],
   }),
 };

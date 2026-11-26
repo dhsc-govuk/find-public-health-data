@@ -1,9 +1,10 @@
 import { CLASSIFICATION_IDS } from '@fphd/utils/classification-dimension';
 import { describe, expect, it } from 'vitest';
-import type { Ages, Tagging } from './contract.ts';
+import type { Ages, Benchmarking, Tagging } from './contract.ts';
 import type { IndicatorSectionDraft } from './indicator-section.ts';
 import {
   agesColumns,
+  benchmarkingColumns,
   denominatorColumns,
   numeratorColumns,
   taggingColumns,
@@ -108,6 +109,93 @@ describe('agesColumns', () => {
       ageDetail: 'School year 6',
     });
     expect(agesColumns.toLists?.(values)).toEqual({ ageRanges: [] });
+  });
+});
+
+describe('benchmarkingColumns', () => {
+  const goal = {
+    lowerComparison: 'less-than',
+    lowerValue: '2,400',
+    upperComparison: 'more-than-or-equal',
+    upperValue: '3250.5',
+    polarity: 'higher-is-better',
+    detail: 'The national detection rate ambition.',
+  } as const;
+
+  const answers: Benchmarking = { hasGoalBenchmark: 'yes', goals: [goal] };
+
+  it('writes the answer and each goal with its values as numbers', () => {
+    expect(benchmarkingColumns.toAttributes(answers)).toEqual({ hasGoalBenchmark: true });
+    expect(benchmarkingColumns.toLists?.(answers)).toEqual({
+      goals: [
+        {
+          lowerComparison: 'less-than',
+          lowerValue: 2400,
+          upperComparison: 'more-than-or-equal',
+          upperValue: 3250.5,
+          polarity: 'higher-is-better',
+          policyDetail: 'The national detection rate ambition.',
+        },
+      ],
+    });
+  });
+
+  it('drops the upper comparison of a single goal value and writes a blank detail as none', () => {
+    expect(
+      benchmarkingColumns.toLists?.({
+        hasGoalBenchmark: 'yes',
+        goals: [{ ...goal, upperValue: '', detail: '' }],
+      }),
+    ).toEqual({
+      goals: [
+        {
+          lowerComparison: 'less-than',
+          lowerValue: 2400,
+          upperComparison: null,
+          upperValue: null,
+          polarity: 'higher-is-better',
+          policyDetail: null,
+        },
+      ],
+    });
+  });
+
+  it('writes no goals and clears whatever the form sent beside a no', () => {
+    const no: Benchmarking = { hasGoalBenchmark: 'no', goals: [goal] };
+
+    expect(benchmarkingColumns.toAttributes(no)).toEqual({ hasGoalBenchmark: false });
+    expect(benchmarkingColumns.toLists?.(no)).toEqual({ goals: [] });
+  });
+
+  it('reads the answer and the goals back as they are stored', () => {
+    const goals = [
+      {
+        lowerComparison: 'less-than-or-equal',
+        lowerValue: 2400,
+        upperComparison: null,
+        upperValue: null,
+        polarity: 'lower-is-better',
+        policyDetail: null,
+      },
+    ] as const;
+
+    expect(
+      benchmarkingColumns.fromDraft({
+        ...unansweredDraft,
+        hasGoalBenchmark: true,
+        goals: [...goals],
+      }),
+    ).toEqual({ hasGoalBenchmark: 'yes', goals });
+  });
+
+  it.each([
+    [false, 'no'],
+    [null, null],
+  ])('reads a stored %s as %s', (hasGoalBenchmark, answer) => {
+    expect(benchmarkingColumns.fromDraft({ ...unansweredDraft, hasGoalBenchmark })).toEqual({
+      hasGoalBenchmark: answer,
+      goals: [],
+    });
   });
 });
 

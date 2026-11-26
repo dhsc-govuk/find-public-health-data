@@ -162,7 +162,9 @@ it("takes the axis's ticks from the values, intervals and policy goal it shows",
   ).toBe(true);
   const goal = {
     lower: 150_000,
+    lowerComparison: 'less-than' as const,
     upper: null,
+    upperComparison: null,
     polarity: 'higher-is-better' as const,
     policyDetail: null,
   };

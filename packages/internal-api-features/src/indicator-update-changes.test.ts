@@ -174,6 +174,36 @@ describe('updateChanges', () => {
     ]);
   });
 
+  it('gives each policy goal as its bands, with its detail where it has one', () => {
+    const [change] = changesTo({
+      goals: [
+        {
+          lowerComparison: 'less-than',
+          lowerValue: 2400,
+          upperComparison: 'more-than-or-equal',
+          upperValue: 3250.5,
+          polarity: 'higher-is-better',
+          policyDetail: 'The national ambition.',
+        },
+        {
+          lowerComparison: 'less-than-or-equal',
+          lowerValue: 5,
+          upperComparison: null,
+          upperValue: null,
+          policyDetail: null,
+          polarity: 'lower-is-better',
+        },
+      ],
+    });
+
+    expect(change?.task).toBe('benchmarking');
+    expect(change?.parts).toContainEqual({
+      kind: 'value',
+      field: 'goals',
+      value: '≥3250.5 is good, <2400 is bad (The national ambition.); ≤5 is good',
+    });
+  });
+
   it('ends with the summary for the public history and the information for reviewers', () => {
     const changes = changesTo({
       polarity: 'higher-is-better',

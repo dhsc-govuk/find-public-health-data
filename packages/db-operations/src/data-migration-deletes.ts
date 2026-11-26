@@ -20,6 +20,12 @@ const VERSION_CHILD_TABLES = [
   'indicator_version_source',
 ] as const;
 
+/** The version child tables only publishers write, with what their rows are called. */
+const PUBLISHER_CHILD_TABLES = [
+  ['indicator_version_age_range', 'age ranges'],
+  ['indicator_version_goal', 'policy goals'],
+] as const;
+
 export async function stageDeletes(
   tx: postgres.TransactionSql,
   table: string,
@@ -86,14 +92,16 @@ export async function prepareVersionDeletes(tx: postgres.TransactionSql): Promis
       `Data migration deletion conflicts with FPHD publisher work on indicators: ${conflicts.map(({ shortId }) => shortId).join(', ')}`,
     );
   }
-  // Publisher age ranges are retained even when the source withdraws their version.
-  const [published] = await tx.unsafe<{ count: number }[]>(`
-    SELECT count(*) FROM indicator_version_age_range WHERE indicator_version_id IN (SELECT id FROM "${stage}")
-  `);
-  if (Number(published?.count) > 0) {
-    throw new Error(
-      `${published?.count} publisher age ranges belong to indicator versions the source no longer holds`,
-    );
+  // Publisher age ranges and policy goals are retained even when the source withdraws their version.
+  for (const [table, rows] of PUBLISHER_CHILD_TABLES) {
+    const [published] = await tx.unsafe<{ count: number }[]>(`
+      SELECT count(*) FROM ${table} WHERE indicator_version_id IN (SELECT id FROM "${stage}")
+    `);
+    if (Number(published?.count) > 0) {
+      throw new Error(
+        `${published?.count} publisher ${rows} belong to indicator versions the source no longer holds`,
+      );
+    }
   }
   // The migration wrote these, and re-applies topics and classifications once the deletes are done.
   for (const child of VERSION_CHILD_TABLES) {

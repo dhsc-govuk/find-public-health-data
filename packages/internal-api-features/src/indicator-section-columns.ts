@@ -3,8 +3,6 @@ import { hasUpdateFrequencyReason } from '@fphd/utils/update-frequency';
 import { standardisationOf, UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 
 import {
-  type Benchmarking,
-  type BenchmarkingField,
   type Calculation,
   type CalculationField,
   type CiMethodKind,
@@ -13,8 +11,6 @@ import {
   calculationSection,
   type DataQualityField,
   definitionAndRationaleSection,
-  goalValue,
-  goalValueText,
   type IndicatorDataQuality,
   type IndicatorUpdateFrequency,
   justificationsQuestions,
@@ -263,33 +259,6 @@ export const updateSummaryColumns: OwnFieldColumns<UpdateSummaryField, UpdateSum
     ...answers,
     updateSummaryForReviewers: answers.updateSummaryForReviewers || null,
   }),
-};
-
-export const benchmarkingColumns: IndicatorSectionColumns<BenchmarkingField, Benchmarking> = {
-  fromDraft: (draft) => ({
-    hasGoalBenchmark: yesNoAnswer(draft.hasGoalBenchmark),
-    goalLowerValue: goalValueText(draft.goalLowerValue),
-    goalUpperValue: goalValueText(draft.goalUpperValue),
-    goalPolarity: draft.goalPolarity,
-    goalPolicyDetail: draft.goalPolicyDetail,
-  }),
-  // The goal is kept beside a yes alone, whatever the form sent, and a blank detail is none.
-  toAttributes: (answers) =>
-    answers.hasGoalBenchmark === 'yes'
-      ? {
-          hasGoalBenchmark: true,
-          goalLowerValue: goalValue(answers.goalLowerValue) ?? null,
-          goalUpperValue: goalValue(answers.goalUpperValue) ?? null,
-          goalPolarity: answers.goalPolarity || null,
-          goalPolicyDetail: answers.goalPolicyDetail || null,
-        }
-      : {
-          hasGoalBenchmark: false,
-          goalLowerValue: null,
-          goalUpperValue: null,
-          goalPolarity: null,
-          goalPolicyDetail: null,
-        },
 };
 
 export const sexGenderAndEthnicityColumns: IndicatorSectionColumns<

@@ -26,7 +26,7 @@ const TASK_GROUPS = {
     'Denominator',
     'How the indicator was calculated',
     'Confidence intervals',
-    'Benchmarking',
+    'Policy goals',
     'Other notes and caveats',
     'Tagging',
   ],

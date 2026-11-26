@@ -860,8 +860,22 @@ describe('category range query', () => {
 describe('public policy goals', () => {
   it.each([
     null,
-    { lower: 95.5, upper: null, polarity: 'higher-is-better', policyDetail: 'National policy' },
-    { lower: 1, upper: 5, polarity: 'lower-is-better', policyDetail: null },
+    {
+      lower: 95.5,
+      lowerComparison: 'less-than',
+      upper: null,
+      upperComparison: null,
+      polarity: 'higher-is-better',
+      policyDetail: 'National policy',
+    },
+    {
+      lower: 1,
+      lowerComparison: 'less-than-or-equal',
+      upper: 5,
+      upperComparison: 'more-than-or-equal',
+      polarity: 'lower-is-better',
+      policyDetail: null,
+    },
   ])('serves and validates goal %j', async (goal) => {
     const detail = {
       ...indicatorDetail,
@@ -877,22 +891,23 @@ describe('public policy goals', () => {
     expect(indicatorDetailSchema.parse(response.body).goal).toEqual(goal);
   });
 
-  it('rejects string values and unsupported polarities', () => {
-    expect(
-      indicatorGoalSchema.safeParse({
-        lower: '95',
-        upper: null,
-        polarity: 'higher-is-better',
-        policyDetail: null,
-      }).success,
-    ).toBe(false);
-    expect(
-      indicatorGoalSchema.safeParse({
-        lower: 95,
-        upper: null,
-        polarity: 'no-judgement',
-        policyDetail: null,
-      }).success,
-    ).toBe(false);
+  it('rejects string values, unsupported polarities and a comparison on the wrong value', () => {
+    const goal = {
+      lower: 95,
+      lowerComparison: 'less-than',
+      upper: null,
+      upperComparison: null,
+      polarity: 'higher-is-better',
+      policyDetail: null,
+    };
+
+    expect(indicatorGoalSchema.safeParse(goal).success).toBe(true);
+    expect(indicatorGoalSchema.safeParse({ ...goal, lower: '95' }).success).toBe(false);
+    expect(indicatorGoalSchema.safeParse({ ...goal, polarity: 'no-judgement' }).success).toBe(
+      false,
+    );
+    expect(indicatorGoalSchema.safeParse({ ...goal, lowerComparison: 'more-than' }).success).toBe(
+      false,
+    );
   });
 });

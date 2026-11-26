@@ -1,6 +1,5 @@
 import { TEAM_IDS } from '@fphd/auth';
 import {
-  benchmarkingSection,
   calculationSection,
   confidenceIntervalsSection,
   DEFAULT_PUBLISHING_TIME,
@@ -104,6 +103,20 @@ const sexGenderAndEthnicityUnanswered = {
   sexes: [],
   genders: [],
   ethnicGroups: [],
+};
+
+const benchmarkingUnanswered = {
+  hasGoalBenchmark: '',
+  goals: [
+    {
+      lowerComparison: '',
+      lowerValue: '',
+      upperComparison: '',
+      upperValue: '',
+      polarity: '',
+      detail: '',
+    },
+  ],
 };
 
 const agesUnanswered = {
@@ -269,9 +282,18 @@ const forms: {
     'What is the summary of this update?',
     { updateSummary: 'Enter a summary of this update' },
   ),
-  sectionForm('benchmarking', benchmarking, benchmarkingSection, 'Benchmarking', {
-    hasGoalBenchmark: 'Select whether there are any goal benchmarks for this indicator',
-  }),
+  {
+    name: 'policy goals',
+    route: benchmarking,
+    pageTitle: 'Are there any policy goal benchmarks for this indicator?',
+    loaderData: { id: indicator.id, values: benchmarkingUnanswered },
+    rejected: {
+      values: benchmarkingUnanswered,
+      fieldErrors: {
+        hasGoalBenchmark: 'Select whether there are any goal benchmarks for this indicator',
+      },
+    },
+  },
   {
     name: 'sex, gender and ethnicity',
     route: sexGenderAndEthnicity,

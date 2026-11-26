@@ -35,7 +35,6 @@ import {
 import type { IndicatorDraftVersion } from './indicator-draft-repository.ts';
 import type { IndicatorSectionColumns, IndicatorSectionDraft } from './indicator-section.ts';
 import {
-  benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
   dataQualityColumns,
@@ -54,6 +53,7 @@ import {
 } from './indicator-section-columns.ts';
 import {
   agesColumns,
+  benchmarkingColumns,
   denominatorColumns,
   numeratorColumns,
   taggingColumns,

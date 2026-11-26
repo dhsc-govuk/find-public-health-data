@@ -1,7 +1,11 @@
+import { goalBandsText, goalVerdict as verdictOf } from '@fphd/utils/policy-goal';
+
 import { formatValue, withUnit } from './data.ts';
 import type { IndicatorDetail } from './loader.ts';
 
 export type PolicyGoal = NonNullable<IndicatorDetail['goal']>;
+
+const VERDICT_LABELS = { good: 'Good', bad: 'Bad', neither: 'Neither good nor bad' } as const;
 
 export function goalThresholds(goal: PolicyGoal): { value: number; colour: string }[] {
   const higher = goal.polarity === 'higher-is-better';
@@ -14,20 +18,9 @@ export function goalThresholds(goal: PolicyGoal): { value: number; colour: strin
 }
 
 export function goalThresholdText(goal: PolicyGoal, unit: string | null): string {
-  const value = (number: number) => withUnit(formatValue(number), unit);
-  return goal.polarity === 'lower-is-better'
-    ? `<${value(goal.lower)} is good${goal.upper === null ? '' : `, >${value(goal.upper)} is bad`}`
-    : `>${value(goal.upper ?? goal.lower)} is good${goal.upper === null ? '' : `, <${value(goal.lower)} is bad`}`;
+  return goalBandsText(goal, (number) => withUnit(formatValue(number), unit));
 }
 
 export function goalVerdict(value: number | null | undefined, goal: PolicyGoal): string {
-  if (value == null) return '-';
-  if (goal.polarity === 'lower-is-better') {
-    if (value < goal.lower) return 'Good';
-    if (goal.upper === null || value > goal.upper) return 'Bad';
-  } else {
-    if (value > (goal.upper ?? goal.lower)) return 'Good';
-    if (goal.upper === null || value < goal.lower) return 'Bad';
-  }
-  return 'Neither good nor bad';
+  return value == null ? '-' : VERDICT_LABELS[verdictOf(value, goal)];
 }

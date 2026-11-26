@@ -38,8 +38,10 @@ import {
 import {
   ageRangesOf,
   classificationsOf,
+  goalsOf,
   type IndicatorDraftAgeRange,
   type IndicatorDraftClassification,
+  type IndicatorDraftGoal,
   type IndicatorDraftLists,
   type IndicatorDraftSources,
   type IndicatorDraftTaxonomy,
@@ -59,6 +61,7 @@ export type IndicatorDraft = IndicatorDraftVersion &
   IndicatorDraftSources &
   IndicatorDraftTaxonomy & {
     ageRanges: IndicatorDraftAgeRange[];
+    goals: IndicatorDraftGoal[];
     /** Ordered by title, as the tagging page lists them. */
     topicIds: string[];
     /** Ordered by name, as the tagging page lists them. */
@@ -201,14 +204,15 @@ export async function draftListsOf(
   db: Database | Transaction,
   draftId: string,
 ): Promise<Omit<IndicatorDraft, keyof IndicatorDraftVersion>> {
-  const [ageRanges, taxonomy, classifications, sources] = await Promise.all([
+  const [ageRanges, goals, taxonomy, classifications, sources] = await Promise.all([
     ageRangesOf(db, draftId),
+    goalsOf(db, draftId),
     taxonomyOf(db, draftId),
     classificationsOf(db, draftId),
     sourcesOf(db, draftId),
   ]);
 
-  return { ...sources, ...taxonomy, ageRanges, classifications };
+  return { ...sources, ...taxonomy, ageRanges, goals, classifications };
 }
 
 /**

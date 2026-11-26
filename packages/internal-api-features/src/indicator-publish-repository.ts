@@ -8,6 +8,7 @@ import {
   ageRangesOf,
   classificationsOf,
   copyTaxonomyPlacements,
+  goalsOf,
   replaceLists,
   sourcesOf,
   topicIdsOf,
@@ -72,10 +73,11 @@ export async function createDraftFromPublished(
 
         if (draft === undefined) throw new Error('createDraftFromPublished inserted no version');
 
-        const [topicIds, classifications, ageRanges, sources] = await Promise.all([
+        const [topicIds, classifications, ageRanges, goals, sources] = await Promise.all([
           topicIdsOf(tx, publishedId),
           classificationsOf(tx, publishedId),
           ageRangesOf(tx, publishedId),
+          goalsOf(tx, publishedId),
           sourcesOf(tx, publishedId),
         ]);
 
@@ -88,6 +90,7 @@ export async function createDraftFromPublished(
             ]),
           ),
           ageRanges,
+          goals,
           ...sources,
         });
         const placements = await copyTaxonomyPlacements(tx, publishedId, draft.id);

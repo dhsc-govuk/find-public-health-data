@@ -9,7 +9,6 @@ import {
 } from './contract.ts';
 import type { IndicatorSectionColumns } from './indicator-section.ts';
 import {
-  benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
   dataQualityColumns,
@@ -25,6 +24,7 @@ import {
 } from './indicator-section-columns.ts';
 import {
   agesColumns,
+  benchmarkingColumns,
   denominatorColumns,
   numeratorColumns,
   taggingColumns,
@@ -164,10 +164,16 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
   benchmarking: () =>
     savedFields(benchmarkingColumns, {
       hasGoalBenchmark: 'yes',
-      goalLowerValue: '1',
-      goalUpperValue: '2',
-      goalPolarity: 'higher-is-better',
-      goalPolicyDetail: 'An ambition',
+      goals: [
+        {
+          lowerComparison: 'less-than',
+          lowerValue: '1',
+          upperComparison: 'more-than',
+          upperValue: '2',
+          polarity: 'higher-is-better',
+          detail: 'An ambition',
+        },
+      ],
     }),
   'sex-gender-and-ethnicity': () =>
     savedFields(sexGenderAndEthnicityColumns, {
