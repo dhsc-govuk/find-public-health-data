@@ -46,6 +46,7 @@ export async function applyLegacyFormatAndSources(
     DELETE FROM indicator_version_data_value
     WHERE indicator_version_id IN (SELECT id FROM "${staged}")
   `);
+  // A file may carry an unanswered question as blank text rather than as null.
   await tx.unsafe(`
     CREATE TEMP TABLE "${staged}_format" ON COMMIT DROP AS
     SELECT s.id,
@@ -53,11 +54,13 @@ export async function applyLegacyFormatAndSources(
         AS has_numerator,
       NULLIF(btrim(s.denominator_definition), '') IS NOT NULL
         OR s.denominator_source_id IS NOT NULL AS has_denominator,
-      CASE WHEN s.disclosure_control = 'no' THEN 'not-applicable' ELSE s.disclosure_control END
-        AS disclosure_control,
-      CASE WHEN s.disclosure_control = 'yes' THEN s.disclosure_control_detail END
-        AS disclosure_control_detail
+      CASE WHEN d.answer = 'no' THEN 'not-applicable' ELSE d.answer END AS disclosure_control,
+      CASE WHEN d.answer = 'yes' THEN d.detail END AS disclosure_control_detail
     FROM "${staged}" s
+    CROSS JOIN LATERAL (
+      SELECT NULLIF(btrim(s.disclosure_control), '') AS answer,
+        NULLIF(btrim(s.disclosure_control_detail), '') AS detail
+    ) d
   `);
   await tx.unsafe(`
     UPDATE indicator_version v SET

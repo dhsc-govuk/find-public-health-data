@@ -254,6 +254,25 @@ describe('applyDataMigration', () => {
       });
     });
 
+    it('reads a blank disclosure control answer as unanswered', async () => {
+      await baseline({
+        upserts: fingertipsVersion({
+          numerator: 'Deaths',
+          denominator: 'Population',
+          disclosure: [' ', ' '],
+          sources: [SOURCE_ID, SOURCE_ID],
+        }),
+      });
+
+      expect(await imported()).toMatchObject({
+        answers: {
+          hasNumeratorDenominator: true,
+          numeratorDisclosureControl: null,
+          numeratorDisclosureControlDetail: null,
+        },
+      });
+    });
+
     it('leaves the question unanswered for a version with neither', async () => {
       await baseline({ upserts: fingertipsVersion({ disclosure: ['yes', 'Suppressed'] }) });
 
