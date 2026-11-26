@@ -105,6 +105,12 @@ stored total is 433,532 observations.
   and a rate in percent a rate per 100. A unit the value type's questions cannot hold leaves them
   unanswered. Excess risk, any other value type, and a unit the export cannot read stop the export.
   `count_is_estimate` is answered beside an answered count measure only, as the form answers it.
+- `indicator_version.standard_method_used` answers whether the value type's standard calculation
+  method was used. Fingertips never says so, so a version with a methodology keeps it under No
+  (`f`), and one with no methodology leaves the question unanswered. A value type with no standard
+  method, such as Score, is not asked. `export/standard_method.py` gives the answer, as
+  `tools/data-migration/src/standard-method.ts` does for the data migration, and a test checks the
+  committed seed against the rule.
 - `observation.count` and `observation.numerator` split Pholio's one Count: it is the numerator for
   an indicator whose value type is calculated from a numerator and a denominator (crude rate,
   directly standardised rate, indirectly standardised proportion, rate and ratio, proportion and

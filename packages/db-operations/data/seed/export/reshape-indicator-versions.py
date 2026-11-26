@@ -11,8 +11,9 @@ indicator_version row per indicator, under the actor the export already carries.
 The Pholio polarity and frequency references become the service's values, the
 value type reference the service's own row and the unit its answers about the
 counts and values, the year type reference
-the service's period type, year type and year end, and the disclosure control,
-caveats and notes prose becomes the service's answers. indicator_metadata.csv.gz,
+the service's period type, year type and year end, the methodology the answer to whether
+the standard calculation method was used, and the disclosure control, caveats and notes
+prose becomes the service's answers. indicator_metadata.csv.gz,
 polarity.csv.gz, frequency.csv.gz, value_type.csv.gz, unit.csv.gz and
 year_type.csv.gz are removed.
 """
@@ -26,6 +27,7 @@ import sys
 from notes_and_caveats import NOTES_AND_CAVEATS_COLUMNS, notes_and_caveats
 from polarity import polarity_value
 from slug import assign_slugs
+from standard_method import standard_method_used
 from update_frequency import update_frequency_value
 from value_type_and_unit import COUNTS_AND_VALUES_COLUMNS, counts_and_values, value_type_id
 from year_type import YEAR_TYPE_COLUMNS, year_type_values
@@ -52,6 +54,7 @@ VERSION_COLUMNS = [
     "ci_confidence_level",
     "definition",
     "rationale",
+    "standard_method_used",
     "methodology",
     "numerator_definition",
     "denominator_definition",
@@ -178,6 +181,9 @@ def main(seed_dir):
             )
         version.update(
             translated_value_type_and_unit(row, value_type_names, unit_names, row["short_id"])
+        )
+        version["standard_method_used"] = _csv_value(
+            standard_method_used(version["value_type_id"], version["methodology"])
         )
         version["status"] = "published"
         version["is_locked"] = "t"

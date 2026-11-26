@@ -31,6 +31,7 @@ from legacy_sources import (
 from format_and_sources import format_and_sources
 from notes_and_caveats import notes_and_caveats
 from slug import slug_problem, slugify
+from standard_method import standard_method_used
 from value_type_and_unit import (
     counts_and_values,
     unit_name_for_label,
@@ -399,7 +400,7 @@ def add_indicators(cur, metadata, seed_dir):
                value_measure_detail, gap_object, gap_object_detail, ratio_format,
                period_type, year_type, year_end_day, year_end_month,
                ci_method_id, polarity, update_frequency, comparator_method_id,
-               ci_confidence_level, definition, rationale, methodology,
+               ci_confidence_level, definition, rationale, standard_method_used, methodology,
                has_numerator_denominator, numerator_definition, numerator_disclosure_control,
                numerator_disclosure_control_detail, denominator_definition,
                denominator_disclosure_control, denominator_disclosure_control_detail,
@@ -409,7 +410,7 @@ def add_indicators(cur, metadata, seed_dir):
             VALUES
               (%s, %s, 'published', true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 version_id,
@@ -427,6 +428,9 @@ def add_indicators(cur, metadata, seed_dir):
                 config["confidence"],
                 descriptive.get("Definition"),
                 descriptive.get("Rationale"),
+                standard_method_used(
+                    value_type_id(item["ValueType"]["Name"]), descriptive.get("IndMethod")
+                ),
                 descriptive.get("IndMethod"),
                 figures["has_numerator_denominator"],
                 figure_column(figures, "numerator", "definition"),

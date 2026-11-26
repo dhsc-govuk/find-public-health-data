@@ -4,8 +4,8 @@ import { baselineManifestSchema, DATA_MIGRATION_NULL } from './data-migration-ma
 describe('the migration format', () => {
   it('requires version 11, whose indicator versions answer the counts and values in place of a unit', () => {
     const manifest = {
-      format_version: 11,
-      schema: 'canonical-v11',
+      format_version: 12,
+      schema: 'canonical-v12',
       migration_id: 'taxonomy-fixture',
       source: {
         system: 'fingertips',
@@ -28,7 +28,7 @@ describe('the migration format', () => {
     };
     expect(baselineManifestSchema.safeParse(manifest).success).toBe(true);
     expect(
-      baselineManifestSchema.safeParse({ ...manifest, format_version: 10, schema: 'canonical-v10' })
+      baselineManifestSchema.safeParse({ ...manifest, format_version: 11, schema: 'canonical-v11' })
         .success,
     ).toBe(false);
   });

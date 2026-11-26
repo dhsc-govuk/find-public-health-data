@@ -3,6 +3,7 @@ import { countIsNumerator as countIsNumeratorOf } from '@fphd/utils/value-type-a
 import { translatePolarity } from '../fingertips-lookups.ts';
 import { notesAndCaveats } from '../notes-and-caveats.ts';
 import { plainTextFromHtml } from '../plain-text.ts';
+import { standardMethodUsed } from '../standard-method.ts';
 import { indicatorAnalyticalSettings, type SourceGroupingSetting } from './analytical-settings.ts';
 import { ciMethodAnswers, type PholioCiMethod } from './ci-method.ts';
 import type { PholioExportOptions } from './context.ts';
@@ -371,6 +372,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       numerator_definition: numeratorDefinition,
       denominator_definition: denominatorDefinition,
       data_source_id: dataSourceId,
+      standard_method_used: standardMethodUsed(resolvedValueTypeId, methodology),
       methodology,
       calculated_by: null,
       calculated_by_detail: null,
