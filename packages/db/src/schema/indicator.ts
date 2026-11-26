@@ -41,6 +41,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  date,
   doublePrecision,
   foreignKey,
   index,
@@ -232,6 +233,7 @@ export const indicatorVersion = pgTable(
     yearType: text({ enum: YEAR_TYPES }),
     yearEndDay: smallint(),
     yearEndMonth: smallint(),
+    publishedFrom: date(),
     // Polarity
     polarity: text({ enum: POLARITIES }),
     // Data quality

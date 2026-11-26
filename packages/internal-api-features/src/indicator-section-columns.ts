@@ -186,15 +186,17 @@ export const periodTypeColumns: IndicatorSectionColumns<PeriodTypeField, PeriodT
     yearType: draft.yearType,
     yearEndDay: numberText(draft.yearEndDay),
     yearEndMonth: numberText(draft.yearEndMonth),
+    publishedFrom: draft.publishedFrom,
   }),
   // Answers the chosen period and year types do not ask for are cleared, whatever the form sent.
-  toAttributes: ({ periodType, yearType, yearEndDay, yearEndMonth }) => {
+  toAttributes: ({ periodType, yearType, yearEndDay, yearEndMonth, publishedFrom }) => {
     // The schema has refused any other year type beside years or quarters.
     const kept = periodType === 'months' || !isYearType(yearType) ? null : yearType;
     const endsOnDate = kept === 'specified-end-date';
 
     return {
       periodType,
+      publishedFrom: publishedFrom || null,
       yearType: kept,
       yearEndDay: endsOnDate ? Number(yearEndDay) : null,
       yearEndMonth: endsOnDate ? Number(yearEndMonth) : null,

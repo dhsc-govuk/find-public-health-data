@@ -225,3 +225,27 @@ test.describe('without JavaScript', () => {
     await expect(yearTypes(page, 'Years').getByRole('radio', { checked: true })).toHaveCount(0);
   });
 });
+
+test('validates, saves and clears the optional date from which data is shown', async ({ page }) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  await periodType(page, 'Months').check();
+  const start = page.getByRole('textbox', { name: 'Show data from (optional)' });
+  await start.fill('2023-02-29');
+  await continueButton(page).click();
+  const summary = page.getByRole('alert');
+  await expect(summary.getByRole('link')).toHaveText('Enter a real date in the format YYYY-MM-DD');
+  await expectErrorSummaryReady(page);
+  await summary.getByRole('link').click();
+  await expect(start).toBeFocused();
+  await start.fill('2020-01-01');
+  await continueButton(page).click();
+  await expect(page).toHaveURL(taskListPath);
+  await page.goto(pagePath);
+  await expect(start).toHaveValue('2020-01-01');
+  await start.fill('');
+  await continueButton(page).click();
+  await expect(page).toHaveURL(taskListPath);
+  await page.goto(pagePath);
+  await expect(start).toBeEmpty();
+});

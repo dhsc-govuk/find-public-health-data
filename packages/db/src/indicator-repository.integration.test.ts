@@ -1,6 +1,6 @@
 import { UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   listAreaParents,
@@ -170,7 +170,14 @@ describe('resolveIndicatorIdBySlug', () => {
 
 describe('getIndicatorDetailById', () => {
   it('resolves the lookups, metadata and available area types in one result', async () => {
-    const indicator = await getIndicatorDetailById(db, publishedViews, mortalityId);
+    const query = vi.spyOn(db.$client, 'unsafe');
+    let indicator: Awaited<ReturnType<typeof getIndicatorDetailById>>;
+    try {
+      indicator = await getIndicatorDetailById(db, publishedViews, mortalityId);
+      expect(query).toHaveBeenCalledTimes(4);
+    } finally {
+      query.mockRestore();
+    }
 
     expect(indicator).toMatchObject({
       shortId: MORTALITY_UNDER_75,

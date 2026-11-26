@@ -121,7 +121,8 @@ async function moveToSlugOfName(
  * published version. One transaction sets the version's status and publication time, moves a
  * renamed update to the slug of its new name, and records the audit entry as Scheduled
  * publication. When the version brings a new upload batch, the same transaction sets the
- * indicator's data date and refreshes the indicator's read models.
+ * indicator's data date. Read models refresh when the batch or cutoff changes so they match the
+ * new publication window.
  *
  * A version whose row another transaction has locked, such as another sweep publishing it, is
  * passed over. A lock timeout, or any error before a version is chosen, is thrown. Any other error
@@ -152,10 +153,15 @@ export async function publishNextDueVersion(
           indicatorId: indicatorVersion.indicatorId,
           versionId: indicatorVersion.id,
           scheduledPublishAt: indicatorVersion.scheduledPublishAt,
-          // The upload batch and name of the indicator's currently published version, read before
-          // this version replaces it. Both are null when the indicator has never been published.
+          // Read the previous values before publication replaces current_published_version so
+          // batch, cutoff and name changes can be detected.
           previousBatchId: sql<string | null>`(
             SELECT pv.upload_batch_id FROM current_published_version cpv
+            JOIN indicator_version pv ON pv.id = cpv.id
+            WHERE cpv.indicator_id = indicator_version.indicator_id
+          )`,
+          previousPublishedFrom: sql<string | null>`(
+            SELECT pv.published_from FROM current_published_version cpv
             JOIN indicator_version pv ON pv.id = cpv.id
             WHERE cpv.indicator_id = indicator_version.indicator_id
           )`,
@@ -204,21 +210,21 @@ export async function publishNextDueVersion(
               .where(eq(indicatorVersion.id, draft.id));
             return row?.later === false ? undefined : 'not_due';
           },
-          // The read models hold only what the published upload batch gives, so they change only
-          // when the version brings a different batch from the one published before it. Their
-          // refresh reads the indicator's data through the published views, so it runs last,
-          // after the version is published and the indicator's data date is set.
+          // Refreshing after publication makes every model use the new visible window, including
+          // cutoff edits that reuse the upload batch.
           write: async (stepTx, _submission, draft, version) => {
             publishedAt = version.publishedAt;
             if (publishedAt === null) throw new Error(`published ${draft.id} without a time`);
             const slugMove = await moveToSlugOfName(stepTx, draft, due.previousName);
             slugTaken = slugMove.slugTaken;
-            if (draft.uploadBatchId === due.previousBatchId) return slugMove.changes;
+            const batchChanged = draft.uploadBatchId !== due.previousBatchId;
+            if (!batchChanged && draft.publishedFrom === due.previousPublishedFrom)
+              return slugMove.changes;
 
             const dataChanges =
-              draft.uploadBatchId === null
-                ? {}
-                : await markDataUpdated(stepTx, due.indicatorId, draft.id);
+              batchChanged && draft.uploadBatchId !== null
+                ? await markDataUpdated(stepTx, due.indicatorId, draft.id)
+                : {};
             await refreshIndicatorReadModels(stepTx, due.indicatorId);
             return { ...slugMove.changes, ...dataChanges };
           },

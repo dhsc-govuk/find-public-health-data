@@ -24,8 +24,8 @@ import type { ObservationSeriesVariant } from './cache.ts';
 
 /**
  * The only objects `public_api` may read. The views carry the predicates that keep an
- * unpublished indicator out, so no query has to remember them; the definitions live in a
- * schema or a legacy migration. Legacy definitions are declared as existing until changed.
+ * unpublished indicator and observations before its start date out, so no query has to remember
+ * them. Legacy definitions stay declared as existing so drizzle-kit leaves their SQL intact.
  * Exports are prefixed because the table names are taken. Column names are spelled out:
  * drizzle keys its casing cache on the unqualified relation name, so a view sharing a
  * table's name would otherwise inherit that table's column list.

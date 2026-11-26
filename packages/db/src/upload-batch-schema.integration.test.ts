@@ -76,13 +76,18 @@ describe('the seeded data', () => {
     expect(rows.filter((row) => row.dimensionKey !== dimensionKey(row.valueIds))).toEqual([]);
   });
 
-  it('shows every seeded observation, all of them published', async () => {
-    const [counts] = await sql<{ stored: number; shown: number }[]>`
+  it('shows every seeded observation on or after its published start date', async () => {
+    const [counts] = await sql<{ stored: number; shown: number; hidden: number }[]>`
       SELECT (SELECT count(*)::int FROM observation) AS stored,
-             (SELECT count(*)::int FROM published.observation) AS shown
+             (SELECT count(*)::int FROM published.observation) AS shown,
+             (SELECT count(*)::int FROM observation o
+              JOIN current_published_version c ON c.indicator_id = o.indicator_id
+              JOIN indicator_version v ON v.id = c.id
+              WHERE o.from_date < v.published_from) AS hidden
     `;
 
-    expect(counts?.shown).toBe(counts?.stored);
+    expect(counts?.hidden).toBe(1);
+    expect(counts?.shown).toBe((counts?.stored ?? 0) - (counts?.hidden ?? 0));
   });
 });
 

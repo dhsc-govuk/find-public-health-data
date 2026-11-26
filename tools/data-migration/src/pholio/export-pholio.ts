@@ -99,6 +99,7 @@ export async function exportPholio(options: ExportPholioOptions): Promise<void> 
           scanned_observations: observations.scannedObservations,
           source_observations: observations.sourceObservations,
           indicator_selection: options.indicatorSelection,
+          grouping_baseline_exclusions: indicators.groupingBaselineExclusions,
           indicator_name_mappings: indicators.indicatorNameMappings,
           excluded_indicators: [...context.excludedIndicators].sort((a, b) => a - b),
           excluded_non_approved_indicators: indicators.excludedNonApprovedIndicators,

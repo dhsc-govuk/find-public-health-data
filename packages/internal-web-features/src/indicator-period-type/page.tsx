@@ -1,5 +1,5 @@
 import { type PeriodTypeField, periodTypeSection } from '@fphd/internal-api-features/contract';
-import { DateInput, datePartId, datePartName, firstRadioId, Radios } from '@fphd/ui';
+import { DateInput, datePartId, datePartName, firstRadioId, Radios, TextInput } from '@fphd/ui';
 import {
   PERIOD_TYPE_LABELS,
   PERIOD_TYPES_WITH_YEAR_TYPE,
@@ -12,7 +12,7 @@ import { IndicatorSectionForm, type SectionPageProps } from '../indicator-sectio
 /** The period types that ask for a year type, each asking it in its own reveal. */
 type YearTypeSet = (typeof PERIOD_TYPES_WITH_YEAR_TYPE)[number];
 
-type YearTypeField = Exclude<PeriodTypeField, 'periodType'>;
+type YearTypeField = Exclude<PeriodTypeField, 'periodType' | 'publishedFrom'>;
 
 /** Without JavaScript every reveal shows, so each set of year type controls has its own names. */
 function yearTypeControls(set: YearTypeSet, control: (group: string, part: string) => string) {
@@ -132,6 +132,14 @@ export function PeriodTypePage(form: SectionPageProps<PeriodTypeField>) {
           },
           { label: PERIOD_TYPE_LABELS.months, value: 'months' },
         ]}
+      />
+      <TextInput
+        defaultValue={values.publishedFrom}
+        error={fieldErrors.publishedFrom}
+        hint="Enter a date in the format YYYY-MM-DD, for example 2021-04-01. Only periods starting on or after this date will be shown. Leave blank to show all periods."
+        label="Show data from (optional)"
+        labelHeading="h2"
+        name="publishedFrom"
       />
     </IndicatorSectionForm>
   );

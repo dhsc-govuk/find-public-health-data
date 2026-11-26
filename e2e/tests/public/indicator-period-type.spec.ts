@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
+import { downloadFrom } from '../support/downloads.ts';
 import { openIndicatorPage } from '../support/indicator-page.ts';
 
 /** England publishes 1 year and 3 year rolling average data for this indicator, Oxford only 3 year. */
@@ -20,6 +21,27 @@ function trendChart(page: Page) {
 function trendTable(page: Page) {
   return page.getByRole('table', { name: /^Table:/ });
 }
+
+test('excludes retained periods before the published start date from coverage, the chart and CSV downloads', async ({
+  page,
+}, testInfo) => {
+  await openIndicatorPage(page, PATH);
+  const coverage = page.locator('.govuk-summary-list__row').filter({
+    has: page.getByRole('term').filter({ hasText: 'Period covered' }),
+  });
+  await expect(coverage).toContainText('2001 to 2024');
+  await expect(trendTable(page).getByRole('rowheader', { name: '1901', exact: true })).toHaveCount(
+    0,
+  );
+  await page
+    .locator('#indicator-data')
+    .getByText('Download or share data', { exact: true })
+    .click();
+  const csv = await downloadFrom(page, 'Download data for all areas (CSV)', 'link');
+  expect(csv.text).toContain('2024');
+  expect(csv.text).not.toMatch(/,England,England,1901,/);
+  await expectNoAccessibilityViolations(page, testInfo);
+});
 
 test('shows one chart of 1 year data when the indicator has both period types', async ({
   page,

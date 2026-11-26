@@ -65,6 +65,16 @@ WHERE cpv.indicator_id IS DISTINCT FROM (
  * order, and `createPreviewViews` checks that it does.
  */
 const HAND_WRITTEN_VIEWS: Record<string, string> = {
+  observation_dimension: `
+SELECT od.observation_id, od.dimension_value_id, od.dimension_type_id
+FROM public.observation_dimension od
+WHERE EXISTS (SELECT 1 FROM preview.observation o WHERE o.id = od.observation_id)`,
+
+  observation_note: `
+SELECT onote.observation_id, onote.note_type_id
+FROM public.observation_note onote
+WHERE EXISTS (SELECT 1 FROM preview.observation o WHERE o.id = onote.observation_id)`,
+
   // The published view, on the preview's versions. The previewed version's publication dates
   // and data date are those it would have if it were published now. Its data date changes only
   // when its batch differs from the published version's, as publication does.

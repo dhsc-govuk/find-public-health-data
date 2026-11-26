@@ -142,3 +142,50 @@ describe('indicatorSectionsRouter', () => {
     expect(response.body).toMatchObject({ answers: { ageType: 'range', ageRanges } });
   });
 });
+
+it.each([
+  ['2020-01-01', '2020-01-01'],
+  ['', null],
+] as const)(
+  'saves the optional publication start date through the period type task (%s)',
+  async (publishedFrom, stored) => {
+    const updateDraft = vi.fn().mockResolvedValue({ ok: true });
+    const repositories = createFakeInternalRepositories({
+      indicators: {
+        ...inTestTeam,
+        updateDraft,
+        findDraftState: vi.fn().mockResolvedValue({ draft: unansweredDraft }),
+      },
+    });
+    const response = await request(
+      createRouterTestApp(indicatorSectionsRouter(repositories, testSessionVerifier)),
+    )
+      .put('/api/internal/indicators/00000000-0000-7000-8000-000000000001/period-type')
+      .set('Cookie', await testSessionCookie(['publisher']))
+      .send({
+        answers: {
+          periodType: 'months',
+          yearType: '',
+          yearEndDay: '',
+          yearEndMonth: '',
+          publishedFrom,
+        },
+        version: editVersion({}),
+      });
+    expect(response.status).toBe(200);
+    expect(updateDraft).toHaveBeenCalledWith(
+      '00000000-0000-7000-8000-000000000001',
+      'period-type',
+      {
+        periodType: 'months',
+        yearType: null,
+        yearEndDay: null,
+        yearEndMonth: null,
+        publishedFrom: stored,
+      },
+      {},
+      testActor(response),
+      expect.objectContaining({ version: editVersion({}) }),
+    );
+  },
+);

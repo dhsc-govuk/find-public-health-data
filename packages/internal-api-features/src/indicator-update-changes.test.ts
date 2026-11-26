@@ -200,3 +200,10 @@ describe('referencedIds', () => {
     ]);
   });
 });
+
+it('shows a changed publication start date to reviewers', () => {
+  expect(changesTo({ publishedFrom: '2020-01-01' })[0]).toEqual({
+    task: 'period-type',
+    parts: [{ kind: 'value', field: 'publishedFrom', value: '2020-01-01' }],
+  });
+});

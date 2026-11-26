@@ -58,6 +58,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'year_type',
     'year_end_day',
     'year_end_month',
+    'published_from',
     'polarity',
     'has_data_quality_issues',
     'definition',

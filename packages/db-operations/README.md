@@ -186,7 +186,9 @@ The observation-series migrations create empty read models. For an existing envi
 published indicator. The public API uses full-history fallbacks until the rebuild completes.
 `db import-core-data` only imports reference data; the dummy seed, published-snapshot import and
 live-data import rebuild read models themselves. Scheduled publication refreshes the published
-indicator in the publication transaction.
+indicator in the publication transaction. Imported versions carry `published_from` beside their
+period metadata. After deploying its migration, re-export and import the data to populate the date,
+then rebuild read models. Existing null dates show every retained observation.
 
 ## Integration tests
 

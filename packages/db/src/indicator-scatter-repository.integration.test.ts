@@ -226,7 +226,9 @@ it.each([2022, 2024])('matches canonical annual histories ending in %i and 2018'
         })),
       ),
     );
-    await database.db.transaction((tx) => replaceObservationSeries(tx, model.id, model.batch));
+    await database.db.transaction((tx) =>
+      replaceObservationSeries(tx, model.id, model.batch, null),
+    );
   }
   const history = await getIndicatorObservationData(db, publishedViews, ids, codes);
   const untrimmed = pairedAreaValues(
@@ -304,7 +306,9 @@ it('uses canonical label ordering for tied sex headlines', async () => {
       and(inArray(observation.indicatorId, ids), inArray(observation.dimensionKey, aggregates)),
     );
   for (const model of models)
-    await database.db.transaction((tx) => replaceObservationSeries(tx, model.id, model.batch));
+    await database.db.transaction((tx) =>
+      replaceObservationSeries(tx, model.id, model.batch, null),
+    );
   const canonical = await getIndicatorObservationData(db, publishedViews, ids, codes, 'table');
   const ordered = (id: string) =>
     (canonical.get(id)?.areaData ?? []).map((area) => ({
@@ -363,7 +367,9 @@ it('pairs the latest financial and three-year values independently for each area
         ];
       }),
     );
-    await database.db.transaction((tx) => replaceObservationSeries(tx, model.id, model.batch));
+    await database.db.transaction((tx) =>
+      replaceObservationSeries(tx, model.id, model.batch, null),
+    );
   }
   const expected = [
     {

@@ -169,6 +169,7 @@
   }
 
   .recharts-tooltip-item {
+    /* biome-ignore lint/complexity/noImportantStyles: Recharts inline series colours must yield to the accessible tooltip text colour. */
     color: $govuk-text-colour !important;
   }
 }

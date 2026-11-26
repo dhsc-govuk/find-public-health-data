@@ -75,7 +75,7 @@ it('hydrates every area headline for aggregate comparisons alongside sexed-only 
           value: 10,
         })),
       );
-      await replaceObservationSeries(tx, model.indicatorId, model.uploadBatchId);
+      await replaceObservationSeries(tx, model.indicatorId, model.uploadBatchId, null);
       for (const mode of ['latest', 'recent', 'sparkline'] as const) {
         const cached = await getIndicatorSeriesData(
           tx,
