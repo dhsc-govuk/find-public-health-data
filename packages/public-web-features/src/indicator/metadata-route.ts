@@ -49,8 +49,8 @@ export async function loadIndicatorMetadata({
     ['Methodology', detail.methodology],
     ['Confidence interval method', detail.ciMethod],
     ['Benchmarking method', detail.comparatorMethod],
-    ['Notes', detail.notes],
     ['Caveats', detail.caveats],
+    ['Notes', detail.notes],
   ];
   return new Response(
     `${entries

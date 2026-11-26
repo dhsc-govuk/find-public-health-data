@@ -565,6 +565,19 @@ test("shows the numerator's disclosure control under it, not under Other notes a
   await expect(panel.getByText('Disclosure control', { exact: true })).toHaveCount(1);
 });
 
+test('lists the caveats before the notes under Other notes and caveats', async ({ page }) => {
+  await page.getByRole('tab', { name: 'About this indicator' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'About this indicator' });
+
+  const notesAndCaveats = panel
+    .getByRole('heading', { name: 'Other notes and caveats', exact: true })
+    .locator('xpath=following-sibling::dl[1]');
+  await expect(notesAndCaveats.locator('.govuk-summary-list__key')).toHaveText([
+    'Caveats',
+    'Notes',
+  ]);
+});
+
 test("offers a rate's numerator as its Count, never a Numerator, on the page and in its download", async ({
   page,
 }) => {
