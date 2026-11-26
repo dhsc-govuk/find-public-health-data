@@ -3,9 +3,9 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
 import { promisify } from 'node:util';
 
+import { sha256 } from '@fphd/db-operations';
 import { dataMigrationManifestSchema } from '@fphd/db-operations/data-migration-contract';
 
-import { sha256 } from './files.ts';
 import { verifyPackageFiles } from './verify.ts';
 
 const runFile = promisify(execFile);

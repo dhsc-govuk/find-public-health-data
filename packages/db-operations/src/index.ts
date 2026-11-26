@@ -67,3 +67,4 @@ export {
   seedDummyTables,
   seedPublishedTables,
 } from './seeding.ts';
+export { sha256 } from './sha256.ts';

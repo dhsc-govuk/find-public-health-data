@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { applyDataMigration, rebuildReadModels } from '@fphd/db-operations';
+import { applyDataMigration, rebuildReadModels, sha256 } from '@fphd/db-operations';
 import {
   baselineManifestSchema,
   DATA_MIGRATION_NULL,
@@ -13,7 +13,6 @@ import type postgres from 'postgres';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 
 import { createIncremental } from './diff.ts';
-import { sha256 } from './files.ts';
 import { type ExportRow, TableWriter } from './pholio/table-writer.ts';
 import { deterministicUuid, prepareBaseline } from './prepare-baseline.ts';
 import { TABLES } from './tables.ts';
