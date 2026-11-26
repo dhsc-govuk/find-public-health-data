@@ -350,3 +350,47 @@ test.describe('without JavaScript', () => {
     await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
   });
 });
+
+// The page comes back from the server after each Add or Remove, with or without JavaScript, and
+// focus goes to the range changed rather than to the top of the page.
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(javaScriptEnabled ? 'focus with JavaScript' : 'focus without JavaScript', () => {
+    test.use({ javaScriptEnabled });
+
+    test('moves focus to the range added, and to the range before one removed', async ({
+      page,
+    }) => {
+      await openSectionPage(page, SECTION);
+      await ageType(page, 'Age range').check();
+
+      await page.getByRole('button', { name: 'Add another range' }).click();
+      await expect(label(page, 'Lower limit of range 2')).toBeFocused();
+      if (javaScriptEnabled) {
+        await expectHydrated(page);
+        await expect(label(page, 'Lower limit of range 2')).toBeFocused();
+      }
+      await page.getByRole('button', { name: 'Add another range' }).click();
+      await expect(label(page, 'Lower limit of range 3')).toBeFocused();
+
+      await page.getByRole('button', { name: 'Remove range 3' }).click();
+      await expect(label(page, 'Lower limit of range 2')).toBeFocused();
+      await page.getByRole('button', { name: 'Remove range 1' }).click();
+      await expect(label(page, 'Lower limit')).toBeFocused();
+    });
+  });
+}
+
+test.describe('focus without JavaScript after an error summary link', () => {
+  test.use({ javaScriptEnabled: false });
+
+  // The link leaves its field's fragment on the page, which must not win over the range added.
+  test('moves focus to the range added', async ({ page }) => {
+    await openSectionPage(page, SECTION);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('alert').getByRole('link', { name: 'Select the age type' }).click();
+    await expect(page).toHaveURL(/#/);
+
+    await page.getByRole('button', { name: 'Add another range' }).click();
+    await expect(label(page, 'Lower limit of range 2')).toBeFocused();
+  });
+});

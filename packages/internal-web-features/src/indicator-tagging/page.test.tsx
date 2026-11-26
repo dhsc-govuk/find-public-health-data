@@ -308,4 +308,31 @@ describe('TaggingPage', () => {
     );
     expect(first?.textContent).toBe('Continue');
   });
+
+  it('moves focus to the select of the list an Add or a Remove changed', () => {
+    renderPage({
+      values: { ...empty, hasFramework: 'yes', frameworkIds: [lof] },
+      focus: { on: 'picker', list: 'frameworkIds' },
+    });
+
+    expect(document.activeElement).toBe(select('Select a framework or programme'));
+  });
+
+  it('moves focus to the topic select after a topic is added or removed', () => {
+    renderPage({
+      values: { ...empty, topicIds: [dental] },
+      focus: { on: 'picker', list: 'topicIds' },
+    });
+
+    expect(document.activeElement).toBe(select('Select a topic'));
+  });
+
+  it('moves focus to the subtopic select when the page asks for a subtopic', () => {
+    renderPage({
+      values: { ...empty, addTopic: cancer },
+      focus: { on: 'picker', list: 'topicIds' },
+    });
+
+    expect(document.activeElement).toBe(select('Select a subtopic for Cancer'));
+  });
 });

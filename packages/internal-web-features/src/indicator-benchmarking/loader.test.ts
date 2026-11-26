@@ -114,7 +114,7 @@ describe('loadBenchmarking', () => {
 });
 
 describe('submitBenchmarking', () => {
-  it('adds a goal without saving anything, answering Yes', async () => {
+  it('adds a goal without saving anything, answering Yes and moving focus to it', async () => {
     const api = createFakeApiClient();
 
     const outcome = await submit([['intent', 'add']], [target], api);
@@ -122,11 +122,12 @@ describe('submitBenchmarking', () => {
     expect(outcome).toMatchObject({
       values: { hasGoalBenchmark: 'yes', goals: [target, blank] },
       fieldErrors: {},
+      focus: { on: 'item', index: 1 },
     });
     expect(api.calls).toEqual([]);
   });
 
-  it('removes a goal without saving anything', async () => {
+  it('removes a goal without saving anything, moving focus to the new first goal', async () => {
     const api = createFakeApiClient();
 
     const outcome = await submit(
@@ -138,7 +139,11 @@ describe('submitBenchmarking', () => {
       api,
     );
 
-    expect(outcome).toMatchObject({ values: { goals: [target] }, fieldErrors: {} });
+    expect(outcome).toMatchObject({
+      values: { goals: [target] },
+      fieldErrors: {},
+      focus: { on: 'item', index: 0 },
+    });
     expect(api.calls).toEqual([]);
   });
 

@@ -164,6 +164,7 @@ describe('submitTagging', () => {
     expect(outcome).toMatchObject({
       values: { topicIds: [cancer, dental], subtopicIds: [allCancers], addTopic: '' },
       fieldErrors: {},
+      focus: { on: 'picker', list: 'topicIds' },
     });
     expect(savedNothing(api)).toBe(true);
   });
@@ -233,10 +234,12 @@ describe('submitTagging', () => {
     expect(outcome).toMatchObject({ values: { topicIds: [dental] } });
   });
 
-  it('asks for a tag when Add is pressed with none chosen', async () => {
-    await expect(submit([['intent', addIntent('frameworkIds')]])).resolves.toMatchObject({
+  it('asks for a tag when Add is pressed with none chosen, moving focus nowhere', async () => {
+    const outcome = await submit([['intent', addIntent('frameworkIds')]]);
+    expect(outcome).toMatchObject({
       fieldErrors: { addFramework: 'Select a framework or programme' },
     });
+    expect(outcome).not.toHaveProperty('focus');
     await expect(submit([['intent', addIntent('topicIds')]])).resolves.toMatchObject({
       fieldErrors: { addTopic: 'Select a topic' },
     });
@@ -268,6 +271,7 @@ describe('submitTagging', () => {
     expect(outcome).toMatchObject({
       values: { topicIds: [cancer], subtopicIds: [allCancers] },
       fieldErrors: {},
+      focus: { on: 'picker', list: 'topicIds' },
     });
     expect(savedNothing(api)).toBe(true);
   });

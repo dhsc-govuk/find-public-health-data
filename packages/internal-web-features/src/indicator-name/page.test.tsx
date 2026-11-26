@@ -55,7 +55,7 @@ describe('IndicatorNamePage', () => {
     const form = container.querySelector('form');
 
     expect(form?.getAttribute('method')).toBe('post');
-    expect(form?.getAttribute('action')).toBeNull();
+    expect(form?.getAttribute('action')).toBe('/publish/indicators/new');
     expect(screen.getByRole('button', { name: 'Continue' }).getAttribute('type')).toBe('submit');
   });
 

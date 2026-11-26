@@ -235,4 +235,19 @@ describe('AgesPage', () => {
       document.getElementById(lower.getAttribute('aria-describedby') ?? '')?.textContent,
     ).toContain('You cannot add more than 20 ranges');
   });
+
+  it('moves focus to the lower limit of the range an Add or a Remove names', () => {
+    renderPage({
+      values: { ...empty, ageType: 'range', ageRanges: [sixteenPlus, blank] },
+      focus: { on: 'item', index: 1 },
+    });
+
+    expect(document.activeElement?.getAttribute('name')).toBe(ageRangeFieldName(1, 'lowerLimit'));
+  });
+
+  it('moves focus nowhere without an Add or a Remove', () => {
+    renderPage({ values: { ...empty, ageType: 'range', ageRanges: [sixteenPlus, blank] } });
+
+    expect(document.activeElement).toBe(document.body);
+  });
 });

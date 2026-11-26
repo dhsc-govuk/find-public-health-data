@@ -4,6 +4,7 @@ import { useActionData, useLoaderData } from 'react-router';
 import type { FormValues } from './form-values.ts';
 import type { FormFailure } from './indicator-section.ts';
 import type { SectionPageProps } from './indicator-section-form.tsx';
+import type { ListFocus } from './list-form.ts';
 import { indicatorTaskListPath } from './publish-paths.ts';
 
 /** Every section page links back to its draft's task list. */
@@ -15,7 +16,7 @@ export const sectionBackLinkHandle = backLinkHandle<{ id: string }>(
 /**
  * The draft's answers and their version, and any errors the loader found in them. After a
  * rejected save, it's what was typed, the errors, and the version the action returned (see
- * `versionedAction`).
+ * `versionedAction`). After an Add or a Remove, it also says where focus goes.
  */
 export function useSectionForm<
   Field extends string,
@@ -26,12 +27,15 @@ export function useSectionForm<
     version: string;
     fieldErrors?: Partial<Record<Field, string>>;
   }>();
-  const rejected = useActionData<(FormFailure<Field, Values> & { version: string }) | undefined>();
+  const rejected = useActionData<
+    (FormFailure<Field, Values> & { version: string; focus?: ListFocus<string> }) | undefined
+  >();
 
   return {
     fieldErrors: rejected?.fieldErrors ?? fieldErrors ?? {},
     formError: rejected?.formError,
     values: rejected?.values ?? values,
     version: rejected?.version ?? version,
+    focus: rejected?.focus,
   };
 }

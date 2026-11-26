@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
-import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
+import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import {
   describeSectionPage,
   openSectionPage,
@@ -511,5 +511,55 @@ test.describe('without JavaScript', () => {
 
     await expect(page).toHaveURL(taskListPath);
     await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+  });
+});
+
+// The page comes back from the server after each Add or Remove, with or without JavaScript, and
+// focus goes back to the select of the list changed rather than to the top of the page.
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(javaScriptEnabled ? 'focus with JavaScript' : 'focus without JavaScript', () => {
+    test.use({ javaScriptEnabled });
+    const navigates = !javaScriptEnabled;
+
+    test('moves focus back to the select of the list a tag is added to or removed from', async ({
+      page,
+    }) => {
+      await openSectionPage(page, SECTION);
+      await answer(page, FRAMEWORK_QUESTION, 'Yes');
+
+      await addTag(page, 'framework', PHOF, navigates);
+      await expect(select(page, LISTS.framework.label)).toBeFocused();
+      if (javaScriptEnabled) {
+        await expectHydrated(page);
+        await expect(select(page, LISTS.framework.label)).toBeFocused();
+      }
+      await press(page, `Remove ${LISTS.framework.noun} ${PHOF}`, navigates);
+      await expect(select(page, LISTS.framework.label)).toBeFocused();
+
+      await addTag(page, 'topic', 'Dental and oral health', navigates);
+      await expect(select(page, LISTS.topic.label)).toBeFocused();
+    });
+  });
+}
+
+test('leaves focus on the error summary when an Add is refused', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+
+  await page.getByRole('button', { name: LISTS.topic.add, exact: true }).click();
+
+  await expectErrorSummaryReady(page);
+  await expect(page.locator('.govuk-error-summary')).toBeFocused();
+});
+
+test.describe('focus without JavaScript when the page asks for a subtopic', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('moves focus to the subtopic select', async ({ page }) => {
+    await openSectionPage(page, SECTION);
+    await choose(page, LISTS.topic.label, 'Cancer');
+
+    await press(page, LISTS.topic.add, true);
+
+    await expect(select(page, 'Select a subtopic for Cancer')).toBeFocused();
   });
 });

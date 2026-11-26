@@ -10,7 +10,7 @@ import { CLASSIFICATION_IDS } from '@fphd/utils/classification-dimension';
 import type { ElementType, ReactNode } from 'react';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
-import { addIntent, removeIntent } from '../list-form.ts';
+import { addIntent, focusesPicker, type ListFocus, removeIntent } from '../list-form.ts';
 import { useSelectedValue } from '../selected-value.ts';
 import {
   ADD_TAG_FIELDS,
@@ -120,16 +120,20 @@ function addedTopics(
  * The topic question: a select and its Add button. Choosing a topic with subtopics asks for one
  * of them instead, in a select whose button adds the two together. In the browser the subtopic
  * select follows the topic as it is chosen. Without JavaScript, Add topic sends the form back
- * to ask for the subtopic, so it stays under the topic select.
+ * to ask for the subtopic, so it stays under the topic select. After an Add or a Remove, focus
+ * goes to the subtopic select if it is shown, as it is when the page asks for a subtopic, and
+ * otherwise to the topic select.
  */
 function TopicPicker({
   options,
   values,
   fieldErrors,
+  focus,
 }: {
   options: TagOptions;
   values: TaggingPageValues;
   fieldErrors: FieldErrors;
+  focus: ListFocus<string> | undefined;
 }) {
   const selected = useSelectedValue<TaggingPageField>('addTopic', values.addTopic);
   const chosen = options.topics.find(({ id }) => id === selected.value);
@@ -138,10 +142,13 @@ function TopicPicker({
     values[list].filter((id) => options[TAG_LIST_DETAILS[list].options].some((o) => o.id === id));
   const topicIds = offered('topicIds');
   const subtopicIds = offered('subtopicIds');
+  const focused = focusesPicker(focus, 'topicIds') || focusesPicker(focus, 'subtopicIds');
+  const asksForSubtopic = chosen !== undefined && subtopics.length > 0;
 
   return (
     <div className="govuk-!-margin-bottom-6">
       <Select
+        autoFocus={focused && !asksForSubtopic}
         defaultValue={values.addTopic}
         // A topic without the subtopic it needs is refused on the topic question.
         error={fieldErrors.addTopic ?? fieldErrors.topicIds ?? fieldErrors.subtopicIds}
@@ -159,6 +166,7 @@ function TopicPicker({
       {chosen === undefined || subtopics.length === 0 ? null : (
         <>
           <Select
+            autoFocus={focused}
             defaultValue={chosen.id === values.addTopic ? values.addSubtopic : ''}
             // The refusal was for the topic sent, not one chosen since.
             error={chosen.id === values.addTopic ? fieldErrors.addSubtopic : undefined}
@@ -183,16 +191,19 @@ function TopicPicker({
 
 /**
  * One list of tags: a select and its Add button, then the tags added so far, each carried in
- * a hidden field until Continue saves it. A tag the page no longer offers is left out.
+ * a hidden field until Continue saves it. A tag the page no longer offers is left out. After an
+ * Add or a Remove, the select takes focus.
  */
 function TagPicker({
   list,
   options,
   values,
   fieldErrors,
+  focus,
   labelHeading,
 }: {
   list: PickerList;
+  focus: ListFocus<string> | undefined;
   options: readonly TagOption[];
   values: TaggingPageValues;
   fieldErrors: FieldErrors;
@@ -205,6 +216,7 @@ function TagPicker({
   return (
     <div className="govuk-!-margin-bottom-6">
       <Select
+        autoFocus={focusesPicker(focus, list)}
         // A list refused as a whole is shown on the select that adds to it.
         defaultValue={values[field]}
         error={fieldErrors[field] ?? fieldErrors[list]}
@@ -227,10 +239,11 @@ interface TaggingPageProps extends SectionPageProps<TaggingPageField, TaggingPag
 }
 
 export function TaggingPage({ options, ...form }: TaggingPageProps) {
-  const { fieldErrors, values } = form;
+  const { fieldErrors, focus, values } = form;
   const picker = (list: PickerList, labelHeading: ElementType) => (
     <TagPicker
       fieldErrors={fieldErrors}
+      focus={focus}
       labelHeading={labelHeading}
       list={list}
       options={options[TAG_LIST_DETAILS[list].options]}
@@ -276,7 +289,7 @@ export function TaggingPage({ options, ...form }: TaggingPageProps) {
       }
       title="Add tags for this indicator"
     >
-      <TopicPicker fieldErrors={fieldErrors} options={options} values={values} />
+      <TopicPicker fieldErrors={fieldErrors} focus={focus} options={options} values={values} />
       <Select
         defaultValue={values.indicatorTypeIds[0] ?? ''}
         error={fieldErrors.indicatorTypeIds}

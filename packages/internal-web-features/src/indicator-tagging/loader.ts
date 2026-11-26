@@ -9,6 +9,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { versionedAction } from '../edit-version.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { loadIndicatorSectionAnswers, saveIndicatorSectionValues } from '../indicator-section.ts';
+import { withListFocus } from '../list-form.ts';
 import {
   readTaggingForm,
   type TaggingPageState,
@@ -44,9 +45,11 @@ export const submitTagging = versionedAction(
     const options = await args.context.get(apiContext).get('/api/internal/tags', tagOptionsSchema);
 
     if (intent.to !== 'continue' && intent.list !== undefined) {
-      return intent.to === 'add'
-        ? withTagAdded(values, intent.list, options)
-        : withTagRemoved(values, intent.list, intent.index, options);
+      const changed =
+        intent.to === 'add'
+          ? withTagAdded(values, intent.list, options)
+          : withTagRemoved(values, intent.list, intent.index, options);
+      return withListFocus(changed, intent, 'picker', changed.values[intent.list].length);
     }
 
     return saveIndicatorSectionValues(args.context, id, taggingSection, values, {

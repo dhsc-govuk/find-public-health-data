@@ -1,8 +1,10 @@
 import { Button, DocumentTitle, ErrorSummary, GridColumn, GridRow } from '@fphd/ui';
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router';
 
 import { VERSION_FIELD } from './edit-version.ts';
 import type { FormValues } from './form-values.ts';
+import type { ListFocus } from './list-form.ts';
 import type { GuidanceAnchor } from './publisher-guidance/paths.ts';
 import { RelatedGuidanceLink } from './related-guidance-link.tsx';
 
@@ -23,6 +25,8 @@ export interface SectionPageProps<Field extends string, Values = FormValues<Fiel
   formError: string | undefined;
   values: Values;
   version: string;
+  /** After an Add or a Remove, the part of the list that takes focus as the page comes back. */
+  focus?: ListFocus<string> | undefined;
 }
 
 type IndicatorSectionFormProps<Field extends string> = {
@@ -97,6 +101,9 @@ export function IndicatorSectionForm<Field extends string>(
   });
 
   const guidanceLink = guidance === undefined ? null : <RelatedGuidanceLink anchor={guidance} />;
+  // The form posts to the page without its fragment. A fragment left by following an error
+  // summary link without JavaScript would otherwise win over the field an Add or a Remove focuses.
+  const { pathname, search } = useLocation();
 
   return (
     <>
@@ -112,7 +119,7 @@ export function IndicatorSectionForm<Field extends string>(
           )}
           {intro}
           {/* A plain form posting back to its own page, so it works without JavaScript. */}
-          <form method="post">
+          <form action={`${pathname}${search}`} method="post">
             {version === undefined ? null : (
               <input name={VERSION_FIELD} type="hidden" value={version} />
             )}

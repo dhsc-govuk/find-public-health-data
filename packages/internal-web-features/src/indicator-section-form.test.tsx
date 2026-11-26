@@ -23,9 +23,12 @@ type FormProps = {
 } & ({ guidance?: GuidanceAnchor; questionIsHeading?: false } | { questionIsHeading: true });
 
 // Radios as well as a textarea, because GOV.UK links a radios error to its first option.
-function renderForm({ fieldErrors = {}, formError, version, ...props }: FormProps = {}) {
+function renderForm(
+  { fieldErrors = {}, formError, version, ...props }: FormProps = {},
+  at = '/publish/indicators/1/a-section',
+) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[at]}>
       <IndicatorSectionForm
         fieldIds={{ choice: firstRadioId('choice') }}
         form={{ fieldErrors, formError, version }}
@@ -105,8 +108,17 @@ describe('IndicatorSectionForm', () => {
     const form = container.querySelector('form');
 
     expect(form?.getAttribute('method')).toBe('post');
-    expect(form?.getAttribute('action')).toBeNull();
+    expect(form?.getAttribute('action')).toBe('/publish/indicators/1/a-section');
     expect(within(form as HTMLElement).getByRole('button', { name: 'Continue' })).toBeTruthy();
+  });
+
+  // Following an error summary link without JavaScript leaves the field's fragment on the page.
+  it('posts to its page without the fragment, which would win over the field it next focuses', () => {
+    const { container } = renderForm({}, '/publish/indicators/1/a-section?from=summary#answer');
+
+    expect(container.querySelector('form')?.getAttribute('action')).toBe(
+      '/publish/indicators/1/a-section?from=summary',
+    );
   });
 
   it('words its button as the page asks', () => {

@@ -29,7 +29,7 @@ import {
 import type { ReactNode } from 'react';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
-import { ADD_INTENT, removeIntent } from '../list-form.ts';
+import { ADD_INTENT, focusesItem, type ListFocus, removeIntent } from '../list-form.ts';
 
 type FieldErrors = Partial<Record<BenchmarkingPageField, string>>;
 
@@ -85,12 +85,14 @@ function comparisonOptions(comparisons: readonly (GoalLowerComparison | GoalUppe
  * The value has no decimal keypad, which on iOS has no minus key, as a goal can be negative.
  */
 function GoalValue({
+  autoFocus = false,
   bound,
   fieldErrors,
   goal,
   hint,
   index,
 }: {
+  autoFocus?: boolean;
   bound: 'lower' | 'upper';
   fieldErrors: FieldErrors;
   goal: PolicyGoalFormValues;
@@ -118,6 +120,7 @@ function GoalValue({
       <div className="fphd-field-row">
         <Select
           aria-invalid={comparisonError === undefined ? undefined : true}
+          autoFocus={autoFocus}
           defaultValue={goal[comparisonPart]}
           error={comparisonError}
           label={
@@ -149,13 +152,18 @@ function GoalValue({
   );
 }
 
-/** The goals as typed, each under its heading and removable while there is another. */
+/**
+ * The goals as typed, each under its heading and removable while there is another. After an Add
+ * or a Remove, the lower value's comparison of the goal `focus` names takes focus.
+ */
 function PolicyGoals({
   goals,
   fieldErrors,
+  focus,
 }: {
   goals: readonly PolicyGoalFormValues[];
   fieldErrors: FieldErrors;
+  focus: ListFocus<string> | undefined;
 }) {
   return (
     <>
@@ -167,6 +175,7 @@ function PolicyGoals({
           <div key={index}>
             <h2 className="govuk-heading-m">Policy goal {index + 1}</h2>
             <GoalValue
+              autoFocus={focusesItem(focus, index)}
               bound="lower"
               fieldErrors={fieldErrors}
               goal={goal}
@@ -227,7 +236,7 @@ function PolicyGoals({
 export function BenchmarkingPage(
   form: SectionPageProps<BenchmarkingPageField, BenchmarkingFormValues>,
 ) {
-  const { fieldErrors, values } = form;
+  const { fieldErrors, focus, values } = form;
 
   return (
     <IndicatorSectionForm
@@ -256,6 +265,7 @@ export function BenchmarkingPage(
                   [policyGoalFieldName(0, 'lowerValue')]:
                     fieldErrors[policyGoalFieldName(0, 'lowerValue')] ?? fieldErrors.goals,
                 }}
+                focus={focus}
                 goals={values.goals}
               />
             ),
