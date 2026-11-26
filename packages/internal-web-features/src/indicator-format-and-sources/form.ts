@@ -481,7 +481,8 @@ export function withChosenSourcesTakenIn(
 
   if (refusals.length === 0) return { values: taken, answers: answersOf(taken) };
 
-  const submission = section.schema.safeParse(answersOf(values));
+  // The other lists are judged with the sources chosen for them taken in, as a save would take them.
+  const submission = section.schema.safeParse(answersOf(taken));
   const sectionErrors: FieldErrors = submission.success
     ? {}
     : toFieldErrors(submission.error, section.errorFields ?? section.fields);

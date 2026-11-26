@@ -498,6 +498,28 @@ describe('submitFormatAndSources', () => {
     expect(saves(api)).toEqual([]);
   });
 
+  it("takes in another figure's chosen source when one figure's add is refused", async () => {
+    const api = submitting();
+
+    const outcome = await submit(
+      {
+        ...numeratorAnswered,
+        numeratorProviderId: ons.id,
+        numeratorSourceId: '',
+        denominatorProviderId: estimated.id,
+        denominatorSourceId: 'none',
+      },
+      { numerator: [mortality] },
+      api,
+    );
+
+    expect(outcome).toMatchObject({
+      fieldErrors: { numeratorSourceId: 'Select a source, or No specific source' },
+    });
+    expect(outcome).not.toMatchObject({ fieldErrors: { denominatorSources: expect.anything() } });
+    expect(saves(api)).toEqual([]);
+  });
+
   it('refuses to save a source no longer offered, asking for it removed beside the other refusals', async () => {
     const api = submitting();
 
