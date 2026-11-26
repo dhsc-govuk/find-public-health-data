@@ -21,7 +21,7 @@ import {
   previewViews,
 } from './preview-repository.ts';
 
-const { indicatorVersion } = schema;
+const { indicatorVersion, indicatorVersionGoal } = schema;
 
 const testDb = await createTestDb({ template: 'seeded' });
 const internal = testDb.connect({ login: apiLogin('internal_api'), max: 1 });
@@ -122,14 +122,26 @@ it('reads draft policy goals through the preview while keeping the published goa
   )?.goal;
   await testDb.db
     .update(indicatorVersion)
-    .set({
-      hasGoalBenchmark: true,
-      goalLowerValue: 90.25,
-      goalUpperValue: 95.5,
-      goalPolarity: 'higher-is-better',
-      goalPolicyDetail: 'A draft policy target',
-    })
+    .set({ hasGoalBenchmark: true })
     .where(eq(indicatorVersion.id, update.versionId));
+  // The update starts with the published goals, which the draft replaces.
+  await testDb.db
+    .delete(indicatorVersionGoal)
+    .where(eq(indicatorVersionGoal.indicatorVersionId, update.versionId));
+  await testDb.db.insert(indicatorVersionGoal).values(
+    [
+      { lowerValue: 90.25, upperValue: 95.5, policyDetail: 'A draft policy target' },
+      { lowerValue: 10, upperValue: null, policyDetail: null },
+    ].map(({ upperValue, ...goal }, position) => ({
+      ...goal,
+      indicatorVersionId: update.versionId,
+      position,
+      lowerComparison: 'less-than-or-equal' as const,
+      upperValue,
+      upperComparison: upperValue === null ? null : ('more-than' as const),
+      polarity: 'higher-is-better' as const,
+    })),
+  );
 
   const previewed = await internal.begin(async (tx) => {
     await tx`SELECT set_config(${PREVIEW_VERSION_SETTING}, ${update.versionId}, true)`;
@@ -142,10 +154,13 @@ it('reads draft policy goals through the preview while keeping the published goa
 
   expect(previewed.draft).toEqual({
     lower: 90.25,
+    lowerComparison: 'less-than-or-equal',
     upper: 95.5,
+    upperComparison: 'more-than',
     polarity: 'higher-is-better',
     policyDetail: 'A draft policy target',
   });
+  expect(publishedGoal).toMatchObject({ lower: 90, upper: 95 });
   expect(previewed.published).toEqual(publishedGoal);
 });
 

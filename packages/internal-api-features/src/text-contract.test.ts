@@ -140,13 +140,29 @@ const blankAges = {
   ageDetail: '',
 };
 
+/** The refusals of a policy goal with its detail typed, as a goal's detail is a field of its row. */
+const benchmarkingRefusals: Refusals = (answers) =>
+  sectionFieldErrors(benchmarkingSection, {
+    hasGoalBenchmark: 'no',
+    goals: [
+      {
+        lowerComparison: '',
+        lowerValue: '',
+        upperComparison: '',
+        upperValue: '',
+        polarity: '',
+        detail: answers['goals[0].detail'] ?? '',
+      },
+    ],
+  });
+
 // The link URL keeps a limit of its own, tested in its contract.
 const sections: [string, number, Refusals, Record<string, string>][] = [
   [
     'benchmarking',
     10_000,
-    refusalsOf(benchmarkingSection),
-    { goalPolicyDetail: 'Detail about the policy goal' },
+    benchmarkingRefusals,
+    { 'goals[0].detail': 'Detail about the policy goal' },
   ],
   [
     'calculation',

@@ -15,12 +15,18 @@ const {
   subtopic,
   indicatorVersionSubtopic,
   indicatorVersionAgeRange,
+  indicatorVersionGoal,
   indicatorVersionSource,
   topic,
 } = schema;
 
 export type IndicatorDraftAgeRange = Omit<
   typeof indicatorVersionAgeRange.$inferSelect,
+  'indicatorVersionId' | 'position'
+>;
+
+export type IndicatorDraftGoal = Omit<
+  typeof indicatorVersionGoal.$inferSelect,
   'indicatorVersionId' | 'position'
 >;
 
@@ -49,6 +55,8 @@ export interface IndicatorDraftLists extends Partial<IndicatorDraftSources> {
   classificationIds?: Partial<Record<ClassificationDimension, string[]>>;
   /** In the order they are shown. */
   ageRanges?: IndicatorDraftAgeRange[];
+  /** In the order they are shown. */
+  goals?: IndicatorDraftGoal[];
 }
 
 export async function sourcesOf(
@@ -145,6 +153,24 @@ export async function ageRangesOf(
     .orderBy(asc(indicatorVersionAgeRange.position));
 }
 
+export async function goalsOf(
+  db: Database | Transaction,
+  versionId: string,
+): Promise<IndicatorDraftGoal[]> {
+  return db
+    .select({
+      lowerComparison: indicatorVersionGoal.lowerComparison,
+      lowerValue: indicatorVersionGoal.lowerValue,
+      upperComparison: indicatorVersionGoal.upperComparison,
+      upperValue: indicatorVersionGoal.upperValue,
+      polarity: indicatorVersionGoal.polarity,
+      policyDetail: indicatorVersionGoal.policyDetail,
+    })
+    .from(indicatorVersionGoal)
+    .where(eq(indicatorVersionGoal.indicatorVersionId, versionId))
+    .orderBy(asc(indicatorVersionGoal.position));
+}
+
 /**
  * The audit log's field for one dimension's classifications, such as `classificationIds.lifeStage`:
  * a save replaces each dimension it names and leaves the others, so each is a list of its own.
@@ -161,6 +187,7 @@ export const LIST_AUDIT_FIELDS = [
   'subtopicPlacements',
   ...CLASSIFICATION_DIMENSIONS.map(classificationAuditField),
   'ageRanges',
+  'goals',
   'numeratorSources',
   'denominatorSources',
 ] as const;
@@ -195,6 +222,15 @@ const auditedAgeRange = (range: IndicatorDraftAgeRange) => ({
   upperLimitUnit: range.upperLimitUnit ?? null,
 });
 
+const auditedGoal = (goal: IndicatorDraftGoal) => ({
+  lowerComparison: goal.lowerComparison,
+  lowerValue: goal.lowerValue,
+  upperComparison: goal.upperComparison,
+  upperValue: goal.upperValue,
+  polarity: goal.polarity,
+  policyDetail: goal.policyDetail,
+});
+
 const auditedSource = ({ providerId, sourceId }: IndicatorDraftSource) => ({
   providerId,
   sourceId: sourceId ?? null,
@@ -214,6 +250,7 @@ export async function replaceLists(
   versionId: string,
   {
     ageRanges,
+    goals,
     classificationIds,
     topicIds,
     subtopicIds,
@@ -310,6 +347,24 @@ export async function replaceLists(
     }
     before.ageRanges = inPosition(removed).map(auditedAgeRange);
     after.ageRanges = ageRanges.map(auditedAgeRange);
+  }
+
+  if (goals !== undefined) {
+    const removed = await tx
+      .delete(indicatorVersionGoal)
+      .where(eq(indicatorVersionGoal.indicatorVersionId, versionId))
+      .returning();
+    if (goals.length > 0) {
+      await tx.insert(indicatorVersionGoal).values(
+        goals.map((goal, position) => ({
+          ...goal,
+          indicatorVersionId: versionId,
+          position,
+        })),
+      );
+    }
+    before.goals = inPosition(removed).map(auditedGoal);
+    after.goals = goals.map(auditedGoal);
   }
 
   for (const [field, part, sources] of [

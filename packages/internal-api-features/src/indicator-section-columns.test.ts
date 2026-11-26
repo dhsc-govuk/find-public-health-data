@@ -1,7 +1,6 @@
 import { UNIT_IDS, VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
 import {
-  benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
   dataQualityColumns,
@@ -541,76 +540,6 @@ describe('otherCommentsColumns', () => {
         hasReviewerComments: true,
       }),
     ).toEqual(answered);
-  });
-});
-
-describe('benchmarkingColumns', () => {
-  const goal = {
-    hasGoalBenchmark: 'yes',
-    goalLowerValue: '2,400',
-    goalUpperValue: '3250.5',
-    goalPolarity: 'higher-is-better',
-    goalPolicyDetail: 'The national detection rate ambition.',
-  } as const;
-
-  const noGoal = {
-    hasGoalBenchmark: false,
-    goalLowerValue: null,
-    goalUpperValue: null,
-    goalPolarity: null,
-    goalPolicyDetail: null,
-  };
-
-  it('writes a goal with its values as numbers', () => {
-    expect(benchmarkingColumns.toAttributes(goal)).toEqual({
-      hasGoalBenchmark: true,
-      goalLowerValue: 2400,
-      goalUpperValue: 3250.5,
-      goalPolarity: 'higher-is-better',
-      goalPolicyDetail: 'The national detection rate ambition.',
-    });
-  });
-
-  it('writes a single goal value and a blank detail as none', () => {
-    expect(
-      benchmarkingColumns.toAttributes({ ...goal, goalUpperValue: '', goalPolicyDetail: '' }),
-    ).toMatchObject({ goalUpperValue: null, goalPolicyDetail: null });
-  });
-
-  it('writes no goal and clears whatever the form sent beside it', () => {
-    expect(benchmarkingColumns.toAttributes({ ...goal, hasGoalBenchmark: 'no' })).toEqual(noGoal);
-  });
-
-  it('reads a goal back as the form shows it', () => {
-    expect(
-      benchmarkingColumns.fromDraft({
-        ...unansweredDraft,
-        hasGoalBenchmark: true,
-        goalLowerValue: 2400,
-        goalUpperValue: 1e21,
-        goalPolarity: 'lower-is-better',
-        goalPolicyDetail: null,
-      }),
-    ).toEqual({
-      hasGoalBenchmark: 'yes',
-      goalLowerValue: '2400',
-      goalUpperValue: '1000000000000000000000',
-      goalPolarity: 'lower-is-better',
-      goalPolicyDetail: null,
-    });
-  });
-
-  it.each([
-    [false, 'no'],
-    [null, null],
-  ])('reads a stored %s as %s', (hasGoalBenchmark, answer) => {
-    expect(benchmarkingColumns.fromDraft({ ...unansweredDraft, hasGoalBenchmark })).toEqual({
-      hasGoalBenchmark: answer,
-      goalLowerValue: null,
-      goalUpperValue: null,
-      goalPolarity: null,
-      goalPolicyDetail: null,
-    });
   });
 });
 

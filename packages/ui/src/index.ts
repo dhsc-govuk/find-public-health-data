@@ -4,6 +4,7 @@ export { default as Checkboxes } from '@not-govuk/checkboxes';
 export { default as DateInput } from '@not-govuk/date-input';
 export { default as Details } from '@not-govuk/details';
 export { default as ErrorMessage } from '@not-govuk/error-message';
+export { default as FormGroup } from '@not-govuk/form-group';
 export { default as Hint } from '@not-govuk/hint';
 export { default as Input } from '@not-govuk/input';
 export { default as InsetText } from '@not-govuk/inset-text';

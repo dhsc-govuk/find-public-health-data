@@ -35,7 +35,14 @@ afterEach(() => {
 
 it.each([null, 6])('renders goal reference lines, key and tooltip with upper %s', async (upper) => {
   const fixture = benchmarkFixture();
-  const goal = { lower: 4, upper, polarity: 'lower-is-better' as const, policyDetail: null };
+  const goal = {
+    lower: 4,
+    lowerComparison: 'less-than' as const,
+    upper,
+    upperComparison: upper === null ? null : ('more-than' as const),
+    polarity: 'lower-is-better' as const,
+    policyDetail: null,
+  };
   const model = trendTableModel({ ...fixture, confidence: 'none' });
   const { container } = render(
     <TrendChart

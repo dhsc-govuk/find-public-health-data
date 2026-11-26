@@ -96,6 +96,11 @@ async function insertDraftOnlyIndicator(): Promise<void> {
     INSERT INTO indicator_version_source (indicator_version_id, part, position, provider_id)
     SELECT ${versionId}, 'numerator', 0, p.id FROM data_provider p LIMIT 1
   `;
+  await owner`
+    INSERT INTO indicator_version_goal
+      (indicator_version_id, position, lower_comparison, lower_value, polarity)
+    VALUES (${versionId}, 0, 'less-than', 10, 'lower-is-better')
+  `;
 
   const [batch] = await owner<{ id: string }[]>`
     INSERT INTO upload_batch (indicator_id, indicator_version_id, original_filename, uploaded_by)
@@ -162,10 +167,6 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.update_frequency_years smallint',
   'indicator.comparator_method_id uuid',
   'indicator.has_goal_benchmark boolean',
-  'indicator.goal_lower_value double precision',
-  'indicator.goal_upper_value double precision',
-  'indicator.goal_polarity text',
-  'indicator.goal_policy_detail text',
   'indicator.ci_confidence_level text',
   'indicator.definition text',
   'indicator.rationale text',
@@ -182,6 +183,14 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.fingertips_formatting jsonb',
   'indicator_classification.indicator_id uuid',
   'indicator_classification.classification_id uuid',
+  'indicator_goal.indicator_id uuid',
+  'indicator_goal.position smallint',
+  'indicator_goal.lower_comparison text',
+  'indicator_goal.lower_value double precision',
+  'indicator_goal.upper_comparison text',
+  'indicator_goal.upper_value double precision',
+  'indicator_goal.polarity text',
+  'indicator_goal.policy_detail text',
   'indicator_source.indicator_id uuid',
   'indicator_source.part text',
   'indicator_source.position smallint',
@@ -250,7 +259,8 @@ describe('the public role', () => {
       SELECT table_name, column_name, data_type FROM information_schema.columns
       WHERE table_schema = 'published'
         AND table_name IN (
-          'indicator', 'indicator_topic', 'indicator_classification', 'indicator_source'
+          'indicator', 'indicator_topic', 'indicator_classification', 'indicator_goal',
+          'indicator_source'
         )
       ORDER BY table_name, ordinal_position
     `;
@@ -289,6 +299,7 @@ describe('the internal role', () => {
     'published.indicator_topic',
     'published.indicator_classification',
     'published.indicator_source',
+    'published.indicator_goal',
     'published.data_provider',
     'published.data_provider_source',
     'published.indicator_update_summary',
@@ -314,8 +325,8 @@ describe('the internal role', () => {
 
   // Table-level, as the other publisher writes are.
   it.each(
-    ['indicator_version_age_range', 'indicator_version_source'].flatMap((table) =>
-      ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((privilege) => [privilege, table]),
+    ['indicator_version_age_range', 'indicator_version_goal', 'indicator_version_source'].flatMap(
+      (table) => ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((privilege) => [privilege, table]),
     ),
   )('may %s %s', async (privilege, table) => {
     const [row] = await owner<{ granted: boolean }[]>`
@@ -362,6 +373,8 @@ describe('an indicator whose only version is a draft', () => {
         FROM published.indicator_classification WHERE indicator_id = ${draftIndicatorId}
       UNION ALL SELECT 'indicator_source', count(*)::int
         FROM published.indicator_source WHERE indicator_id = ${draftIndicatorId}
+      UNION ALL SELECT 'indicator_goal', count(*)::int
+        FROM published.indicator_goal WHERE indicator_id = ${draftIndicatorId}
       UNION ALL SELECT 'indicator_slug', count(*)::int
         FROM published.indicator_slug
         WHERE indicator_id = ${draftIndicatorId} OR slug = 'grants-test-draft-indicator'
@@ -384,7 +397,7 @@ describe('an indicator whose only version is a draft', () => {
     `;
 
     expect(counts.filter(({ rows }) => rows > 0)).toEqual([]);
-    expect(counts).toHaveLength(13);
+    expect(counts).toHaveLength(14);
   });
 
   it.each([

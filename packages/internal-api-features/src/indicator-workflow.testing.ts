@@ -52,6 +52,7 @@ export async function completeDraft(
     ciMethodKind: _ciMethodKind,
     uploadBatchId: _uploadBatchId,
     ageRanges,
+    goals,
     topicIds: _topicIds,
     subtopicIds: _subtopicIds,
     classifications: _classifications,
@@ -89,6 +90,7 @@ export async function completeDraft(
     { ...answers, uploadBatchId: batch.id },
     {
       ageRanges,
+      goals,
       topicIds: [firstTopic.id],
       classificationIds: { indicator_type: [indicatorType.id], life_stage: [lifeStage.id] },
       numeratorSources: [onsAlone],

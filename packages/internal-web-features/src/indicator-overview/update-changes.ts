@@ -131,10 +131,7 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
     },
     benchmarking: {
       hasGoalBenchmark: 'Policy goal benchmark',
-      goalLowerValue: 'Lower goal value',
-      goalUpperValue: 'Upper goal value',
-      goalPolarity: 'Polarity of goal',
-      goalPolicyDetail: 'Policy goal detail',
+      goals: 'Policy goals',
     },
     'sex-gender-and-ethnicity': {
       demographics: 'What was collected',

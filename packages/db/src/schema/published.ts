@@ -3,6 +3,7 @@ import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import type { SeriesPeriodType } from '@fphd/utils/observation-series';
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
+import { GOAL_LOWER_COMPARISONS, GOAL_UPPER_COMPARISONS } from '@fphd/utils/policy-goal';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 import type { FingertipsFormatting } from '@fphd/utils/value-type-and-unit';
@@ -237,10 +238,6 @@ export function createVersionedViews(schema: PgSchema<string>) {
         updateFrequencyYears: smallint('update_frequency_years'),
         comparatorMethodId: uuid('comparator_method_id'),
         hasGoalBenchmark: boolean('has_goal_benchmark'),
-        goalLowerValue: doublePrecision('goal_lower_value'),
-        goalUpperValue: doublePrecision('goal_upper_value'),
-        goalPolarity: text('goal_polarity', { enum: GOAL_POLARITIES }),
-        goalPolicyDetail: text('goal_policy_detail'),
         ciConfidenceLevel: text('ci_confidence_level', { enum: CI_CONFIDENCE_LEVELS }),
         definition: text('definition'),
         rationale: text('rationale'),
@@ -280,10 +277,6 @@ SELECT
   v.update_frequency_years,
   v.comparator_method_id,
   v.has_goal_benchmark,
-  v.goal_lower_value,
-  v.goal_upper_value,
-  v.goal_polarity,
-  v.goal_policy_detail,
   v.ci_confidence_level,
   v.definition,
   v.rationale,
@@ -306,6 +299,31 @@ CROSS JOIN LATERAL (
   FROM indicator_version pv
   WHERE pv.indicator_id = i.id
 ) p
+      `),
+    /** The policy goals of each published indicator, in the order the publisher gave them. */
+    indicatorGoal: schema
+      .view('indicator_goal', {
+        indicatorId: uuid('indicator_id').notNull(),
+        position: smallint('position').notNull(),
+        lowerComparison: text('lower_comparison', { enum: GOAL_LOWER_COMPARISONS }).notNull(),
+        lowerValue: doublePrecision('lower_value').notNull(),
+        upperComparison: text('upper_comparison', { enum: GOAL_UPPER_COMPARISONS }),
+        upperValue: doublePrecision('upper_value'),
+        polarity: text('polarity', { enum: GOAL_POLARITIES }).notNull(),
+        policyDetail: text('policy_detail'),
+      })
+      .as(sql`
+SELECT
+  cpv.indicator_id,
+  g.position,
+  g.lower_comparison,
+  g.lower_value,
+  g.upper_comparison,
+  g.upper_value,
+  g.polarity,
+  g.policy_detail
+FROM current_published_version cpv
+JOIN indicator_version_goal g ON g.indicator_version_id = cpv.id
       `),
     /**
      * The summaries of published updates, each with the time its version was published: every
@@ -420,6 +438,7 @@ export const {
   observationSeriesBatch: publishedObservationSeriesBatch,
   observationSeries: publishedObservationSeries,
   indicator: publishedIndicator,
+  indicatorGoal: publishedIndicatorGoal,
   indicatorUpdateSummary: publishedIndicatorUpdateSummary,
   indicatorSlug: publishedIndicatorSlug,
   indicatorTopic: publishedIndicatorTopic,

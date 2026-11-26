@@ -107,6 +107,12 @@
       "types": "./src/polarity.ts",
       "default": "./dist/polarity.js"
     },
+    "./policy-goal": {
+      "browser": "./src/policy-goal.ts",
+      "development": "./src/policy-goal.ts",
+      "types": "./src/policy-goal.ts",
+      "default": "./dist/policy-goal.js"
+    },
     "./review-response-kind": {
       "browser": "./src/review-response-kind.ts",
       "development": "./src/review-response-kind.ts",

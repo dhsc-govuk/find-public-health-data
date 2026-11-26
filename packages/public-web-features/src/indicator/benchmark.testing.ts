@@ -58,7 +58,14 @@ export function benchmarkFixture() {
     decileObservation,
     geography,
     detail: indicatorDetail(108, {
-      goal: { lower: 4, upper: 6, polarity: 'lower-is-better', policyDetail: null },
+      goal: {
+        lower: 4,
+        lowerComparison: 'less-than',
+        upper: 6,
+        upperComparison: 'more-than',
+        polarity: 'lower-is-better',
+        policyDetail: null,
+      },
     }),
     areaData,
     lookup: areaData

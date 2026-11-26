@@ -3,7 +3,12 @@ import { isDeepStrictEqual } from 'node:util';
 import { INDICATOR_CALCULATED_BY_LABELS } from '@fphd/utils/calculated-by';
 import { INDICATOR_DISCLOSURE_CONTROL_LABELS } from '@fphd/utils/disclosure-control';
 import { monthName, PERIOD_TYPE_LABELS, YEAR_TYPE_LABELS } from '@fphd/utils/period-type';
-import { GOAL_POLARITY_LABELS, POLARITY_LABELS } from '@fphd/utils/polarity';
+import { type GoalPolarity, POLARITY_LABELS } from '@fphd/utils/polarity';
+import {
+  type GoalLowerComparison,
+  type GoalUpperComparison,
+  goalBandsText,
+} from '@fphd/utils/policy-goal';
 import {
   DEMOGRAPHIC_LABELS,
   ETHNIC_GROUP_LABELS,
@@ -22,12 +27,14 @@ import {
   dataQualitySection,
   definitionAndRationaleSection,
   denominatorSection,
+  goalValueText,
   type IndicatorSection,
   type IndicatorTaskKey,
   justificationsSection,
   numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
+  type PolicyGoalFormValues,
   type ProviderSource,
   periodTypeSection,
   polaritySection,
@@ -41,7 +48,6 @@ import {
 } from './contract.ts';
 import type { IndicatorSectionColumns } from './indicator-section.ts';
 import {
-  benchmarkingColumns,
   calculationColumns,
   confidenceIntervalsColumns,
   dataQualityColumns,
@@ -58,6 +64,7 @@ import {
 } from './indicator-section-columns.ts';
 import {
   agesColumns,
+  benchmarkingColumns,
   denominatorColumns,
   numeratorColumns,
   taggingColumns,
@@ -152,6 +159,28 @@ const ageRanges: FieldDisplay = (value) => {
       return `${lower} to ${upper}`;
     })
     .join(', ');
+};
+
+/** Each policy goal's bands, followed by its detail where it has one. */
+const policyGoals: FieldDisplay = (value) => {
+  const goals = value as PolicyGoalFormValues[];
+  if (goals.length === 0) return null;
+  return goals
+    .map((goal) => {
+      const bands = goalBandsText(
+        {
+          lower: Number(goal.lowerValue),
+          lowerComparison: goal.lowerComparison as GoalLowerComparison,
+          upper: goal.upperValue === '' ? null : Number(goal.upperValue),
+          upperComparison:
+            goal.upperComparison === '' ? null : (goal.upperComparison as GoalUpperComparison),
+          polarity: goal.polarity as GoalPolarity,
+        },
+        (number) => goalValueText(number) ?? '',
+      );
+      return goal.detail === '' ? bands : `${bands} (${goal.detail})`;
+    })
+    .join('; ');
 };
 
 const AGE_TYPE_LABELS = {
@@ -250,10 +279,7 @@ const CHANGED_SECTIONS: Readonly<
   }),
   benchmarking: sectionOf(benchmarkingSection, benchmarkingColumns, {
     hasGoalBenchmark: yesNo,
-    goalLowerValue: entered,
-    goalUpperValue: entered,
-    goalPolarity: option(GOAL_POLARITY_LABELS),
-    goalPolicyDetail: 'text',
+    goals: policyGoals,
   }),
   'sex-gender-and-ethnicity': sectionOf(
     sexGenderAndEthnicitySection,

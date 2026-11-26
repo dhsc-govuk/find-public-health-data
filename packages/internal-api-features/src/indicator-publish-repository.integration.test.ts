@@ -31,6 +31,7 @@ const {
   indicatorVersionTopic,
   indicatorVersion,
   indicatorVersionAgeRange,
+  indicatorVersionGoal,
   indicatorVersionSource,
 } = schema;
 
@@ -396,6 +397,47 @@ describe('createDraftFromPublished', () => {
         ageRanges: [sixteenPlus, underFive],
       });
       expect(await storedAgeRangesOf(db, currentId)).toEqual([sixteenPlus, underFive]);
+    },
+  );
+
+  seededRepositoryTest(
+    'copies the policy goals of the published version, in their order',
+    async ({ db }) => {
+      const { indicatorId, currentId, supersededId } = await indicatorWithTwoPublications(
+        db,
+        'Goals when published',
+      );
+      const first = {
+        lowerComparison: 'less-than',
+        lowerValue: 10,
+        upperComparison: 'more-than-or-equal',
+        upperValue: 20,
+        polarity: 'higher-is-better',
+        policyDetail: 'The national ambition.',
+      } as const;
+      const second = {
+        lowerComparison: 'less-than-or-equal',
+        lowerValue: 5,
+        upperComparison: null,
+        upperValue: null,
+        polarity: 'lower-is-better',
+        policyDetail: null,
+      } as const;
+      await db
+        .update(indicatorVersion)
+        .set({ hasGoalBenchmark: true })
+        .where(eq(indicatorVersion.id, currentId));
+      await db.insert(indicatorVersionGoal).values([
+        { indicatorVersionId: currentId, position: 0, ...first },
+        { indicatorVersionId: currentId, position: 1, ...second },
+        { indicatorVersionId: supersededId, position: 0, ...second },
+      ]);
+
+      const result = await createDraftFromPublished(db, indicatorId, AS_ACTOR);
+
+      if (!result.ok) throw new Error('expected a draft');
+      const state = await getIndicatorDraftState(db, indicatorId);
+      expect(state?.draft).toMatchObject({ hasGoalBenchmark: true, goals: [first, second] });
     },
   );
 

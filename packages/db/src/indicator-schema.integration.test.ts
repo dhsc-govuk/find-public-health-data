@@ -12,6 +12,7 @@ import {
   indicator,
   indicatorVersion,
   indicatorVersionClassification,
+  indicatorVersionGoal,
   indicatorVersionTopic,
   SYSTEM_USER_IDS,
   topic,
@@ -575,95 +576,87 @@ describe('indicator_version', () => {
   });
 
   const goal = {
-    hasGoalBenchmark: true,
-    goalLowerValue: 90,
-    goalUpperValue: 95,
-    goalPolarity: 'higher-is-better',
-    goalPolicyDetail: 'The national immunisation programme target.',
+    position: 0,
+    lowerComparison: 'less-than',
+    lowerValue: 90,
+    upperComparison: 'more-than-or-equal',
+    upperValue: 95,
+    polarity: 'higher-is-better',
+    policyDetail: 'The national immunisation programme target.',
   } as const;
+
+  /** Adds the goal to a new draft that answers yes. */
+  async function addGoal(values: Partial<typeof indicatorVersionGoal.$inferInsert>) {
+    const [draft] = await addVersion(await newIndicatorId(), 'draft', { hasGoalBenchmark: true });
+    return db
+      .insert(indicatorVersionGoal)
+      .values({ ...goal, indicatorVersionId: draft?.id ?? '', ...values })
+      .returning();
+  }
 
   it.each([
     ['a goal', goal],
     [
       'a single goal value without detail',
-      { ...goal, goalUpperValue: null, goalPolicyDetail: null },
+      { upperValue: null, upperComparison: null, policyDetail: null },
     ],
-    ['a negative goal', { ...goal, goalLowerValue: -2.5, goalUpperValue: -0.5 }],
-    ['no goal', { hasGoalBenchmark: false }],
+    ['a negative goal', { lowerValue: -2.5, upperValue: -0.5 }],
+    [
+      'a low-is-good goal with strict comparisons',
+      {
+        lowerComparison: 'less-than-or-equal',
+        upperComparison: 'more-than',
+        polarity: 'lower-is-better',
+      },
+    ],
   ] as const)('accepts %s', async (_, values) => {
-    await expect(addVersion(await newIndicatorId(), 'draft', values)).resolves.toHaveLength(1);
+    await expect(addGoal(values)).resolves.toHaveLength(1);
   });
 
   // Each case names the check that refuses it; Postgres tries the checks in name order.
   it.each([
-    ['a yes without its goal', { hasGoalBenchmark: true }, 'goal'],
-    ['a goal beside no', { ...goal, hasGoalBenchmark: false }, 'goal'],
-    ['a goal of nobody', { ...goal, hasGoalBenchmark: null }, 'goal'],
-    ['a goal without its lower value', { ...goal, goalLowerValue: null }, 'goal'],
-    ['a goal without its polarity', { ...goal, goalPolarity: null }, 'goal_pair'],
-    [
-      'a polarity beside no',
-      { hasGoalBenchmark: false, goalPolarity: 'higher-is-better' },
-      'goal_pair',
-    ],
-    [
-      'a detail beside no goal',
-      { hasGoalBenchmark: false, goalPolicyDetail: 'A target' },
-      'goal_policy_detail',
-    ],
-    ['an upper value equal to the lower', { ...goal, goalUpperValue: 90 }, 'goal_upper_value'],
-    ['an upper value below the lower', { ...goal, goalUpperValue: 85 }, 'goal_upper_value'],
-    [
-      'an upper value beside no',
-      { hasGoalBenchmark: false, goalUpperValue: 5 },
-      'goal_upper_value',
-    ],
-    [
-      'a lower value that is no number, beside an upper',
-      { ...goal, goalLowerValue: Number.NaN },
-      'goal_upper_value',
-    ],
-    [
-      'an infinite lower value',
-      { ...goal, goalLowerValue: Number.NEGATIVE_INFINITY },
-      'goal_values',
-    ],
+    ['a negative position', { position: -1 }, 'position'],
+    ['an upper value without its comparison', { upperComparison: null }, 'upper_pair'],
+    ['an upper comparison without its value', { upperValue: null }, 'upper_pair'],
+    ['an upper value equal to the lower', { upperValue: 90 }, 'upper_value'],
+    ['an upper value below the lower', { upperValue: 85 }, 'upper_value'],
+    ['a lower value that is no number, beside an upper', { lowerValue: Number.NaN }, 'upper_value'],
+    ['an infinite lower value', { lowerValue: Number.NEGATIVE_INFINITY }, 'values'],
     [
       'an infinite single value',
-      { ...goal, goalUpperValue: null, goalLowerValue: Number.POSITIVE_INFINITY },
-      'goal_values',
+      { upperValue: null, upperComparison: null, lowerValue: Number.POSITIVE_INFINITY },
+      'values',
     ],
-    [
-      'an infinite upper value',
-      { ...goal, goalUpperValue: Number.POSITIVE_INFINITY },
-      'goal_values',
-    ],
+    ['an infinite upper value', { upperValue: Number.POSITIVE_INFINITY }, 'values'],
     [
       'a single value that is no number',
-      { ...goal, goalUpperValue: null, goalLowerValue: Number.NaN },
-      'goal_values',
+      { upperValue: null, upperComparison: null, lowerValue: Number.NaN },
+      'values',
     ],
-    ['an upper value that is no number', { ...goal, goalUpperValue: Number.NaN }, 'goal_values'],
+    ['an upper value that is no number', { upperValue: Number.NaN }, 'values'],
   ] as const)('refuses %s', async (_, values, check) => {
-    await expect(addVersion(await newIndicatorId(), 'draft', values)).rejects.toMatchObject({
-      cause: { code: CHECK_VIOLATION, constraint_name: `indicator_version_${check}_check` },
+    await expect(addGoal(values)).rejects.toMatchObject({
+      cause: { code: CHECK_VIOLATION, constraint_name: `indicator_version_goal_${check}_check` },
     });
   });
 
-  it.each(['no-polarity', 'no-comparison-possible', 'high-is-good'])(
-    'refuses a goal polarity of %s',
-    async (polarity) => {
-      const [draft] = await addVersion(await newIndicatorId(), 'draft', goal);
+  it.each([
+    ['polarity', 'no-polarity'],
+    ['polarity', 'high-is-good'],
+    ['lower_comparison', 'more-than'],
+    ['upper_comparison', 'less-than'],
+  ])('refuses a goal %s of %s', async (column, value) => {
+    const [row] = await addGoal({});
 
-      await expect(
-        db.execute(
-          sql`UPDATE indicator_version SET goal_polarity = ${polarity} WHERE id = ${draft?.id ?? ''}`,
-        ),
-      ).rejects.toMatchObject({
-        cause: { code: CHECK_VIOLATION, constraint_name: 'indicator_version_goal_polarity_check' },
-      });
-    },
-  );
+    await expect(
+      db.execute(
+        sql`UPDATE indicator_version_goal SET ${sql.identifier(column)} = ${value}
+            WHERE indicator_version_id = ${row?.indicatorVersionId ?? ''}`,
+      ),
+    ).rejects.toMatchObject({
+      cause: { code: CHECK_VIOLATION, constraint_name: `indicator_version_goal_${column}_check` },
+    });
+  });
 
   // Raw SQL because the insert type no longer lets a caller omit the slug.
   it('refuses a version with no slug', async () => {
@@ -691,6 +684,7 @@ describe("a version's child tables", () => {
       'indicator_version_age_range_version_fk',
       'indicator_version_classification_classification_fk',
       'indicator_version_classification_version_fk',
+      'indicator_version_goal_version_fk',
       'indicator_version_review_note_author_fk',
       'indicator_version_review_note_submission_fk',
       'indicator_version_source_provider_fk',

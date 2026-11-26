@@ -110,6 +110,7 @@ async function deleteLists(tx: Transaction, draftId: string) {
       CLASSIFICATION_DIMENSIONS.map((dimension) => [dimension, []]),
     ),
     ageRanges: [],
+    goals: [],
     numeratorSources: [],
     denominatorSources: [],
   });

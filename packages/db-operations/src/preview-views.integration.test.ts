@@ -127,6 +127,7 @@ describe('the preview views on the seeded database', () => {
       'current_published_version',
       'indicator',
       'indicator_classification',
+      'indicator_goal',
       'indicator_slug',
       'indicator_source',
       'indicator_subtopic',
