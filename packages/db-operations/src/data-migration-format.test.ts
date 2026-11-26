@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { baselineManifestSchema, DATA_MIGRATION_NULL } from './data-migration-manifest.ts';
 
 describe('the migration format', () => {
-  it('requires version 11, whose indicator versions answer the counts and values in place of a unit', () => {
+  it('requires version 12, whose indicator versions answer whether the standard calculation method was used', () => {
     const manifest = {
       format_version: 12,
       schema: 'canonical-v12',
