@@ -163,12 +163,8 @@ export default withRouteIds([
         '../../../packages/internal-web-features/src/indicator-data-quality/route.tsx',
       ),
       route(
-        'publish/indicators/:id/numerator',
-        '../../../packages/internal-web-features/src/indicator-numerator-denominator/numerator-route.tsx',
-      ),
-      route(
-        'publish/indicators/:id/denominator',
-        '../../../packages/internal-web-features/src/indicator-numerator-denominator/denominator-route.tsx',
+        'publish/indicators/:id/format-and-sources',
+        '../../../packages/internal-web-features/src/indicator-format-and-sources/route.tsx',
       ),
       route(
         'publish/indicators/:id/calculation',

@@ -77,6 +77,8 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'fingertips_formatting',
     'comparator_method_id',
     'has_goal_benchmark',
+    // Fingertips' one disclosure control answer for the whole indicator: the importer gives it
+    // to the numerator or the single data value, as it does the legacy sources below.
     'disclosure_control',
     'disclosure_control_detail',
     'has_rounding',

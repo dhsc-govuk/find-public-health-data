@@ -182,7 +182,7 @@ describe('loadIndicatorVersions with Fingertips sources', () => {
     );
   }
 
-  it('gives a version the providers and sources its Fingertips source maps to, in order', async () => {
+  it('gives a version with a numerator alone the providers and sources its Fingertips source maps to, in order, as its single data value', async () => {
     await writeLegacySource(
       'Office for National Statistics (ONS), Mid-year population estimates and Office for National Statistics (ONS), Annual Population Survey (APS)',
     );
@@ -204,10 +204,11 @@ describe('loadIndicatorVersions with Fingertips sources', () => {
       sources: 2,
     });
     expect(rows).toEqual([
-      { part: 'numerator', source: 'Mid-year population estimates' },
-      { part: 'numerator', source: 'Annual Population Survey (APS)' },
+      { part: 'data-value', source: 'Mid-year population estimates' },
+      { part: 'data-value', source: 'Annual Population Survey (APS)' },
     ]);
     await sql`DELETE FROM indicator_version_source`;
+    await sql`DELETE FROM indicator_version_data_value`;
     await sql`DELETE FROM indicator_version WHERE indicator_id = ${indicatorId}`;
   });
 

@@ -16,6 +16,7 @@ import {
 import { validateMigrationHeader } from './data-migration-header.ts';
 import { dataMigrationKey } from './data-migration-manifest.ts';
 import { assertMigrationPublisherRowsUnchanged } from './data-migration-publisher-work.ts';
+import { LEGACY_STAGED_COLUMN_DEFINITIONS } from './legacy-format-and-sources.ts';
 import { needsReferenceMapping, remapReferenceColumns } from './reference-data-maps.ts';
 import { readCsvHeader } from './seeding.ts';
 
@@ -120,7 +121,7 @@ export async function applyIndicatorVersionRows(
     `CREATE TEMP TABLE migration_source_indicator_version (LIKE indicator_version INCLUDING DEFAULTS) ON COMMIT DROP`,
   );
   await tx.unsafe(
-    `ALTER TABLE migration_source_indicator_version ADD COLUMN numerator_source_id uuid, ADD COLUMN denominator_source_id uuid`,
+    `ALTER TABLE migration_source_indicator_version ${LEGACY_STAGED_COLUMN_DEFINITIONS}`,
   );
   await shapeStage(tx, 'indicator_version', 'migration_source_indicator_version');
   await copyInto(

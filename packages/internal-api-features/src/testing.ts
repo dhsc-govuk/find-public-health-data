@@ -125,4 +125,5 @@ export const unansweredDraft: IndicatorSectionDraft = {
   classifications: [],
   numeratorSources: [],
   denominatorSources: [],
+  dataValues: [],
 };

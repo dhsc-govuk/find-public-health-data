@@ -21,7 +21,7 @@ import {
   SEXES,
 } from '@fphd/utils/sex-gender-and-ethnicity';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
-import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
+import { INDICATOR_SOURCE_PARTS, type IndicatorSourcePart } from '@fphd/utils/source-part';
 import {
   UPDATE_FREQUENCIES,
   UPDATE_FREQUENCIES_WITH_REASON,
@@ -242,9 +242,15 @@ export const indicatorVersion = pgTable(
     // Definition and rationale
     definition: text(),
     rationale: text(),
-    // Numerator and denominator
+    // Indicator format and sources: a numerator and denominator, or the data values held in
+    // indicator_version_data_value. The sources of each are rows of indicator_version_source.
+    hasNumeratorDenominator: boolean(),
     numeratorDefinition: text(),
+    numeratorDisclosureControl: text({ enum: INDICATOR_DISCLOSURE_CONTROL }),
+    numeratorDisclosureControlDetail: text(),
     denominatorDefinition: text(),
+    denominatorDisclosureControl: text({ enum: INDICATOR_DISCLOSURE_CONTROL }),
+    denominatorDisclosureControlDetail: text(),
     dataSourceId: uuid().references(() => dataSource.id),
     // How the indicator was calculated
     methodology: text(),
@@ -266,8 +272,6 @@ export const indicatorVersion = pgTable(
     hasGoalBenchmark: boolean(),
     // Other notes and caveats
     // Each answer's detail is asked for, and required, only when the answer is yes.
-    disclosureControl: text({ enum: INDICATOR_DISCLOSURE_CONTROL }),
-    disclosureControlDetail: text(),
     hasRounding: boolean(),
     roundingDetail: text(),
     hasCaveats: boolean(),
@@ -386,15 +390,27 @@ export const indicatorVersion = pgTable(
       ),
     ),
     check(
-      'indicator_version_disclosure_control_check',
-      sql`${t.disclosureControl} IN (${literals(INDICATOR_DISCLOSURE_CONTROL)})`,
+      'indicator_version_numerator_disclosure_control_check',
+      sql`${t.numeratorDisclosureControl} IN (${literals(INDICATOR_DISCLOSURE_CONTROL)})`,
     ),
     check(
-      'indicator_version_disclosure_control_detail_check',
+      'indicator_version_numerator_disclosure_control_detail_check',
       detailBesideChoice(
-        t.disclosureControl,
+        t.numeratorDisclosureControl,
         'yes' satisfies IndicatorDisclosureControl,
-        t.disclosureControlDetail,
+        t.numeratorDisclosureControlDetail,
+      ),
+    ),
+    check(
+      'indicator_version_denominator_disclosure_control_check',
+      sql`${t.denominatorDisclosureControl} IN (${literals(INDICATOR_DISCLOSURE_CONTROL)})`,
+    ),
+    check(
+      'indicator_version_denominator_disclosure_control_detail_check',
+      detailBesideChoice(
+        t.denominatorDisclosureControl,
+        'yes' satisfies IndicatorDisclosureControl,
+        t.denominatorDisclosureControlDetail,
       ),
     ),
     check(
@@ -623,8 +639,46 @@ export const indicatorVersionGoal = pgTable(
 );
 
 /**
- * The providers, and where named their sources, of a version's numerator and denominator, in
- * the order the publisher added them. A null source is the provider with no specific source.
+ * The data values of a version without a numerator and denominator, in the order the publisher
+ * gave them. Each one's sources are rows of indicator_version_source.
+ */
+export const indicatorVersionDataValue = pgTable(
+  'indicator_version_data_value',
+  {
+    indicatorVersionId: uuid().notNull(),
+    position: smallint().notNull(),
+    definition: text(),
+    disclosureControl: text({ enum: INDICATOR_DISCLOSURE_CONTROL }),
+    disclosureControlDetail: text(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.indicatorVersionId, t.position] }),
+    foreignKey({
+      name: 'indicator_version_data_value_version_fk',
+      columns: [t.indicatorVersionId],
+      foreignColumns: [indicatorVersion.id],
+    }),
+    check('indicator_version_data_value_position_check', sql`${t.position} >= 0`),
+    check(
+      'indicator_version_data_value_disclosure_control_check',
+      sql`${t.disclosureControl} IN (${literals(INDICATOR_DISCLOSURE_CONTROL)})`,
+    ),
+    check(
+      'indicator_version_data_value_disclosure_control_detail_check',
+      detailBesideChoice(
+        t.disclosureControl,
+        'yes' satisfies IndicatorDisclosureControl,
+        t.disclosureControlDetail,
+      ),
+    ),
+  ],
+);
+
+/**
+ * The providers, and where named their sources, of a version's numerator, denominator and data
+ * values, in the order the publisher added them. A null source is the provider with no specific
+ * source. A data value's sources name its position, and their own positions run on through the
+ * version's data values, so the key needs no data value.
  */
 export const indicatorVersionSource = pgTable(
   'indicator_version_source',
@@ -634,6 +688,7 @@ export const indicatorVersionSource = pgTable(
     position: smallint().notNull(),
     providerId: uuid().notNull(),
     sourceId: uuid(),
+    dataValuePosition: smallint(),
   },
   (t) => [
     primaryKey({ columns: [t.indicatorVersionId, t.part, t.position] }),
@@ -647,11 +702,24 @@ export const indicatorVersionSource = pgTable(
       columns: [t.providerId],
       foreignColumns: [dataProvider.id],
     }),
+    foreignKey({
+      name: 'indicator_version_source_data_value_fk',
+      columns: [t.indicatorVersionId, t.dataValuePosition],
+      foreignColumns: [
+        indicatorVersionDataValue.indicatorVersionId,
+        indicatorVersionDataValue.position,
+      ],
+    }),
     check(
       'indicator_version_source_part_check',
       sql`${t.part} IN (${literals(INDICATOR_SOURCE_PARTS)})`,
     ),
     check('indicator_version_source_position_check', sql`${t.position} >= 0`),
+    // A data value's sources name their data value, and no other source names one.
+    check(
+      'indicator_version_source_data_value_check',
+      sql`(${t.part} = ${literals(['data-value' satisfies IndicatorSourcePart])}) = (${t.dataValuePosition} IS NOT NULL)`,
+    ),
     // A named source belongs to the provider beside it.
     foreignKey({
       name: 'indicator_version_source_source_fk',
@@ -659,7 +727,7 @@ export const indicatorVersionSource = pgTable(
       foreignColumns: [dataProviderSource.id, dataProviderSource.providerId],
     }),
     unique('indicator_version_source_pair_unique')
-      .on(t.indicatorVersionId, t.part, t.providerId, t.sourceId)
+      .on(t.indicatorVersionId, t.part, t.dataValuePosition, t.providerId, t.sourceId)
       .nullsNotDistinct(),
   ],
 );

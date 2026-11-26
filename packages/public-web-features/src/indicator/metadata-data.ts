@@ -7,6 +7,11 @@ export function providerSourceText(entries: IndicatorProviderSource[]): string {
     .join('; ');
 }
 
+/** A data value's heading: numbered only beside others. */
+export function dataValueTitle(index: number, count: number): string {
+  return count > 1 ? `Data value ${index + 1}` : 'Data value';
+}
+
 export function updateFrequencyLine({
   updateFrequency,
   ...details

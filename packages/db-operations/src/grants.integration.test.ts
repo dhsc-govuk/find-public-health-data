@@ -172,8 +172,9 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.rationale text',
   'indicator.methodology text',
   'indicator.numerator_definition text',
+  'indicator.numerator_disclosure_control_detail text',
   'indicator.denominator_definition text',
-  'indicator.disclosure_control_detail text',
+  'indicator.denominator_disclosure_control_detail text',
   'indicator.caveats_detail text',
   'indicator.other_notes_detail text',
   'indicator.data_source_id uuid',
@@ -183,6 +184,10 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.fingertips_formatting jsonb',
   'indicator_classification.indicator_id uuid',
   'indicator_classification.classification_id uuid',
+  'indicator_data_value.indicator_id uuid',
+  'indicator_data_value.position smallint',
+  'indicator_data_value.definition text',
+  'indicator_data_value.disclosure_control_detail text',
   'indicator_goal.indicator_id uuid',
   'indicator_goal.position smallint',
   'indicator_goal.lower_comparison text',
@@ -196,6 +201,7 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator_source.position smallint',
   'indicator_source.provider_id uuid',
   'indicator_source.source_id uuid',
+  'indicator_source.data_value_position smallint',
   'indicator_topic.indicator_id uuid',
   'indicator_topic.topic_id uuid',
 ];
@@ -260,7 +266,7 @@ describe('the public role', () => {
       WHERE table_schema = 'published'
         AND table_name IN (
           'indicator', 'indicator_topic', 'indicator_classification', 'indicator_goal',
-          'indicator_source'
+          'indicator_source', 'indicator_data_value'
         )
       ORDER BY table_name, ordinal_position
     `;
@@ -325,8 +331,13 @@ describe('the internal role', () => {
 
   // Table-level, as the other publisher writes are.
   it.each(
-    ['indicator_version_age_range', 'indicator_version_goal', 'indicator_version_source'].flatMap(
-      (table) => ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((privilege) => [privilege, table]),
+    [
+      'indicator_version_age_range',
+      'indicator_version_data_value',
+      'indicator_version_goal',
+      'indicator_version_source',
+    ].flatMap((table) =>
+      ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((privilege) => [privilege, table]),
     ),
   )('may %s %s', async (privilege, table) => {
     const [row] = await owner<{ granted: boolean }[]>`

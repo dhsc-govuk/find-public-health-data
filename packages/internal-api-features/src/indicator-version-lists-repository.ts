@@ -3,7 +3,7 @@ import {
   CLASSIFICATION_DIMENSIONS,
   type ClassificationDimension,
 } from '@fphd/utils/classification-dimension';
-import type { IndicatorSourcePart } from '@fphd/utils/source-part';
+import type { IndicatorCalculationPart } from '@fphd/utils/source-part';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import type { Transaction } from './indicator-repository-sql.ts';
@@ -15,6 +15,7 @@ const {
   subtopic,
   indicatorVersionSubtopic,
   indicatorVersionAgeRange,
+  indicatorVersionDataValue,
   indicatorVersionGoal,
   indicatorVersionSource,
   topic,
@@ -30,16 +31,26 @@ export type IndicatorDraftGoal = Omit<
   'indicatorVersionId' | 'position'
 >;
 
-/** A provider of a numerator's or denominator's data, and its source, null for none specific. */
+/** A provider of a figure's data, and its source, null for none specific. */
 export type IndicatorDraftSource = Pick<
   typeof indicatorVersionSource.$inferSelect,
   'providerId' | 'sourceId'
 >;
 
-/** The providers and sources of each half of the calculation, in the order they were added. */
+/** A data value of a version without a numerator and denominator, with its sources in order. */
+export type IndicatorDraftDataValue = Pick<
+  typeof indicatorVersionDataValue.$inferSelect,
+  'definition' | 'disclosureControl' | 'disclosureControlDetail'
+> & { sources: IndicatorDraftSource[] };
+
+/**
+ * The providers and sources of each half of the calculation, and the data values, each in the
+ * order they were added.
+ */
 export interface IndicatorDraftSources {
   numeratorSources: IndicatorDraftSource[];
   denominatorSources: IndicatorDraftSource[];
+  dataValues: IndicatorDraftDataValue[];
 }
 
 export interface IndicatorDraftClassification {
@@ -63,21 +74,42 @@ export async function sourcesOf(
   db: Database | Transaction,
   versionId: string,
 ): Promise<IndicatorDraftSources> {
-  const rows = await db
-    .select({
-      part: indicatorVersionSource.part,
-      providerId: indicatorVersionSource.providerId,
-      sourceId: indicatorVersionSource.sourceId,
-    })
-    .from(indicatorVersionSource)
-    .where(eq(indicatorVersionSource.indicatorVersionId, versionId))
-    .orderBy(asc(indicatorVersionSource.position));
-  const ofPart = (part: IndicatorSourcePart) =>
-    rows
-      .filter((row) => row.part === part)
-      .map(({ providerId, sourceId }) => ({ providerId, sourceId }));
+  const [rows, dataValues] = await Promise.all([
+    db
+      .select({
+        part: indicatorVersionSource.part,
+        dataValuePosition: indicatorVersionSource.dataValuePosition,
+        providerId: indicatorVersionSource.providerId,
+        sourceId: indicatorVersionSource.sourceId,
+      })
+      .from(indicatorVersionSource)
+      .where(eq(indicatorVersionSource.indicatorVersionId, versionId))
+      .orderBy(asc(indicatorVersionSource.position)),
+    db
+      .select({
+        position: indicatorVersionDataValue.position,
+        definition: indicatorVersionDataValue.definition,
+        disclosureControl: indicatorVersionDataValue.disclosureControl,
+        disclosureControlDetail: indicatorVersionDataValue.disclosureControlDetail,
+      })
+      .from(indicatorVersionDataValue)
+      .where(eq(indicatorVersionDataValue.indicatorVersionId, versionId))
+      .orderBy(asc(indicatorVersionDataValue.position)),
+  ]);
+  const sourcesWhere = (matches: (row: (typeof rows)[number]) => boolean) =>
+    rows.filter(matches).map(({ providerId, sourceId }) => ({ providerId, sourceId }));
+  const ofPart = (part: IndicatorCalculationPart) => sourcesWhere((row) => row.part === part);
 
-  return { numeratorSources: ofPart('numerator'), denominatorSources: ofPart('denominator') };
+  return {
+    numeratorSources: ofPart('numerator'),
+    denominatorSources: ofPart('denominator'),
+    dataValues: dataValues.map(({ position, ...dataValue }) => ({
+      ...dataValue,
+      sources: sourcesWhere(
+        (row) => row.part === 'data-value' && row.dataValuePosition === position,
+      ),
+    })),
+  };
 }
 
 export interface IndicatorDraftTaxonomy {
@@ -190,6 +222,7 @@ export const LIST_AUDIT_FIELDS = [
   'goals',
   'numeratorSources',
   'denominatorSources',
+  'dataValues',
 ] as const;
 
 export type ListAuditField = (typeof LIST_AUDIT_FIELDS)[number];
@@ -236,6 +269,13 @@ const auditedSource = ({ providerId, sourceId }: IndicatorDraftSource) => ({
   sourceId: sourceId ?? null,
 });
 
+const auditedDataValue = (dataValue: IndicatorDraftDataValue) => ({
+  definition: dataValue.definition ?? null,
+  disclosureControl: dataValue.disclosureControl ?? null,
+  disclosureControlDetail: dataValue.disclosureControlDetail ?? null,
+  sources: dataValue.sources.map(auditedSource),
+});
+
 /** Rows a delete returned, in the order their positions give. */
 function inPosition<Row extends { position: number }>(rows: Row[]): Row[] {
   return [...rows].sort((a, b) => a.position - b.position);
@@ -256,6 +296,7 @@ export async function replaceLists(
     subtopicIds,
     numeratorSources,
     denominatorSources,
+    dataValues,
   }: IndicatorDraftLists,
 ): Promise<ReplacedLists> {
   const before: ReplacedLists['before'] = {};
@@ -376,6 +417,11 @@ export async function replaceLists(
     after[field] = sources.map(auditedSource);
   }
 
+  if (dataValues !== undefined) {
+    before.dataValues = (await replaceDataValues(tx, versionId, dataValues)).map(auditedDataValue);
+    after.dataValues = dataValues.map(auditedDataValue);
+  }
+
   return { before, after };
 }
 
@@ -409,7 +455,7 @@ export async function copyTaxonomyPlacements(
 async function replaceSources(
   tx: Transaction,
   versionId: string,
-  part: IndicatorSourcePart,
+  part: IndicatorCalculationPart,
   sources: IndicatorDraftSource[],
 ): Promise<IndicatorDraftSource[]> {
   const removed = await tx
@@ -435,4 +481,68 @@ async function replaceSources(
   }
 
   return inPosition(removed);
+}
+
+/**
+ * Answers the data values it removed, with their sources, in their order. A data value's
+ * sources take positions that run on through the version's data values, as their key needs.
+ */
+async function replaceDataValues(
+  tx: Transaction,
+  versionId: string,
+  dataValues: IndicatorDraftDataValue[],
+): Promise<IndicatorDraftDataValue[]> {
+  const removedSources = await tx
+    .delete(indicatorVersionSource)
+    .where(
+      and(
+        eq(indicatorVersionSource.indicatorVersionId, versionId),
+        eq(indicatorVersionSource.part, 'data-value'),
+      ),
+    )
+    .returning();
+  const removed = await tx
+    .delete(indicatorVersionDataValue)
+    .where(eq(indicatorVersionDataValue.indicatorVersionId, versionId))
+    .returning();
+
+  if (dataValues.length > 0) {
+    await tx.insert(indicatorVersionDataValue).values(
+      dataValues.map(({ definition, disclosureControl, disclosureControlDetail }, position) => ({
+        indicatorVersionId: versionId,
+        position,
+        definition,
+        disclosureControl,
+        disclosureControlDetail,
+      })),
+    );
+    const sources = dataValues.flatMap(({ sources: ofDataValue }, dataValuePosition) =>
+      ofDataValue.map((source) => ({ ...source, dataValuePosition })),
+    );
+    if (sources.length > 0) {
+      await tx.insert(indicatorVersionSource).values(
+        sources.map(({ providerId, sourceId, dataValuePosition }, position) => ({
+          indicatorVersionId: versionId,
+          part: 'data-value' as const,
+          position,
+          providerId,
+          sourceId,
+          dataValuePosition,
+        })),
+      );
+    }
+  }
+
+  const sourcesInPosition = inPosition(removedSources);
+
+  return inPosition(removed).map(
+    ({ position, definition, disclosureControl, disclosureControlDetail }) => ({
+      definition,
+      disclosureControl,
+      disclosureControlDetail,
+      sources: sourcesInPosition
+        .filter(({ dataValuePosition }) => dataValuePosition === position)
+        .map(({ providerId, sourceId }) => ({ providerId, sourceId })),
+    }),
+  );
 }

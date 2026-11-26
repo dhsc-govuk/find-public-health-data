@@ -1,5 +1,5 @@
 import type { CiMethodRow } from './ci-method-repository.ts';
-import type { DataProvider, Tagging, TagOptions } from './contract.ts';
+import type { DataProvider, FormatAndSourcesFormValues, Tagging, TagOptions } from './contract.ts';
 
 export const METHODS: Record<CiMethodRow['kind'], CiMethodRow> = {
   standard: {
@@ -77,3 +77,17 @@ export const ons: DataProvider = {
 };
 export const mortality = { providerId: ons.id, sourceId: ons.sources[0]?.id ?? null };
 export const onsAlone = { providerId: ons.id, sourceId: null };
+
+/** A numerator and denominator, each answered in full, as the form sends them. */
+export const formatAndSources: FormatAndSourcesFormValues = {
+  hasNumeratorDenominator: 'yes',
+  numeratorSources: [mortality],
+  numeratorDefinition: 'Deaths',
+  numeratorDisclosureControl: 'not-applicable',
+  numeratorDisclosureControlDetail: '',
+  denominatorSources: [onsAlone],
+  denominatorDefinition: 'Population',
+  denominatorDisclosureControl: 'not-applicable',
+  denominatorDisclosureControlDetail: '',
+  dataValues: [],
+};

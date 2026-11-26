@@ -32,7 +32,8 @@ const indicator: IndicatorDetail = {
   methodology: null,
   numeratorDefinition: 'Deaths',
   denominatorDefinition: null,
-  disclosureControl: null,
+  numeratorDisclosureControl: null,
+  denominatorDisclosureControl: null,
   caveats: null,
   notes: null,
   dataSource: null,
@@ -41,6 +42,7 @@ const indicator: IndicatorDetail = {
     { provider: 'NHS England (NHSE)', source: null },
   ],
   denominatorSources: [],
+  dataValues: [],
   areaTypes: [],
   topics: [],
   classifications: [],
@@ -199,6 +201,54 @@ describe('BackgroundInformation', () => {
 
     expect(screen.getByRole('heading', { name: 'Numerator' })).toBeDefined();
     expect(screen.queryByRole('heading', { name: 'Denominator' })).toBeNull();
+  });
+
+  it("shows each figure's disclosure control under it, and none under Other notes and caveats", () => {
+    renderBackground({
+      ...indicator,
+      numeratorDisclosureControl: 'Counts under 5 are suppressed',
+      notes: 'A note',
+    });
+
+    const numerator = screen.getByRole('heading', { name: 'Numerator' }).nextElementSibling
+      ?.nextElementSibling as HTMLElement;
+    expect(within(numerator).getByText('Disclosure control')).toBeDefined();
+    expect(within(numerator).getByText('Counts under 5 are suppressed')).toBeDefined();
+    expect(screen.getAllByText('Disclosure control')).toHaveLength(1);
+  });
+
+  it('shows a lone data value under its own heading with its sources, definition and disclosure control', () => {
+    renderBackground({
+      ...indicator,
+      numeratorSources: [],
+      numeratorDefinition: null,
+      dataValues: [
+        {
+          sources: [{ provider: 'NHS England (NHSE)', source: null }],
+          definition: 'Hospital admissions',
+          disclosureControl: 'Rounded to the nearest 5',
+        },
+      ],
+    });
+
+    expect(screen.queryByRole('heading', { name: 'Numerator' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Data value' })).toBeDefined();
+    expect(screen.getByText('Data value sources')).toBeDefined();
+    expect(screen.getByText('Hospital admissions')).toBeDefined();
+    expect(screen.getByText('Rounded to the nearest 5')).toBeDefined();
+  });
+
+  it('numbers the data values when there are several', () => {
+    const dataValue = { sources: [], definition: 'Admissions', disclosureControl: null };
+    renderBackground({
+      ...indicator,
+      numeratorSources: [],
+      numeratorDefinition: null,
+      dataValues: [dataValue, { ...dataValue, definition: 'Population' }],
+    });
+
+    expect(screen.getByRole('heading', { name: 'Data value 1' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Data value 2' })).toBeDefined();
   });
 
   it('lists the value type and unit among the data attributes', () => {

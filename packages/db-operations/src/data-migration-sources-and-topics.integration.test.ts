@@ -128,6 +128,149 @@ describe('applyDataMigration', () => {
       expect(await sourceCount()).toBe(0);
     },
   );
+  describe('indicator format and sources', () => {
+    const CARE_DIRECTORY = 'Care Quality Commission (CQC), Care directory';
+
+    /** The fixture's version with Fingertips' definitions, disclosure control and sources. */
+    function fingertipsVersion({
+      numerator = null,
+      denominator = null,
+      disclosure = [null, null],
+      sources = [null, null],
+    }: {
+      numerator?: string | null;
+      denominator?: string | null;
+      disclosure?: [string | null, string | null];
+      sources?: [string | null, string | null];
+    }) {
+      const columns = [...VERSION_COLUMNS, 'numerator_definition', 'denominator_definition'];
+      const row = [...VERSION_ROW, numerator, denominator];
+      row[columns.indexOf('disclosure_control')] = disclosure[0];
+      row[columns.indexOf('disclosure_control_detail')] = disclosure[1];
+      row[columns.indexOf('numerator_source_id')] = sources[0];
+      row[columns.indexOf('denominator_source_id')] = sources[1];
+      return {
+        indicator_version: { columns, rows: [row] },
+        numerator_denominator_source: {
+          columns: ['id', 'name', 'url'],
+          rows: [[SOURCE_ID, CARE_DIRECTORY, null]],
+        },
+      };
+    }
+
+    async function imported() {
+      const [answers] = await db.sql<Record<string, unknown>[]>`
+        SELECT has_numerator_denominator AS "hasNumeratorDenominator",
+          numerator_definition AS "numeratorDefinition",
+          numerator_disclosure_control AS "numeratorDisclosureControl",
+          numerator_disclosure_control_detail AS "numeratorDisclosureControlDetail",
+          denominator_definition AS "denominatorDefinition",
+          denominator_disclosure_control AS "denominatorDisclosureControl"
+        FROM indicator_version WHERE id = ${VERSION_ID}
+      `;
+      const dataValues = await db.sql`
+        SELECT position, definition, disclosure_control AS "disclosureControl",
+          disclosure_control_detail AS "disclosureControlDetail"
+        FROM indicator_version_data_value WHERE indicator_version_id = ${VERSION_ID}
+      `;
+      const sources = await db.sql`
+        SELECT part, data_value_position AS "dataValuePosition"
+        FROM indicator_version_source WHERE indicator_version_id = ${VERSION_ID}
+        ORDER BY part
+      `;
+      return { answers, dataValues: [...dataValues], sources: [...sources] };
+    }
+
+    it('gives a numerator and denominator the disclosure control, on the numerator alone', async () => {
+      await baseline({
+        upserts: fingertipsVersion({
+          numerator: 'Deaths',
+          denominator: 'Population',
+          disclosure: ['yes', 'Counts under 5 suppressed'],
+          sources: [SOURCE_ID, SOURCE_ID],
+        }),
+      });
+
+      expect(await imported()).toEqual({
+        answers: {
+          hasNumeratorDenominator: true,
+          numeratorDefinition: 'Deaths',
+          numeratorDisclosureControl: 'yes',
+          numeratorDisclosureControlDetail: 'Counts under 5 suppressed',
+          denominatorDefinition: 'Population',
+          denominatorDisclosureControl: null,
+        },
+        dataValues: [],
+        sources: [
+          { part: 'denominator', dataValuePosition: null },
+          { part: 'numerator', dataValuePosition: null },
+        ],
+      });
+    });
+
+    it('makes the one side of a version without the other its single data value', async () => {
+      await baseline({
+        upserts: fingertipsVersion({
+          denominator: 'Population',
+          disclosure: ['no', null],
+          sources: [null, SOURCE_ID],
+        }),
+      });
+
+      expect(await imported()).toEqual({
+        answers: {
+          hasNumeratorDenominator: false,
+          numeratorDefinition: null,
+          numeratorDisclosureControl: null,
+          numeratorDisclosureControlDetail: null,
+          denominatorDefinition: null,
+          denominatorDisclosureControl: null,
+        },
+        dataValues: [
+          {
+            position: 0,
+            definition: 'Population',
+            disclosureControl: 'not-applicable',
+            disclosureControlDetail: null,
+          },
+        ],
+        sources: [{ part: 'data-value', dataValuePosition: 0 }],
+      });
+    });
+
+    it('leaves the question unanswered for a version with neither', async () => {
+      await baseline({ upserts: fingertipsVersion({ disclosure: ['yes', 'Suppressed'] }) });
+
+      expect(await imported()).toMatchObject({
+        answers: { hasNumeratorDenominator: null, numeratorDisclosureControl: null },
+        dataValues: [],
+        sources: [],
+      });
+    });
+
+    it('replaces the data value when an increment gives the version both sides', async () => {
+      await baseline({
+        upserts: fingertipsVersion({ numerator: 'Deaths', sources: [SOURCE_ID, null] }),
+      });
+      await apply({
+        upserts: fingertipsVersion({
+          numerator: 'Deaths',
+          denominator: 'Population',
+          sources: [SOURCE_ID, SOURCE_ID],
+        }),
+      });
+
+      expect(await imported()).toMatchObject({
+        answers: { hasNumeratorDenominator: true },
+        dataValues: [],
+        sources: [
+          { part: 'denominator', dataValuePosition: null },
+          { part: 'numerator', dataValuePosition: null },
+        ],
+      });
+    });
+  });
+
   it('shrinks source mappings and reads a reordered legacy source header by name', async () => {
     await baseline({
       upserts: {

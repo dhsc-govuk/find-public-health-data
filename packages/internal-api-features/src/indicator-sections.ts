@@ -7,9 +7,8 @@ import {
   calculationSection,
   dataQualitySection,
   definitionAndRationaleSection,
-  denominatorSection,
+  formatAndSourcesSection,
   justificationsSection,
-  numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
   periodTypeSection,
@@ -40,13 +39,12 @@ import {
 import {
   agesColumns,
   benchmarkingColumns,
-  denominatorColumns,
-  numeratorColumns,
+  formatAndSourcesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import {
   confidenceIntervalsServerSection,
-  providerSourcesServerSection,
+  formatAndSourcesServerSection,
   publishingDateServerSection,
   taggingServerSection,
   valueTypeAndUnitsServerSection,
@@ -80,14 +78,8 @@ export function indicatorSectionsRouter(
     indicatorSectionRouter(
       indicators,
       session,
-      providerSourcesServerSection(numeratorSection, dataProviders),
-      numeratorColumns,
-    ),
-    indicatorSectionRouter(
-      indicators,
-      session,
-      providerSourcesServerSection(denominatorSection, dataProviders),
-      denominatorColumns,
+      formatAndSourcesServerSection(formatAndSourcesSection, dataProviders),
+      formatAndSourcesColumns,
     ),
     indicatorSectionRouter(indicators, session, calculationSection, calculationColumns),
     indicatorSectionRouter(

@@ -351,8 +351,6 @@ describe('confidenceIntervalsColumns', () => {
 
 describe('otherNotesAndCaveatsColumns', () => {
   const answered = {
-    disclosureControl: 'yes',
-    disclosureControlDetail: 'Counts under 5 are suppressed.',
     hasRounding: 'yes',
     roundingDetail: 'Rounded to the nearest 5.',
     hasCaveats: 'yes',
@@ -370,29 +368,23 @@ describe('otherNotesAndCaveatsColumns', () => {
     });
   });
 
-  it.each(['no', 'not-applicable'] as const)(
-    'clears every detail beside a no, and disclosure control that is %s',
-    (disclosureControl) => {
-      expect(
-        otherNotesAndCaveatsColumns.toAttributes({
-          ...answered,
-          disclosureControl,
-          hasRounding: 'no',
-          hasCaveats: 'no',
-          hasOtherNotes: 'no',
-        }),
-      ).toEqual({
-        disclosureControl,
-        disclosureControlDetail: null,
-        hasRounding: false,
-        roundingDetail: null,
-        hasCaveats: false,
-        caveatsDetail: null,
-        hasOtherNotes: false,
-        otherNotesDetail: null,
-      });
-    },
-  );
+  it('clears every detail beside a no', () => {
+    expect(
+      otherNotesAndCaveatsColumns.toAttributes({
+        ...answered,
+        hasRounding: 'no',
+        hasCaveats: 'no',
+        hasOtherNotes: 'no',
+      }),
+    ).toEqual({
+      hasRounding: false,
+      roundingDetail: null,
+      hasCaveats: false,
+      caveatsDetail: null,
+      hasOtherNotes: false,
+      otherNotesDetail: null,
+    });
+  });
 
   it('reads the stored answers back as the form gives them', () => {
     expect(

@@ -43,7 +43,6 @@ import {
   type VarianceAndQualityField,
 } from './contract.ts';
 import {
-  detailOf,
   type IndicatorSectionColumns,
   type OwnFieldColumns,
   sameNamedColumns,
@@ -200,22 +199,10 @@ export const periodTypeColumns: IndicatorSectionColumns<PeriodTypeField, PeriodT
   },
 };
 
-const otherNotesAndCaveatsAnswers = yesNoDetailColumns(
-  otherNotesAndCaveatsSection,
-  otherNotesAndCaveatsQuestions,
-);
-
-export const otherNotesAndCaveatsColumns: IndicatorSectionColumns<
+export const otherNotesAndCaveatsColumns: OwnFieldColumns<
   OtherNotesAndCaveatsField,
   OtherNotesAndCaveats
-> = {
-  ...otherNotesAndCaveatsAnswers,
-  // Disclosure control is stored as its answer, which "Not applicable" makes more than yes/no.
-  toAttributes: (answers) => ({
-    ...otherNotesAndCaveatsAnswers.toAttributes(answers),
-    disclosureControlDetail: detailOf(answers.disclosureControl, answers.disclosureControlDetail),
-  }),
-};
+> = yesNoDetailColumns(otherNotesAndCaveatsSection, otherNotesAndCaveatsQuestions);
 
 export const varianceAndQualityColumns: OwnFieldColumns<
   VarianceAndQualityField,

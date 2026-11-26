@@ -22,8 +22,7 @@ const TASK_GROUPS = {
   Metadata: [
     'Name',
     'Definition and rationale',
-    'Numerator',
-    'Denominator',
+    'Indicator format and sources',
     'How the indicator was calculated',
     'Confidence intervals',
     'Policy goals',

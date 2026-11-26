@@ -78,7 +78,14 @@ stored total is 433,532 observations.
   Pholio's `numerator_denominator_source.csv.gz`. The service has neither the columns nor the table:
   the load maps each name onto the core data providers through
   `../legacy-numerator-denominator-sources.json` and writes the result to
-  `indicator_version_source`.
+  `indicator_version_source`. A version with both a numerator and a denominator, each a
+  definition or a source, keeps them. A version with only one of them has its one side loaded as
+  its single data value, in `indicator_version_data_value`, and a version with neither leaves the
+  question unanswered.
+- `disclosure_control` and `disclosure_control_detail` are Pholio's one answer for the whole
+  indicator, which the service has no columns for. The load gives it to the numerator, or to the
+  single data value, and leaves the denominator's unanswered. A "no" becomes "not-applicable",
+  the answer the service offers in its place.
 - `indicator_version.period_type` and `year_type` hold the service's values from
   `@fphd/utils/period-type`, and a year ending on a specified date holds its day and month in
   `year_end_day` and `year_end_month`. `export/year_type.py` translates each of Pholio's 17 year

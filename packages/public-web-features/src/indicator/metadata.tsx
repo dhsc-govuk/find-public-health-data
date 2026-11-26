@@ -9,6 +9,7 @@ import type {
   IndicatorProviderSource,
   IndicatorQuestion,
 } from './loader.ts';
+import { dataValueTitle } from './metadata-data.ts';
 import { dataPlaceholder, isUnanswered, NOT_ENTERED_YET } from './placeholders.ts';
 import { TrendTag } from './trend-tag.tsx';
 
@@ -238,20 +239,22 @@ function CalculationPart({
   explainer,
   sources,
   definition,
+  disclosureControl,
 }: {
   title: string;
-  explainer: string;
+  explainer?: string;
   sources: IndicatorProviderSource[];
   definition: string | null;
+  disclosureControl: string | null;
 }) {
-  if (sources.length === 0 && !definition) {
+  if (sources.length === 0 && !definition && !disclosureControl) {
     return null;
   }
 
   return (
     <>
       <h3 className="govuk-heading-s govuk-!-margin-bottom-1">{title}</h3>
-      <p className="govuk-body">{explainer}</p>
+      {explainer ? <p className="govuk-body">{explainer}</p> : null}
       <SummaryList
         items={[
           ...(sources.length > 0
@@ -273,6 +276,14 @@ function CalculationPart({
                 {
                   name: `${title} definition`,
                   children: <span className="fphd-metadata-text">{definition}</span>,
+                },
+              ]
+            : []),
+          ...(disclosureControl
+            ? [
+                {
+                  name: 'Disclosure control',
+                  children: <span className="fphd-metadata-text">{disclosureControl}</span>,
                 },
               ]
             : []),
@@ -351,13 +362,22 @@ export function BackgroundInformation({
         explainer="This is the count, or raw number, of the thing an indicator measures."
         sources={indicator.numeratorSources}
         definition={indicator.numeratorDefinition}
+        disclosureControl={indicator.numeratorDisclosureControl}
       />
       <CalculationPart
         title="Denominator"
         explainer="This is the total eligible group an indicator covers."
         sources={indicator.denominatorSources}
         definition={indicator.denominatorDefinition}
+        disclosureControl={indicator.denominatorDisclosureControl}
       />
+      {indicator.dataValues.map((dataValue, index) => (
+        <CalculationPart
+          key={index}
+          title={dataValueTitle(index, indicator.dataValues.length)}
+          {...dataValue}
+        />
+      ))}
       {indicator.methodology ? (
         <>
           <h3 className="govuk-heading-s">Method</h3>
@@ -384,13 +404,12 @@ export function BackgroundInformation({
         </>
       ) : null}
 
-      {indicator.disclosureControl || indicator.notes || indicator.caveats ? (
+      {indicator.notes || indicator.caveats ? (
         <>
           <SectionBreak size="m" visible />
           <h2 className="govuk-heading-m">Other notes and caveats</h2>
           <SummaryList
             items={[
-              ...attribute('Disclosure control', indicator.disclosureControl),
               ...attribute('Notes', indicator.notes),
               ...attribute('Caveats', indicator.caveats),
             ].map((item) => ({

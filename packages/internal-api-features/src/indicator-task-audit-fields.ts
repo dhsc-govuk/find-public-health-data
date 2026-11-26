@@ -7,6 +7,7 @@ import {
   confidenceIntervalsSection,
   dataQualitySection,
   definitionAndRationaleSection,
+  formatAndSourcesSection,
   otherNotesAndCaveatsSection,
   periodTypeSection,
   polaritySection,
@@ -29,8 +30,7 @@ export const TASK_AUDIT_FIELDS: Readonly<Record<SavedTaskKey, readonly string[]>
   'definition-and-rationale': definitionAndRationaleSection.fields.options,
   polarity: polaritySection.fields.options,
   'data-quality': dataQualitySection.fields.options,
-  numerator: ['numeratorDefinition', 'numeratorSources'],
-  denominator: ['denominatorDefinition', 'denominatorSources'],
+  'format-and-sources': formatAndSourcesSection.fields.options,
   calculation: calculationSection.fields.options,
   'confidence-intervals': confidenceIntervalsSection.fields.options,
   'update-frequency': [

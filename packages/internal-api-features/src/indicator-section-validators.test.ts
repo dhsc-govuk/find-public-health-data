@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import { numeratorSection, publishingDateSection, toFieldErrors } from './contract.ts';
+import { formatAndSourcesSection, publishingDateSection, toFieldErrors } from './contract.ts';
 import {
   confidenceIntervalsServerSection,
-  providerSourcesServerSection,
+  formatAndSourcesServerSection,
   publishingDateServerSection,
   taggingServerSection,
   valueTypeAndUnitsServerSection,
 } from './indicator-section-validators.ts';
 import {
   everyAnswer,
+  formatAndSources,
   METHODS,
   mortality,
   ons,
@@ -320,35 +321,78 @@ describe('publishingDateServerSection', () => {
   });
 });
 
-describe('providerSourcesServerSection', () => {
+describe('formatAndSourcesServerSection', () => {
+  const notOffered = { providerId: ons.id, sourceId: '01a0d858-9885-764e-8d53-6826aec67999' };
+
   function submit(body: object) {
     const list = vi.fn().mockResolvedValue([ons]);
     const { dataProviders } = createFakeInternalRepositories({ dataProviders: { list } });
-    const section = providerSourcesServerSection(numeratorSection, dataProviders);
+    const section = formatAndSourcesServerSection(formatAndSourcesSection, dataProviders);
 
     return { list, section, submission: section.schema.safeParseAsync(body) };
   }
 
+  async function fieldErrorsOf(body: object) {
+    const { section, submission } = submit(body);
+    const result = await submission;
+    return result.success
+      ? undefined
+      : toFieldErrors(result.error, section.errorFields ?? section.fields);
+  }
+
   it('accepts sources the providers list offers', async () => {
-    const body = { sources: [mortality, onsAlone], definition: 'Deaths' };
+    const body = { ...formatAndSources, numeratorSources: [mortality, onsAlone] };
 
     expect((await submit(body).submission).data).toEqual(body);
   });
 
-  it('refuses a source the providers list does not offer', async () => {
-    const { section, submission } = submit({
-      sources: [{ providerId: ons.id, sourceId: '01a0d858-9885-764e-8d53-6826aec67999' }],
-      definition: 'Deaths',
-    });
-    const result = await submission;
-
-    expect(result.success ? undefined : toFieldErrors(result.error, section.fields)).toEqual({
-      sources: 'Select a data provider',
+  it('refuses a numerator source the providers list no longer offers, asking for it removed', async () => {
+    expect(
+      await fieldErrorsOf({ ...formatAndSources, numeratorSources: [mortality, notOffered] }),
+    ).toEqual({
+      numeratorSources:
+        'Remove the data source that is no longer available, then add another if you need one',
     });
   });
 
+  it("refuses a data value's source the providers list no longer offers", async () => {
+    const dataValue = {
+      sources: [onsAlone],
+      definition: 'Admissions',
+      disclosureControl: 'not-applicable',
+      disclosureControlDetail: '',
+    };
+
+    expect(
+      await fieldErrorsOf({
+        ...formatAndSources,
+        hasNumeratorDenominator: 'no',
+        dataValues: [dataValue, { ...dataValue, sources: [notOffered] }],
+      }),
+    ).toEqual({
+      'dataValues[1].sources':
+        'Remove the data source that is no longer available, then add another if you need one',
+    });
+  });
+
+  it('does not judge the sources of the branch not chosen, which are dropped', async () => {
+    expect(
+      await fieldErrorsOf({
+        ...formatAndSources,
+        dataValues: [
+          {
+            sources: [notOffered],
+            definition: '',
+            disclosureControl: '',
+            disclosureControlDetail: '',
+          },
+        ],
+      }),
+    ).toBeUndefined();
+  });
+
   it('refuses an incomplete form without reading the providers', async () => {
-    const { list, submission } = submit({ sources: [], definition: '' });
+    const { list, submission } = submit({ ...formatAndSources, numeratorSources: [] });
 
     expect((await submission).success).toBe(false);
     expect(list).not.toHaveBeenCalled();

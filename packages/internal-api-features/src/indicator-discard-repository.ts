@@ -113,6 +113,7 @@ async function deleteLists(tx: Transaction, draftId: string) {
     goals: [],
     numeratorSources: [],
     denominatorSources: [],
+    dataValues: [],
   });
   return listChanges(before, after);
 }

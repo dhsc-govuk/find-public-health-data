@@ -18,6 +18,7 @@ const VERSION_CHILD_TABLES = [
   'indicator_version_topic',
   'indicator_version_classification',
   'indicator_version_source',
+  'indicator_version_data_value',
 ] as const;
 
 /** The version child tables only publishers write, with what their rows are called. */

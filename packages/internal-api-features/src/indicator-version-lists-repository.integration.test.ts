@@ -297,7 +297,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'numerator',
+        'format-and-sources',
         {},
         { numeratorSources: [liveBirths, onsAlone], denominatorSources: [onsAlone] },
         AS_ACTOR,
@@ -306,7 +306,7 @@ describe('updateIndicatorDraft', () => {
       await updateIndicatorDraft(
         db,
         created.indicatorId,
-        'numerator',
+        'format-and-sources',
         {},
         { numeratorSources: [onsAlone] },
         AS_ACTOR,
@@ -324,6 +324,49 @@ describe('updateIndicatorDraft', () => {
     },
   );
 
+  repositoryTest(
+    'writes each data value with its own sources, replacing them all, and reads them back in order',
+    async ({ db }) => {
+      const created = await newDraft(db, 'Data values in order');
+      const { liveBirths, onsAlone } = await onsSources(db);
+      const admissions = {
+        definition: 'Admissions',
+        disclosureControl: 'yes' as const,
+        disclosureControlDetail: 'Counts under 5 suppressed',
+        sources: [liveBirths, onsAlone],
+      };
+      const population = {
+        definition: 'Population',
+        disclosureControl: 'not-applicable' as const,
+        disclosureControlDetail: null,
+        // The same source as the first data value's, which a second data value may also name.
+        sources: [onsAlone],
+      };
+
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'format-and-sources',
+        {},
+        { dataValues: [admissions, population] },
+        AS_ACTOR,
+      );
+      const first = await getIndicatorDraftState(db, created.indicatorId);
+      await updateIndicatorDraft(
+        db,
+        created.indicatorId,
+        'format-and-sources',
+        {},
+        { dataValues: [population] },
+        AS_ACTOR,
+      );
+      const replaced = await getIndicatorDraftState(db, created.indicatorId);
+
+      expect(first?.draft?.dataValues).toEqual([admissions, population]);
+      expect(replaced?.draft?.dataValues).toEqual([population]);
+    },
+  );
+
   repositoryTest('refuses a source under a provider it does not belong to', async ({ db }) => {
     const created = await newDraft(db, 'Source under another provider');
     const { liveBirths } = await onsSources(db);
@@ -337,7 +380,7 @@ describe('updateIndicatorDraft', () => {
       updateIndicatorDraft(
         db,
         created.indicatorId,
-        'numerator',
+        'format-and-sources',
         {},
         { numeratorSources: [{ providerId: other.id, sourceId: liveBirths.sourceId }] },
         AS_ACTOR,

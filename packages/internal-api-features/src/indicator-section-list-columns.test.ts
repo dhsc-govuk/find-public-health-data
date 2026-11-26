@@ -1,43 +1,98 @@
 import { CLASSIFICATION_IDS } from '@fphd/utils/classification-dimension';
 import { describe, expect, it } from 'vitest';
-import type { Ages, Benchmarking, Tagging } from './contract.ts';
-import type { IndicatorSectionDraft } from './indicator-section.ts';
+import type { Ages, Benchmarking, FormatAndSources, Tagging } from './contract.ts';
 import {
   agesColumns,
   benchmarkingColumns,
-  denominatorColumns,
-  numeratorColumns,
+  formatAndSourcesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import { mortality, onsAlone, TAGS, tagging } from './indicator-sections.testing.ts';
 import { unansweredDraft } from './testing.ts';
 
-const draft = {
-  numeratorSources: [mortality],
-  numeratorDefinition: 'Deaths',
-  denominatorSources: [onsAlone],
-  denominatorDefinition: 'Population',
-} as unknown as IndicatorSectionDraft;
+describe('formatAndSourcesColumns', () => {
+  const dataValue: FormatAndSources['dataValues'][number] = {
+    sources: [onsAlone],
+    definition: 'Admissions',
+    disclosureControl: 'yes',
+    disclosureControlDetail: 'Rounded to the nearest 5',
+  };
+  // Both branches answered, as a form without JavaScript may send them.
+  const everyAnswer = (hasNumeratorDenominator: 'yes' | 'no'): FormatAndSources => ({
+    hasNumeratorDenominator,
+    numeratorSources: [mortality],
+    numeratorDefinition: 'Deaths',
+    numeratorDisclosureControl: 'yes',
+    numeratorDisclosureControlDetail: 'Counts under 5 suppressed',
+    denominatorSources: [onsAlone],
+    denominatorDefinition: 'Population',
+    denominatorDisclosureControl: 'not-applicable',
+    denominatorDisclosureControlDetail: 'Typed before choosing Not applicable',
+    dataValues: [dataValue],
+  });
 
-describe('numeratorColumns and denominatorColumns', () => {
-  it('read each part from its own sources and definition', () => {
-    expect(numeratorColumns.fromDraft(draft)).toEqual({
-      sources: [mortality],
-      definition: 'Deaths',
-    });
-    expect(denominatorColumns.fromDraft(draft)).toEqual({
-      sources: [onsAlone],
-      definition: 'Population',
+  it('reads an unanswered draft as nothing answered', () => {
+    expect(formatAndSourcesColumns.fromDraft(unansweredDraft)).toEqual({
+      hasNumeratorDenominator: null,
+      numeratorSources: [],
+      numeratorDefinition: null,
+      numeratorDisclosureControl: null,
+      numeratorDisclosureControlDetail: null,
+      denominatorSources: [],
+      denominatorDefinition: null,
+      denominatorDisclosureControl: null,
+      denominatorDisclosureControlDetail: null,
+      dataValues: [],
     });
   });
 
-  it('write the definition as a column and the sources as the list of their part', () => {
-    const answers = { sources: [mortality, onsAlone], definition: 'Deaths' };
+  it('writes the numerator and denominator beside a yes, with no data values', () => {
+    const values = everyAnswer('yes');
 
-    expect(numeratorColumns.toAttributes(answers)).toEqual({ numeratorDefinition: 'Deaths' });
-    expect(numeratorColumns.toLists?.(answers)).toEqual({ numeratorSources: answers.sources });
-    expect(denominatorColumns.toAttributes(answers)).toEqual({ denominatorDefinition: 'Deaths' });
-    expect(denominatorColumns.toLists?.(answers)).toEqual({ denominatorSources: answers.sources });
+    expect(formatAndSourcesColumns.toAttributes(values)).toEqual({
+      hasNumeratorDenominator: true,
+      numeratorDefinition: 'Deaths',
+      numeratorDisclosureControl: 'yes',
+      numeratorDisclosureControlDetail: 'Counts under 5 suppressed',
+      denominatorDefinition: 'Population',
+      denominatorDisclosureControl: 'not-applicable',
+      denominatorDisclosureControlDetail: null,
+    });
+    expect(formatAndSourcesColumns.toLists?.(values)).toEqual({
+      numeratorSources: [mortality],
+      denominatorSources: [onsAlone],
+      dataValues: [],
+    });
+  });
+
+  it('writes the data values beside a no, with no numerator or denominator', () => {
+    const values = everyAnswer('no');
+
+    expect(formatAndSourcesColumns.toAttributes(values)).toEqual({
+      hasNumeratorDenominator: false,
+      numeratorDefinition: null,
+      numeratorDisclosureControl: null,
+      numeratorDisclosureControlDetail: null,
+      denominatorDefinition: null,
+      denominatorDisclosureControl: null,
+      denominatorDisclosureControlDetail: null,
+    });
+    expect(formatAndSourcesColumns.toLists?.(values)).toEqual({
+      numeratorSources: [],
+      denominatorSources: [],
+      dataValues: [dataValue],
+    });
+  });
+
+  it("clears a data value's disclosure control details beside Not applicable", () => {
+    const values = {
+      ...everyAnswer('no'),
+      dataValues: [{ ...dataValue, disclosureControl: 'not-applicable' as const }],
+    };
+
+    expect(formatAndSourcesColumns.toLists?.(values).dataValues).toEqual([
+      { ...dataValue, disclosureControl: 'not-applicable', disclosureControlDetail: null },
+    ]);
   });
 });
 

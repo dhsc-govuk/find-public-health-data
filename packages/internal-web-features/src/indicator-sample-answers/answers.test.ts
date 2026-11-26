@@ -33,8 +33,8 @@ describe('sampleAnswers', () => {
     expect(answers['confidence-intervals']).toMatchObject({
       ciMethodId: '019a0000-0000-7000-8000-000000000005',
     });
-    expect(answers.numerator).toMatchObject({
-      sources: [{ providerId: '019a0000-0000-7000-8000-000000000006', sourceId: null }],
+    expect(answers['format-and-sources']).toMatchObject({
+      numeratorSources: [{ providerId: '019a0000-0000-7000-8000-000000000006', sourceId: null }],
     });
     expect(answers.tagging).toMatchObject({
       topicIds: ['019a0000-0000-7000-8000-000000000007'],

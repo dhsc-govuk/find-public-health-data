@@ -10,7 +10,7 @@ import {
   confidenceIntervalsSectionFor,
   dataQualitySection,
   definitionAndRationaleSection,
-  denominatorSection,
+  formatAndSourcesSection,
   type IndicatorSection,
   type IndicatorTaskKey,
   type IndicatorTaskList,
@@ -18,7 +18,6 @@ import {
   type IndicatorTaskStatus,
   type IndicatorTaskStatuses,
   justificationsSection,
-  numeratorSection,
   otherCommentsSection,
   otherNotesAndCaveatsSection,
   periodTypeSection,
@@ -54,8 +53,7 @@ import {
 import {
   agesColumns,
   benchmarkingColumns,
-  denominatorColumns,
-  numeratorColumns,
+  formatAndSourcesColumns,
   taggingColumns,
 } from './indicator-section-list-columns.ts';
 import type { RevisionRoundRow } from './revision-response-repository.ts';
@@ -134,8 +132,7 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
     'period-type': complete(periodTypeSection, periodTypeColumns),
     polarity: complete(polaritySection, polarityColumns),
     'data-quality': complete(dataQualitySection, dataQualityColumns),
-    numerator: complete(numeratorSection, numeratorColumns),
-    denominator: complete(denominatorSection, denominatorColumns),
+    'format-and-sources': complete(formatAndSourcesSection, formatAndSourcesColumns),
     calculation: complete(calculationSection, calculationColumns),
     'confidence-intervals': complete(
       confidenceIntervalsSectionFor(draft.ciMethodKind),
@@ -176,8 +173,7 @@ const COMPARED_ANSWERS: Readonly<
   'period-type': periodTypeColumns.fromDraft,
   polarity: polarityColumns.fromDraft,
   'data-quality': dataQualityColumns.fromDraft,
-  numerator: numeratorColumns.fromDraft,
-  denominator: denominatorColumns.fromDraft,
+  'format-and-sources': formatAndSourcesColumns.fromDraft,
   calculation: calculationColumns.fromDraft,
   'confidence-intervals': confidenceIntervalsColumns.fromDraft,
   'update-frequency': updateFrequencyColumns.fromDraft,

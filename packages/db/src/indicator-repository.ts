@@ -169,10 +169,18 @@ export interface IndicatorSource {
   url: string | null;
 }
 
-/** A provider of a numerator's or denominator's data, and its source, if a specific one. */
+/** A provider of a figure's data, and its source, if a specific one. */
 export interface IndicatorProviderSource {
   provider: string;
   source: string | null;
+}
+
+/** One of the figures an indicator without a numerator and denominator is calculated from. */
+export interface IndicatorDataValue {
+  sources: IndicatorProviderSource[];
+  definition: string | null;
+  /** The details of the disclosure control applied, where some was. */
+  disclosureControl: string | null;
 }
 
 export interface IndicatorAreaType {
@@ -222,13 +230,17 @@ export interface IndicatorDetail {
   rationale: string | null;
   methodology: string | null;
   numeratorDefinition: string | null;
+  /** The details of the disclosure control applied to the numerator, where some was. */
+  numeratorDisclosureControl: string | null;
   denominatorDefinition: string | null;
-  disclosureControl: string | null;
+  denominatorDisclosureControl: string | null;
   caveats: string | null;
   notes: string | null;
   dataSource: IndicatorSource | null;
   numeratorSources: IndicatorProviderSource[];
   denominatorSources: IndicatorProviderSource[];
+  /** In the order the publisher gave them; empty for an indicator with a numerator and denominator. */
+  dataValues: IndicatorDataValue[];
   areaTypes: IndicatorAreaType[];
   topics: IndicatorTopic[];
   classifications: IndicatorClassification[];
@@ -330,6 +342,7 @@ export async function getIndicatorDetailsByIds(
     dataProviderSource,
     dataSource,
     indicator,
+    indicatorDataValue,
     indicatorGoal,
     indicatorSource,
     indicatorUpdateSummary,
@@ -373,8 +386,9 @@ export async function getIndicatorDetailsByIds(
       rationale: indicator.rationale,
       methodology: indicator.methodology,
       numeratorDefinition: indicator.numeratorDefinition,
+      numeratorDisclosureControl: indicator.numeratorDisclosureControlDetail,
       denominatorDefinition: indicator.denominatorDefinition,
-      disclosureControl: indicator.disclosureControlDetail,
+      denominatorDisclosureControl: indicator.denominatorDisclosureControlDetail,
       caveats: indicator.caveatsDetail,
       notes: indicator.otherNotesDetail,
       dataSourceName: dataSource.name,
@@ -398,6 +412,19 @@ export async function getIndicatorDetailsByIds(
         FROM ${indicatorUpdateSummary}
         WHERE ${indicatorUpdateSummary.indicatorId} = ${indicator.id}
       )`,
+      dataValues: sql<
+        { position: number; definition: string | null; disclosureControl: string | null }[]
+      >`(
+        SELECT coalesce(
+          json_agg(
+            json_build_object('position', ${indicatorDataValue.position}, 'definition', ${indicatorDataValue.definition}, 'disclosureControl', ${indicatorDataValue.disclosureControlDetail})
+            ORDER BY ${indicatorDataValue.position}
+          ),
+          '[]'
+        )
+        FROM ${indicatorDataValue}
+        WHERE ${indicatorDataValue.indicatorId} = ${indicator.id}
+      )`,
     })
     .from(indicator)
     .leftJoin(valueType, eq(indicator.valueTypeId, valueType.id))
@@ -418,6 +445,7 @@ export async function getIndicatorDetailsByIds(
       .select({
         indicatorId: indicatorSource.indicatorId,
         part: indicatorSource.part,
+        dataValuePosition: indicatorSource.dataValuePosition,
         provider: dataProvider.name,
         source: dataProviderSource.name,
       })
@@ -429,9 +457,14 @@ export async function getIndicatorDetailsByIds(
   ]);
   return new Map(
     rows.map((row): [string, FoundIndicatorDetail] => {
-      const sourcesOf = (part: IndicatorSourcePart) =>
+      const sourcesOf = (part: IndicatorSourcePart, dataValuePosition: number | null = null) =>
         sources
-          .filter((entry) => entry.indicatorId === row.id && entry.part === part)
+          .filter(
+            (entry) =>
+              entry.indicatorId === row.id &&
+              entry.part === part &&
+              entry.dataValuePosition === dataValuePosition,
+          )
           .map(({ provider, source }) => ({ provider, source }));
 
       return [
@@ -476,8 +509,9 @@ export async function getIndicatorDetailsByIds(
           rationale: row.rationale,
           methodology: row.methodology,
           numeratorDefinition: row.numeratorDefinition,
+          numeratorDisclosureControl: row.numeratorDisclosureControl,
           denominatorDefinition: row.denominatorDefinition,
-          disclosureControl: row.disclosureControl,
+          denominatorDisclosureControl: row.denominatorDisclosureControl,
           caveats: row.caveats,
           notes: row.notes,
           dataSource:
@@ -486,6 +520,11 @@ export async function getIndicatorDetailsByIds(
               : { name: row.dataSourceName, url: row.dataSourceUrl },
           numeratorSources: sourcesOf('numerator'),
           denominatorSources: sourcesOf('denominator'),
+          dataValues: row.dataValues.map(({ position, definition, disclosureControl }) => ({
+            sources: sourcesOf('data-value', position),
+            definition,
+            disclosureControl,
+          })),
           areaTypes: row.areaTypes,
           topics: topics.get(row.id) ?? [],
           classifications: classifications.get(row.id) ?? [],

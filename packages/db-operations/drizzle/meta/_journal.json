@@ -729,6 +729,13 @@
       "when": 1795709561474,
       "tag": "0103_confidence-interval-methods",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1795711219499,
+      "tag": "0104_indicator-format-and-sources",
+      "breakpoints": true
     }
   ]
 }

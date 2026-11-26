@@ -97,7 +97,7 @@ describe('IndicatorTaskListPage', () => {
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
     ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (not visible to consumers)']);
     expect(group('Data').getAllByRole('listitem')).toHaveLength(7);
-    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(9);
+    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(8);
     expect(group('Publishing').getAllByRole('listitem')).toHaveLength(2);
     expect(
       group('Notes for reviewers (not visible to consumers)').getAllByRole('listitem'),
@@ -163,8 +163,7 @@ describe('IndicatorTaskListPage', () => {
       'Data quality',
       'Name',
       'Definition and rationale',
-      'Numerator',
-      'Denominator',
+      'Indicator format and sources',
       'How the indicator was calculated',
       'Confidence intervals',
       'Policy goals',
@@ -188,8 +187,7 @@ describe('IndicatorTaskListPage', () => {
     ['Data', 'Polarity', 'polarity'],
     ['Data', 'Data quality', 'data-quality'],
     ['Metadata', 'Definition and rationale', 'definition-and-rationale'],
-    ['Metadata', 'Numerator', 'numerator'],
-    ['Metadata', 'Denominator', 'denominator'],
+    ['Metadata', 'Indicator format and sources', 'format-and-sources'],
     ['Metadata', 'How the indicator was calculated', 'calculation'],
     ['Metadata', 'Confidence intervals', 'confidence-intervals'],
     ['Metadata', 'Policy goals', 'benchmarking'],
@@ -442,7 +440,7 @@ describe('IndicatorTaskListPage for a draft sent back for changes', () => {
 
     expect(document.querySelector('.govuk-grid-column-three-quarters')).not.toBeNull();
     expect(screen.queryByRole('table')).toBeNull();
-    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(9);
+    expect(group('Metadata').getAllByRole('listitem')).toHaveLength(8);
   });
 
   it('shows a flagged task’s notes, tagged as needing revisions until it is saved', () => {
