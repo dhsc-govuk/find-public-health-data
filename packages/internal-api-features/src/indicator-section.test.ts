@@ -9,7 +9,6 @@ import {
   definitionAndRationaleSection,
   justificationsSection,
   otherCommentsSection,
-  otherNotesAndCaveatsSection,
 } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import { indicatorSectionRouter, yesNoDetailColumns } from './indicator-section.ts';
@@ -421,24 +420,20 @@ describe('PUT on the justifications section', () => {
 describe('yesNoDetailColumns', () => {
   it('needs a question for every yes/no column', () => {
     yesNoDetailColumns(
-      otherNotesAndCaveatsSection,
-      // @ts-expect-error hasOtherNotes is no question's answer
-      [
-        { answer: 'hasRounding', detail: 'roundingDetail', detailRequired: 'x' },
-        { answer: 'hasCaveats', detail: 'caveatsDetail', detailRequired: 'x' },
-      ],
+      justificationsSection,
+      // @ts-expect-error hasAutomation is no question's answer
+      [{ answer: 'hasExclusions', detail: 'exclusionsDetail', detailRequired: 'x' }],
     );
     // @ts-expect-error hasReviewerComments is no question's answer
     yesNoDetailColumns(otherCommentsSection, []);
   });
 
   it('takes a yes/no column alone as an answer and a text column alone as details', () => {
-    yesNoDetailColumns(otherNotesAndCaveatsSection, [
-      // @ts-expect-error disclosureControl is a text column
-      { answer: 'disclosureControl', detail: 'disclosureControlDetail', detailRequired: 'x' },
-      { answer: 'hasRounding', detail: 'roundingDetail', detailRequired: 'x' },
-      { answer: 'hasCaveats', detail: 'caveatsDetail', detailRequired: 'x' },
-      { answer: 'hasOtherNotes', detail: 'otherNotesDetail', detailRequired: 'x' },
+    yesNoDetailColumns(justificationsSection, [
+      // @ts-expect-error ciMethodJustification is a text column
+      { answer: 'ciMethodJustification', detail: 'dataSourcesJustification', detailRequired: 'x' },
+      { answer: 'hasExclusions', detail: 'exclusionsDetail', detailRequired: 'x' },
+      { answer: 'hasAutomation', detail: 'automationDetail', detailRequired: 'x' },
     ]);
     yesNoDetailColumns(otherCommentsSection, [
       // @ts-expect-error hasReviewerComments is a yes/no column

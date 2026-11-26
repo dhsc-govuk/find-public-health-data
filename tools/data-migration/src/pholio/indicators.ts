@@ -381,8 +381,6 @@ export async function exportIndicators(context: PholioExportOptions) {
       has_goal_benchmark: null,
       disclosure_control: nc.disclosure_control,
       disclosure_control_detail: nc.disclosure_control_detail,
-      has_rounding: nc.has_rounding,
-      rounding_detail: nc.rounding_detail,
       has_caveats: nc.has_caveats,
       caveats_detail: nc.caveats_detail,
       has_other_notes: nc.has_other_notes,

@@ -671,10 +671,9 @@ describe('updateIndicatorDraft', () => {
 
   repositoryTest.for<[string, IndicatorDraftAttributes]>([
     [
-      'the other notes and caveats answers',
+      'the quality, caveats and interpretation answers',
       {
-        hasRounding: false,
-        roundingDetail: null,
+        hasDataQualityIssues: true,
         hasCaveats: true,
         caveatsDetail: 'Survey data.',
         hasOtherNotes: false,
@@ -726,35 +725,6 @@ describe('updateIndicatorDraft', () => {
     const state = await getIndicatorDraftState(db, created.indicatorId);
     expect(state?.draft).toMatchObject(attributes);
   });
-
-  repositoryTest(
-    'writes whether there are data quality issues, replacing the answer before',
-    async ({ db }) => {
-      const created = await newDraft(db, 'Data quality answered');
-
-      await updateIndicatorDraft(
-        db,
-        created.indicatorId,
-        'data-quality',
-        { hasDataQualityIssues: true },
-        {},
-        AS_ACTOR,
-      );
-      const yes = await getIndicatorDraftState(db, created.indicatorId);
-      await updateIndicatorDraft(
-        db,
-        created.indicatorId,
-        'data-quality',
-        { hasDataQualityIssues: false },
-        {},
-        AS_ACTOR,
-      );
-      const no = await getIndicatorDraftState(db, created.indicatorId);
-
-      expect(yes?.draft?.hasDataQualityIssues).toBe(true);
-      expect(no?.draft?.hasDataQualityIssues).toBe(false);
-    },
-  );
 
   repositoryTest('refuses an indicator with no draft', async ({ db }) => {
     const created = await newDraft(db, 'Draftless');

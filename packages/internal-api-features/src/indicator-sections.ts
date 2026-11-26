@@ -5,7 +5,6 @@ import {
   agesSection,
   benchmarkingSection,
   calculationSection,
-  dataQualitySection,
   definitionAndRationaleSection,
   formatAndSourcesSection,
   justificationsSection,
@@ -22,7 +21,6 @@ import { indicatorSectionRouter } from './indicator-section.ts';
 import {
   calculationColumns,
   confidenceIntervalsColumns,
-  dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
   otherCommentsColumns,
@@ -74,7 +72,6 @@ export function indicatorSectionsRouter(
       definitionAndRationaleColumns,
     ),
     indicatorSectionRouter(indicators, session, polaritySection, polarityColumns),
-    indicatorSectionRouter(indicators, session, dataQualitySection, dataQualityColumns),
     indicatorSectionRouter(
       indicators,
       session,

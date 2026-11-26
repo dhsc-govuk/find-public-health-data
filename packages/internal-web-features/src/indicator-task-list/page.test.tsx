@@ -96,7 +96,7 @@ describe('IndicatorTaskListPage', () => {
     expect(
       screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
     ).toEqual(['Data', 'Metadata', 'Publishing', 'Notes for reviewers (not visible to consumers)']);
-    expect(group('Data').getAllByRole('listitem')).toHaveLength(7);
+    expect(group('Data').getAllByRole('listitem')).toHaveLength(6);
     expect(group('Metadata').getAllByRole('listitem')).toHaveLength(8);
     expect(group('Publishing').getAllByRole('listitem')).toHaveLength(2);
     expect(
@@ -160,14 +160,13 @@ describe('IndicatorTaskListPage', () => {
       'Ages',
       'Period type',
       'Polarity',
-      'Data quality',
       'Name',
       'Definition and rationale',
       'Indicator format and sources',
       'How the indicator was calculated',
       'Confidence intervals',
       'Policy goals',
-      'Other notes and caveats',
+      'Quality, caveats and interpretation',
       'Tagging',
       'Update frequency',
       'Publishing date',
@@ -185,13 +184,12 @@ describe('IndicatorTaskListPage', () => {
     ['Data', 'Ages', 'ages'],
     ['Data', 'Period type', 'period-type'],
     ['Data', 'Polarity', 'polarity'],
-    ['Data', 'Data quality', 'data-quality'],
     ['Metadata', 'Definition and rationale', 'definition-and-rationale'],
     ['Metadata', 'Indicator format and sources', 'format-and-sources'],
     ['Metadata', 'How the indicator was calculated', 'calculation'],
     ['Metadata', 'Confidence intervals', 'confidence-intervals'],
     ['Metadata', 'Policy goals', 'benchmarking'],
-    ['Metadata', 'Other notes and caveats', 'other-notes-and-caveats'],
+    ['Metadata', 'Quality, caveats and interpretation', 'other-notes-and-caveats'],
     ['Metadata', 'Tagging', 'tagging'],
     ['Publishing', 'Update frequency', 'update-frequency'],
     ['Publishing', 'Publishing date', 'publishing-date'],

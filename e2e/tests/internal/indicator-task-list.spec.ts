@@ -17,7 +17,6 @@ const TASK_GROUPS = {
     'Ages',
     'Period type',
     'Polarity',
-    'Data quality',
   ],
   Metadata: [
     'Name',
@@ -26,7 +25,7 @@ const TASK_GROUPS = {
     'How the indicator was calculated',
     'Confidence intervals',
     'Policy goals',
-    'Other notes and caveats',
+    'Quality, caveats and interpretation',
     'Tagging',
   ],
   Publishing: ['Update frequency', 'Publishing date'],

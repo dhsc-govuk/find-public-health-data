@@ -562,7 +562,6 @@ export * from './indicator-ages-contract.ts';
 export * from './indicator-benchmarking-contract.ts';
 export * from './indicator-calculation-contract.ts';
 export * from './indicator-confidence-intervals-contract.ts';
-export * from './indicator-data-quality-contract.ts';
 export * from './indicator-definition-and-rationale-contract.ts';
 export * from './indicator-format-and-sources-contract.ts';
 export * from './indicator-history-contract.ts';

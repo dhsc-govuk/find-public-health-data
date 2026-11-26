@@ -81,8 +81,6 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     // to the numerator or the single data value, as it does the legacy sources below.
     'disclosure_control',
     'disclosure_control_detail',
-    'has_rounding',
-    'rounding_detail',
     'has_caveats',
     'caveats_detail',
     'has_other_notes',

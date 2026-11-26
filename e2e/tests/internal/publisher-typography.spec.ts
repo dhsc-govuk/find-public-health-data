@@ -10,7 +10,6 @@ const SECTIONS = [
   'name',
   'definition-and-rationale',
   'polarity',
-  'data-quality',
   'format-and-sources',
   'calculation',
   'confidence-intervals',

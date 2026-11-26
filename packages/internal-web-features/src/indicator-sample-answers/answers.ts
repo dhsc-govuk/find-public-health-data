@@ -7,7 +7,6 @@ import {
   calculationSection,
   confidenceIntervalsSection,
   type DataProvider,
-  dataQualitySection,
   definitionAndRationaleSection,
   formatAndSourcesAnswersSchema,
   formatAndSourcesSection,
@@ -137,7 +136,6 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
     ),
     text(periodTypeSection, { periodType: 'years', yearType: 'financial' }),
     text(polaritySection, { polarity: 'lower-is-better' }),
-    text(dataQualitySection, { hasDataQualityIssues: 'no' }),
     text(definitionAndRationaleSection, {
       definition: 'A sample definition.',
       rationale: 'A sample rationale.',
@@ -165,7 +163,7 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
     }),
     sample(benchmarkingSection, { hasGoalBenchmark: 'no', goals: [] }, benchmarkingAnswersSchema),
     text(otherNotesAndCaveatsSection, {
-      hasRounding: 'no',
+      hasDataQualityIssues: 'no',
       hasCaveats: 'no',
       hasOtherNotes: 'no',
     }),

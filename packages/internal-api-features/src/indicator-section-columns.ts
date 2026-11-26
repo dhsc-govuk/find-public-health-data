@@ -9,9 +9,7 @@ import {
   type ConfidenceIntervals,
   type ConfidenceIntervalsField,
   calculationSection,
-  type DataQualityField,
   definitionAndRationaleSection,
-  type IndicatorDataQuality,
   type IndicatorUpdateFrequency,
   justificationsQuestions,
   justificationsSection,
@@ -21,8 +19,6 @@ import {
   type OtherNotesAndCaveatsField,
   otherCommentsQuestions,
   otherCommentsSection,
-  otherNotesAndCaveatsQuestions,
-  otherNotesAndCaveatsSection,
   type PeriodType,
   type PeriodTypeField,
   type PublishingDate,
@@ -43,6 +39,7 @@ import {
   type VarianceAndQualityField,
 } from './contract.ts';
 import {
+  detailOf,
   type IndicatorSectionColumns,
   type OwnFieldColumns,
   sameNamedColumns,
@@ -168,13 +165,6 @@ export const confidenceIntervalsColumns: IndicatorSectionColumns<
   },
 };
 
-export const dataQualityColumns: IndicatorSectionColumns<DataQualityField, IndicatorDataQuality> = {
-  fromDraft: (draft) => ({ hasDataQualityIssues: yesNoAnswer(draft.hasDataQualityIssues) }),
-  toAttributes: ({ hasDataQualityIssues }) => ({
-    hasDataQualityIssues: hasDataQualityIssues === 'yes',
-  }),
-};
-
 export const periodTypeColumns: IndicatorSectionColumns<PeriodTypeField, PeriodType> = {
   fromDraft: (draft) => ({
     periodType: draft.periodType,
@@ -199,10 +189,32 @@ export const periodTypeColumns: IndicatorSectionColumns<PeriodTypeField, PeriodT
   },
 };
 
+// The data quality question asks for no details of its own: a yes asks for caveats instead.
 export const otherNotesAndCaveatsColumns: OwnFieldColumns<
   OtherNotesAndCaveatsField,
   OtherNotesAndCaveats
-> = yesNoDetailColumns(otherNotesAndCaveatsSection, otherNotesAndCaveatsQuestions);
+> = {
+  fromDraft: (draft) => ({
+    hasDataQualityIssues: yesNoAnswer(draft.hasDataQualityIssues),
+    hasCaveats: yesNoAnswer(draft.hasCaveats),
+    caveatsDetail: draft.caveatsDetail,
+    hasOtherNotes: yesNoAnswer(draft.hasOtherNotes),
+    otherNotesDetail: draft.otherNotesDetail,
+  }),
+  toAttributes: ({
+    hasDataQualityIssues,
+    hasCaveats,
+    caveatsDetail,
+    hasOtherNotes,
+    otherNotesDetail,
+  }) => ({
+    hasDataQualityIssues: hasDataQualityIssues === 'yes',
+    hasCaveats: hasCaveats === 'yes',
+    caveatsDetail: detailOf(hasCaveats, caveatsDetail),
+    hasOtherNotes: hasOtherNotes === 'yes',
+    otherNotesDetail: detailOf(hasOtherNotes, otherNotesDetail),
+  }),
+};
 
 export const varianceAndQualityColumns: OwnFieldColumns<
   VarianceAndQualityField,

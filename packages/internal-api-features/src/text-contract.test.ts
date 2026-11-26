@@ -227,9 +227,8 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
     10_000,
     refusalsOf(otherNotesAndCaveatsSection),
     {
-      roundingDetail: 'Details of the rounding',
       caveatsDetail: 'Details of the caveats',
-      otherNotesDetail: 'Details of the other notes',
+      otherNotesDetail: 'Details of the additional interpretation notes',
     },
   ],
   [

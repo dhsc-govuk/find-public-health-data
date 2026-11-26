@@ -109,12 +109,11 @@ const PART_LABELS: { readonly [Task in keyof SectionFields]: Record<SectionField
       unitDetail: 'Other unit',
     },
     'other-notes-and-caveats': {
-      hasRounding: 'Rounding',
-      roundingDetail: 'Rounding detail',
+      hasDataQualityIssues: 'Data quality issues',
       hasCaveats: 'Caveats needed',
       caveatsDetail: 'Caveats',
-      hasOtherNotes: 'Other notes needed',
-      otherNotesDetail: 'Other notes',
+      hasOtherNotes: 'Additional interpretation notes needed',
+      otherNotesDetail: 'Additional interpretation notes',
     },
     'variance-and-quality': {
       variation: 'How the indicator varies',

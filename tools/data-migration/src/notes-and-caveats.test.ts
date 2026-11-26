@@ -18,8 +18,6 @@ describe('notesAndCaveats', () => {
     ).toEqual({
       disclosure_control: 'yes',
       disclosure_control_detail: 'Counts under 5 are suppressed.',
-      has_rounding: null,
-      rounding_detail: null,
       has_caveats: true,
       caveats_detail: 'Survey data.',
       has_other_notes: true,
@@ -31,8 +29,6 @@ describe('notesAndCaveats', () => {
     expect(notesAndCaveats({ disclosureControl: ' \n', caveats: null })).toEqual({
       disclosure_control: null,
       disclosure_control_detail: null,
-      has_rounding: null,
-      rounding_detail: null,
       has_caveats: null,
       caveats_detail: null,
       has_other_notes: null,
@@ -125,12 +121,10 @@ describe('notesAndCaveats', () => {
 });
 
 describe('NOTES_AND_CAVEATS_COLUMNS', () => {
-  it('lists the eight answer columns in declaration order', () => {
+  it('lists the six answer columns in declaration order', () => {
     expect(NOTES_AND_CAVEATS_COLUMNS).toEqual([
       'disclosure_control',
       'disclosure_control_detail',
-      'has_rounding',
-      'rounding_detail',
       'has_caveats',
       'caveats_detail',
       'has_other_notes',

@@ -12,8 +12,6 @@ describe('notes and caveats from Pholio prose', () => {
     expect(result).toEqual({
       disclosure_control: 'yes',
       disclosure_control_detail: 'Counts under 5 are suppressed.',
-      has_rounding: null,
-      rounding_detail: null,
       has_caveats: true,
       caveats_detail: 'Survey data — use with care.',
       has_other_notes: false,
@@ -36,8 +34,6 @@ describe('notes and caveats from Pholio prose', () => {
     expect(result).toEqual({
       disclosure_control: null,
       disclosure_control_detail: null,
-      has_rounding: null,
-      rounding_detail: null,
       has_caveats: null,
       caveats_detail: null,
       has_other_notes: null,

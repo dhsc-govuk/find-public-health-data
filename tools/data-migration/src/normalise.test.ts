@@ -86,8 +86,6 @@ describe('migration transforms', () => {
       'Obesity',
       'no',
       DATA_MIGRATION_NULL,
-      DATA_MIGRATION_NULL,
-      DATA_MIGRATION_NULL,
       'true',
       'Rates ≥ 5',
       DATA_MIGRATION_NULL,

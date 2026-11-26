@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   calculationColumns,
   confidenceIntervalsColumns,
-  dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
   otherCommentsColumns,
@@ -38,27 +37,6 @@ describe('polarityColumns', () => {
     });
     expect(polarityColumns.toAttributes({ polarity: 'no-polarity' })).toEqual({
       polarity: 'no-polarity',
-    });
-  });
-});
-
-describe('dataQualityColumns', () => {
-  it.each([
-    [true, 'yes'],
-    [false, 'no'],
-    [null, null],
-  ])('reads whether there are data quality issues, %s, as %s', (hasDataQualityIssues, answer) => {
-    expect(dataQualityColumns.fromDraft({ ...unansweredDraft, hasDataQualityIssues })).toEqual({
-      hasDataQualityIssues: answer,
-    });
-  });
-
-  it.each([
-    ['yes', true],
-    ['no', false],
-  ] as const)('writes %s as %s', (hasDataQualityIssues, answer) => {
-    expect(dataQualityColumns.toAttributes({ hasDataQualityIssues })).toEqual({
-      hasDataQualityIssues: answer,
     });
   });
 });
@@ -351,8 +329,7 @@ describe('confidenceIntervalsColumns', () => {
 
 describe('otherNotesAndCaveatsColumns', () => {
   const answered = {
-    hasRounding: 'yes',
-    roundingDetail: 'Rounded to the nearest 5.',
+    hasDataQualityIssues: 'yes',
     hasCaveats: 'yes',
     caveatsDetail: 'Survey data.',
     hasOtherNotes: 'yes',
@@ -362,7 +339,7 @@ describe('otherNotesAndCaveatsColumns', () => {
   it('keeps every detail beside a yes', () => {
     expect(otherNotesAndCaveatsColumns.toAttributes(answered)).toEqual({
       ...answered,
-      hasRounding: true,
+      hasDataQualityIssues: true,
       hasCaveats: true,
       hasOtherNotes: true,
     });
@@ -372,13 +349,12 @@ describe('otherNotesAndCaveatsColumns', () => {
     expect(
       otherNotesAndCaveatsColumns.toAttributes({
         ...answered,
-        hasRounding: 'no',
+        hasDataQualityIssues: 'no',
         hasCaveats: 'no',
         hasOtherNotes: 'no',
       }),
     ).toEqual({
-      hasRounding: false,
-      roundingDetail: null,
+      hasDataQualityIssues: false,
       hasCaveats: false,
       caveatsDetail: null,
       hasOtherNotes: false,
@@ -391,7 +367,7 @@ describe('otherNotesAndCaveatsColumns', () => {
       otherNotesAndCaveatsColumns.fromDraft({
         ...unansweredDraft,
         ...answered,
-        hasRounding: true,
+        hasDataQualityIssues: true,
         hasCaveats: true,
         hasOtherNotes: true,
       }),
@@ -402,9 +378,10 @@ describe('otherNotesAndCaveatsColumns', () => {
     [true, 'yes'],
     [false, 'no'],
     [null, null],
-  ])('reads a stored %s as %s', (hasRounding, answer) => {
+  ])('reads whether there are data quality issues, %s, as %s', (hasDataQualityIssues, answer) => {
     expect(
-      otherNotesAndCaveatsColumns.fromDraft({ ...unansweredDraft, hasRounding }).hasRounding,
+      otherNotesAndCaveatsColumns.fromDraft({ ...unansweredDraft, hasDataQualityIssues })
+        .hasDataQualityIssues,
     ).toBe(answer);
   });
 });

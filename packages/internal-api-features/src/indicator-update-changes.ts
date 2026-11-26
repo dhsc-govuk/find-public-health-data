@@ -25,7 +25,6 @@ import {
   calculationSection,
   confidenceIntervalsSection,
   type DataValueFormValues,
-  dataQualitySection,
   definitionAndRationaleSection,
   formatAndSourcesSection,
   goalValueText,
@@ -50,7 +49,6 @@ import type { IndicatorSectionColumns } from './indicator-section.ts';
 import {
   calculationColumns,
   confidenceIntervalsColumns,
-  dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
   otherCommentsColumns,
@@ -236,9 +234,6 @@ const CHANGED_SECTIONS: Readonly<
     yearEndMonth: (value) => (isAnswered(value) ? monthName(Number(value)) : null),
   }),
   polarity: sectionOf(polaritySection, polarityColumns, { polarity: option(POLARITY_LABELS) }),
-  'data-quality': sectionOf(dataQualitySection, dataQualityColumns, {
-    hasDataQualityIssues: yesNo,
-  }),
   'format-and-sources': sectionOf(formatAndSourcesSection, formatAndSourcesColumns, {
     hasNumeratorDenominator: yesNo,
     numeratorSources: providerSources,
@@ -278,8 +273,7 @@ const CHANGED_SECTIONS: Readonly<
     unitDetail: 'text',
   }),
   'other-notes-and-caveats': sectionOf(otherNotesAndCaveatsSection, otherNotesAndCaveatsColumns, {
-    hasRounding: yesNo,
-    roundingDetail: 'text',
+    hasDataQualityIssues: yesNo,
     hasCaveats: yesNo,
     caveatsDetail: 'text',
     hasOtherNotes: yesNo,

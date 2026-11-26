@@ -4,8 +4,7 @@ import { otherNotesAndCaveatsSection as section } from './indicator-other-notes-
 import { sectionFieldErrors } from './testing.ts';
 
 const empty = {
-  hasRounding: '',
-  roundingDetail: '',
+  hasDataQualityIssues: '',
   hasCaveats: '',
   caveatsDetail: '',
   hasOtherNotes: '',
@@ -14,32 +13,33 @@ const empty = {
 
 const allNo = {
   ...empty,
-  hasRounding: 'no',
+  hasDataQualityIssues: 'no',
   hasCaveats: 'no',
   hasOtherNotes: 'no',
 };
 
 const allYes = {
   ...empty,
-  hasRounding: 'yes',
+  hasDataQualityIssues: 'yes',
   hasCaveats: 'yes',
   hasOtherNotes: 'yes',
 };
+
+const CAVEATS_FOR_DATA_QUALITY =
+  "If there are data quality issues, you need to explain these in the 'Caveats' section";
 
 describe('otherNotesAndCaveatsSection', () => {
   it('takes every detail without its surrounding spaces', () => {
     expect(
       section.schema.parse({
-        hasRounding: 'yes',
-        roundingDetail: ' Rounded to the nearest 5. ',
+        hasDataQualityIssues: 'yes',
         hasCaveats: 'yes',
         caveatsDetail: '\tSurvey data. ',
         hasOtherNotes: 'yes',
         otherNotesDetail: ' Revised in 2024.',
       }),
     ).toEqual({
-      hasRounding: 'yes',
-      roundingDetail: 'Rounded to the nearest 5.',
+      hasDataQualityIssues: 'yes',
       hasCaveats: 'yes',
       caveatsDetail: 'Survey data.',
       hasOtherNotes: 'yes',
@@ -53,31 +53,64 @@ describe('otherNotesAndCaveatsSection', () => {
 
   it('asks for every answer when the form is empty', () => {
     expect(sectionFieldErrors(section, empty)).toEqual({
-      hasRounding: 'Select whether rounding has been applied',
+      hasDataQualityIssues: 'Select whether there are any data quality issues with this indicator',
       hasCaveats: 'Select whether there are any caveats needed',
-      hasOtherNotes: 'Select whether there are any other notes needed',
+      hasOtherNotes: 'Select whether there are any additional interpretation notes needed',
     });
   });
 
   it('asks for the details of every yes, blank ones included', () => {
     expect(sectionFieldErrors(section, { ...allYes, caveatsDetail: ' \n' })).toEqual({
-      roundingDetail: 'Provide details of the rounding',
       caveatsDetail: 'Provide details of the caveats',
-      otherNotesDetail: 'Provide details of the other notes',
+      otherNotesDetail: 'Provide details of the additional interpretation notes',
     });
   });
 
+  it('refuses no caveats beside data quality issues', () => {
+    expect(sectionFieldErrors(section, { ...allNo, hasDataQualityIssues: 'yes' })).toEqual({
+      hasCaveats: CAVEATS_FOR_DATA_QUALITY,
+    });
+  });
+
+  it('refuses no caveats beside data quality issues with the other refusals', () => {
+    expect(
+      sectionFieldErrors(section, { ...empty, hasDataQualityIssues: 'yes', hasCaveats: 'no' }),
+    ).toEqual({
+      hasCaveats: CAVEATS_FOR_DATA_QUALITY,
+      hasOtherNotes: 'Select whether there are any additional interpretation notes needed',
+    });
+  });
+
+  it('takes caveats beside data quality issues', () => {
+    expect(
+      sectionFieldErrors(section, {
+        ...allNo,
+        hasDataQualityIssues: 'yes',
+        hasCaveats: 'yes',
+        caveatsDetail: 'Survey data.',
+      }),
+    ).toBeUndefined();
+  });
+
+  it('takes caveats without data quality issues', () => {
+    expect(
+      sectionFieldErrors(section, { ...allNo, hasCaveats: 'yes', caveatsDetail: 'Survey data.' }),
+    ).toBeUndefined();
+  });
+
   it.each([
-    { ...allNo, hasRounding: 'not-applicable' },
+    { ...allNo, hasDataQualityIssues: 'not-applicable' },
     { ...allNo, hasCaveats: true },
   ])('refuses an answer the form does not offer: %o', (body) => {
     expect(sectionFieldErrors(section, body)).toBeDefined();
   });
 
-  it.each([null, {}, { hasRounding: 'no', hasCaveats: 'no' }, { ...allNo, otherNotesDetail: 108 }])(
-    'refuses %o, which the form never sends',
-    (body) => {
-      expect(sectionFieldErrors(section, body)).toBeDefined();
-    },
-  );
+  it.each([
+    null,
+    {},
+    { hasDataQualityIssues: 'no', hasCaveats: 'no' },
+    { ...allNo, otherNotesDetail: 108 },
+  ])('refuses %o, which the form never sends', (body) => {
+    expect(sectionFieldErrors(section, body)).toBeDefined();
+  });
 });
