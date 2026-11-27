@@ -104,4 +104,11 @@ describe('planPreviewViews', () => {
   it('refuses a hand-written preview view with no published view', () => {
     expect(() => planPreviewViews(handWritten.slice(1))).toThrow(/available_data/);
   });
+
+  it('leaves out a hand-written preview view with no published view when asked to', () => {
+    expect(planPreviewViews(handWritten.slice(1), { skipUnpublished: true })).toEqual({
+      generated: [],
+      handWritten: HAND_WRITTEN.slice(1),
+    });
+  });
 });
