@@ -15,4 +15,61 @@ CREATE VIEW "published"."observation" AS (SELECT o.id, o.indicator_id, o.area_id
         WHERE v.upload_batch_id IS NOT NULL
       ) ->> o.upload_batch_id::text)::date);--> statement-breakpoint
 -- Recreating the view removes its explicit read grants.
-GRANT SELECT ON "published"."observation" TO public_api, internal_api;
+GRANT SELECT ON "published"."observation" TO public_api, internal_api;--> statement-breakpoint
+-- The dimension and note views hide the rows of observations outside the current series, as
+-- published.observation does. Replacing a view keeps its grants.
+CREATE OR REPLACE VIEW published.observation_dimension AS
+SELECT od.observation_id, od.dimension_value_id, od.dimension_type_id
+FROM observation_dimension od
+WHERE EXISTS (
+  SELECT 1 FROM observation o
+  WHERE o.id = od.observation_id
+    AND o.is_current_series
+    AND o.upload_batch_id = ANY (ARRAY(
+      SELECT v.upload_batch_id
+      FROM current_published_version cpv
+      JOIN indicator_version v ON v.id = cpv.id
+    ))
+    AND (
+      NOT (COALESCE((
+        SELECT jsonb_object_agg(v.upload_batch_id, v.published_from)
+        FROM current_published_version cpv
+        JOIN indicator_version v ON v.id = cpv.id
+        WHERE v.published_from IS NOT NULL AND v.upload_batch_id IS NOT NULL
+      ), '{}'::jsonb) ? o.upload_batch_id::text)
+      OR o.from_date >= ((
+        SELECT jsonb_object_agg(v.upload_batch_id, v.published_from)
+        FROM current_published_version cpv
+        JOIN indicator_version v ON v.id = cpv.id
+        WHERE v.published_from IS NOT NULL AND v.upload_batch_id IS NOT NULL
+      ) ->> o.upload_batch_id::text)::date
+    )
+);
+--> statement-breakpoint
+CREATE OR REPLACE VIEW published.observation_note AS
+SELECT onote.observation_id, onote.note_type_id
+FROM observation_note onote
+WHERE EXISTS (
+  SELECT 1 FROM observation o
+  WHERE o.id = onote.observation_id
+    AND o.is_current_series
+    AND o.upload_batch_id = ANY (ARRAY(
+      SELECT v.upload_batch_id
+      FROM current_published_version cpv
+      JOIN indicator_version v ON v.id = cpv.id
+    ))
+    AND (
+      NOT (COALESCE((
+        SELECT jsonb_object_agg(v.upload_batch_id, v.published_from)
+        FROM current_published_version cpv
+        JOIN indicator_version v ON v.id = cpv.id
+        WHERE v.published_from IS NOT NULL AND v.upload_batch_id IS NOT NULL
+      ), '{}'::jsonb) ? o.upload_batch_id::text)
+      OR o.from_date >= ((
+        SELECT jsonb_object_agg(v.upload_batch_id, v.published_from)
+        FROM current_published_version cpv
+        JOIN indicator_version v ON v.id = cpv.id
+        WHERE v.published_from IS NOT NULL AND v.upload_batch_id IS NOT NULL
+      ) ->> o.upload_batch_id::text)::date
+    )
+);
