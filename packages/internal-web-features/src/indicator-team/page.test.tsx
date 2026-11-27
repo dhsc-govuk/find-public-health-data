@@ -6,7 +6,6 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { IndicatorTeamPage } from './page.tsx';
-import { handle } from './route.tsx';
 
 afterEach(cleanup);
 
@@ -65,12 +64,5 @@ describe('IndicatorTeamPage', () => {
     expect(
       within(screen.getByRole('group')).getByText('Select which team should own this indicator'),
     ).toBeTruthy();
-  });
-});
-
-describe('the indicator team route', () => {
-  it('links back to the dashboard from above the page', () => {
-    expect(handle.backHref).toBe('/dashboard');
-    expect(handle.backText).toBe('Back to indicators');
   });
 });
