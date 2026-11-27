@@ -133,4 +133,5 @@ catalog:
 patchedDependencies:
   # COPY errors must settle the writable: https://github.com/porsager/postgres/pull/1183.
   # A password function that rejects must fail the connection, not leave the rejection unhandled.
+  # Sockets set TCP_NODELAY, so a COPY does not wait 40 ms for an acknowledgement before it ends.
   postgres@3.4.9: patches/postgres@3.4.9.patch
