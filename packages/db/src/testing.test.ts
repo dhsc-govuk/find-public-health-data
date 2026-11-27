@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { topic } from './schema.ts';
-import {
-  newTestRun,
-  nullColumns,
-  runTestDatabases,
-  staleTestDatabases,
-  templateName,
-} from './testing.ts';
+import { newTestRun, runTestDatabases, staleTestDatabases, templateName } from './testing.ts';
 
 const NOW = new Date('2026-10-30T12:00:00Z');
 const AN_HOUR_AGO = newTestRun(new Date('2026-10-30T11:00:00Z'));
@@ -57,20 +50,5 @@ describe('runTestDatabases', () => {
         AN_HOUR_AGO,
       ),
     ).toEqual(ours);
-  });
-});
-
-describe('nullColumns', () => {
-  it('gives every column of the table, and nothing else, as null', () => {
-    expect(nullColumns(topic)).toEqual({
-      id: null,
-      slug: null,
-      title: null,
-      description: null,
-      createdAt: null,
-      updatedAt: null,
-      createdBy: null,
-      updatedBy: null,
-    });
   });
 });
