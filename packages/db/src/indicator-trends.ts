@@ -1,5 +1,10 @@
 import { ENGLAND_AREA_CODE, OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
-import { type TrendDirection, type TrendSummary, trendDirection } from '@fphd/utils/recent-trend';
+import {
+  type TrendDirection,
+  type TrendSettings,
+  type TrendSummary,
+  trendDirection,
+} from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
 import { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
@@ -10,10 +15,9 @@ import {
 } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
-/** A series' trend summary with the value type that picks Fingertips' test for it. */
-interface TrendInput {
+/** A series' trend summary with the value type and measure that pick Fingertips' test for it. */
+interface TrendInput extends TrendSettings {
   summary: TrendSummary;
-  valueType: string | null;
 }
 
 /**
@@ -33,14 +37,19 @@ async function trendInputs(
   if (ids.length === 0) return new Map();
   if (areaCode !== ENGLAND_AREA_CODE) return areaTrendInputs(db, views, ids, areaCode);
   const cached = await db
-    .select({ id: batches.indicatorId, summary: batches.trend, valueType: valueType.name })
+    .select({
+      id: batches.indicatorId,
+      summary: batches.trend,
+      valueType: valueType.name,
+      valueMeasure: indicator.valueMeasure,
+    })
     .from(batches)
     .innerJoin(indicator, eq(indicator.id, batches.indicatorId))
     .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
     .where(and(inArray(batches.indicatorId, ids), eq(batches.version, OBSERVATION_SERIES_VERSION)));
-  const result = new Map(
-    cached.flatMap(({ id, summary, valueType }) =>
-      summary === null ? [] : [[id, { summary, valueType }] as const],
+  const result = new Map<string, TrendInput>(
+    cached.flatMap(({ id, summary, valueType, valueMeasure }) =>
+      summary === null ? [] : [[id, { summary, valueType, valueMeasure }] as const],
     ),
   );
   const missing = ids.filter((id) => !result.has(id));
@@ -71,7 +80,7 @@ export async function indicatorTrendDirections(
   const inputs = await trendInputs(db, views, ids, areaCode);
   return new Map(
     [...inputs].map(
-      ([id, { summary, valueType }]) => [id, trendDirection(summary, { valueType })] as const,
+      ([id, { summary, ...settings }]) => [id, trendDirection(summary, settings)] as const,
     ),
   );
 }
@@ -87,6 +96,7 @@ async function areaTrendInputs(
     indicator_id: string;
     trend: TrendSummary;
     value_type: string | null;
+    value_measure: string | null;
   }>(sql`
     with cumulative_periods as (
       select ${observation.indicatorId} as indicator_id, ${observation.dimensionKey} as segment,
@@ -134,7 +144,9 @@ async function areaTrendInputs(
     })} as trend,
       (select ${valueType.name} from ${indicator}
         join ${valueType} on ${valueType.id} = ${indicator.valueTypeId}
-        where ${indicator.id} = s.indicator_id) as value_type
+        where ${indicator.id} = s.indicator_id) as value_type,
+      (select ${indicator.valueMeasure} from ${indicator}
+        where ${indicator.id} = s.indicator_id) as value_measure
     from series s join points p on p.indicator_id = s.indicator_id and p.segment = s.segment
         and p.period_type = s.period_type
     where s.has_value
@@ -143,8 +155,11 @@ async function areaTrendInputs(
   `);
   return new Map(
     rows.map(
-      ({ indicator_id, trend, value_type }) =>
-        [indicator_id, { summary: trend, valueType: value_type }] as const,
+      ({ indicator_id, trend, value_type, value_measure }) =>
+        [
+          indicator_id,
+          { summary: trend, valueType: value_type, valueMeasure: value_measure },
+        ] as const,
     ),
   );
 }

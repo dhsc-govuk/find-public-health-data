@@ -26,7 +26,7 @@ import {
 import { periodLabel } from '@fphd/utils/period-label';
 import type { PublicYearType } from '@fphd/utils/period-type';
 import type { Polarity } from '@fphd/utils/polarity';
-import { type TrendDirection, trendDirection } from '@fphd/utils/recent-trend';
+import { type TrendDirection, type TrendSettings, trendDirection } from '@fphd/utils/recent-trend';
 
 import { formatConfidenceLimit } from './confidence-interval.ts';
 
@@ -870,7 +870,7 @@ export const NO_ENGLAND_TREND: RecentTrend = {
  */
 export function recentTrend(
   observations: IndicatorObservation[],
-  { polarity, valueType }: { polarity: Polarity | null; valueType: string | null },
+  { polarity, valueType, valueMeasure }: { polarity: Polarity | null } & TrendSettings,
   precomputed?: TrendDirection,
 ): RecentTrend {
   const series = trendSeries(observations);
@@ -892,7 +892,9 @@ export function recentTrend(
       reason: 'periods shorter than a year',
     };
   const direction =
-    precomputed === undefined ? trendDirection(seriesTrend(series), { valueType }) : precomputed;
+    precomputed === undefined
+      ? trendDirection(seriesTrend(series), { valueType, valueMeasure })
+      : precomputed;
   if (direction === null) return UNCALCULATED_TREND;
   if (direction === 'right') return { direction, label: 'No significant change', tone: 'yellow' };
   const goodDirection = polarityGoodDirection(polarity);

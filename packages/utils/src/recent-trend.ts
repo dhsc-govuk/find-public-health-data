@@ -32,6 +32,8 @@ export interface TrendSummary {
 
 export interface TrendSettings {
   valueType: string | null;
+  /** What the values measure: a gap in percentage points has no trend. */
+  valueMeasure: string | null;
 }
 
 export const TREND_POINTS = 5;
@@ -83,15 +85,27 @@ export function summariseTrend(series: readonly TrendObservation[], annual: bool
   };
 }
 
+/**
+ * Whether Fingertips refuses a recent trend for the value type, whatever the data. Fingertips
+ * refuses its Percentage point value type, which the service holds as a gap in percentage points.
+ */
+export function trendRefusedForValueType({ valueType, valueMeasure }: TrendSettings): boolean {
+  return (
+    valueType === 'Count' ||
+    valueType === 'Score' ||
+    (valueType === 'Gap' && valueMeasure === 'percentage-points')
+  );
+}
+
 /** Null when Fingertips would say the trend cannot be calculated. */
 export function trendDirection(
   summary: TrendSummary | null | undefined,
-  { valueType }: TrendSettings,
+  settings: TrendSettings,
 ): TrendDirection {
+  const { valueType } = settings;
   if (
     !valueType ||
-    valueType === 'Count' ||
-    valueType === 'Score' ||
+    trendRefusedForValueType(settings) ||
     !summary?.annual ||
     summary.run < TREND_POINTS ||
     summary.runHasCountEqualToDenominator

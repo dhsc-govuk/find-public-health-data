@@ -20,7 +20,7 @@ import {
 } from './observation-series.ts';
 import { trendDirection } from './recent-trend.ts';
 
-const trendSettings = { valueType: 'Proportion' };
+const trendSettings = { valueType: 'Proportion', valueMeasure: null };
 const trendObservation = (value: number | null) => ({
   value,
   count: value === null ? null : value * 10,

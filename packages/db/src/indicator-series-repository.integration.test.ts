@@ -185,7 +185,7 @@ it.each([
           const expected = tableSummary(
             tableAreaSeries(full.get(model.indicatorId)?.areaData ?? []),
             mode,
-            { valueType: 'Proportion' },
+            { valueType: 'Proportion', valueMeasure: null },
           );
           const actual = (
             await getIndicatorSeriesData(tx, publishedViews, [model.indicatorId], codes, mode)
@@ -238,7 +238,11 @@ it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], 
         const expected =
           mode === 'ranking'
             ? { areaData: rankingAreaSeries(history) }
-            : tableSummary(tableAreaSeries(history), mode, settings.get(id) ?? { valueType: null });
+            : tableSummary(
+                tableAreaSeries(history),
+                mode,
+                settings.get(id) ?? { valueType: null, valueMeasure: null },
+              );
         const actual = cached?.get(id);
         const normaliseAreas = (areas: IndicatorAreaData[]) =>
           areas.map((area) => ({

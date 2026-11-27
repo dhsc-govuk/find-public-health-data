@@ -205,15 +205,16 @@ it.each(publishedTrends.samples)(
   '$key preserves the published marker through SQL, fallback and cached reads',
   async (sample) => {
     const fixture = await publishedIndicator(`Published trend ${sample.key}`);
-    // The import makes a Fingertips percentage point a gap, as the service has no Percentage point
-    // value type.
-    const typeName = sample.valueType === 'Percentage point' ? 'Gap' : sample.valueType;
+    // The import makes a Fingertips percentage point a gap in percentage points, as the service
+    // has no Percentage point value type.
+    const percentagePoint = sample.valueType === 'Percentage point';
+    const typeName = percentagePoint ? 'Gap' : sample.valueType;
     const types = await database.db.select().from(valueType);
     const type = types.find(({ name }) => name.toLowerCase() === typeName.toLowerCase());
     if (!type) throw new Error(`Value type fixture missing: ${typeName}`);
     await database.db
       .update(indicatorVersion)
-      .set({ valueTypeId: type.id })
+      .set({ valueTypeId: type.id, valueMeasure: percentagePoint ? 'percentage-points' : null })
       .where(eq(indicatorVersion.id, fixture.versionId));
     await database.db.insert(observation).values(
       sample.observations.flatMap((point) =>
@@ -257,6 +258,54 @@ it.each(publishedTrends.samples)(
         [WEST_SUSSEX]: expected,
       });
     }
+  },
+);
+
+it.each([
+  ['percentage-points', null],
+  [null, 'up'],
+] as const)(
+  'gives a gap measured in %s the trend %s through SQL, fallback and cached reads',
+  async (valueMeasure, expected) => {
+    const fixture = await publishedIndicator(`Gap trend ${valueMeasure ?? 'unmeasured'}`);
+    const [gap] = await database.db.select().from(valueType).where(eq(valueType.name, 'Gap'));
+    if (!gap) throw new Error('Gap value type missing');
+    await database.db
+      .update(indicatorVersion)
+      .set({ valueTypeId: gap.id, valueMeasure })
+      .where(eq(indicatorVersion.id, fixture.versionId));
+    const codes = ['E92000001', WEST_SUSSEX];
+    for (const areaId of [englandId, westSussexId])
+      await addSeries(fixture, areaId, [1, 2, 3, 4, 5]);
+    // Five valid annual rows with 95% limits, so only the value measure can refuse the trend.
+    expect(
+      (await indicatorTrendSummaries(publicDb, publishedViews, [fixture.id])).get(fixture.id),
+    ).toMatchObject({ annual: true, run: 5, runHasCountEqualToDenominator: false });
+    const assertDirections = async () => {
+      for (const code of codes)
+        expect(
+          await indicatorTrendDirections(publicDb, publishedViews, [fixture.id], code),
+        ).toEqual(new Map([[fixture.id, expected]]));
+    };
+    await assertDirections();
+    const full = (
+      await getIndicatorObservationData(publicDb, publishedViews, [fixture.id], codes, 'table')
+    ).get(fixture.id);
+    expect(full?.tableSeries?.[0]?.trends).toEqual({
+      E92000001: expected,
+      [WEST_SUSSEX]: expected,
+    });
+    await database.db.transaction((tx) =>
+      replaceObservationSeries(tx, fixture.id, fixture.batchId, null),
+    );
+    await assertDirections();
+    const cached = (
+      await getIndicatorSeriesData(publicDb, publishedViews, [fixture.id], codes, 'recent')
+    )?.get(fixture.id);
+    expect(cached?.tableSeries?.[0]?.trends).toEqual({
+      E92000001: expected,
+      [WEST_SUSSEX]: expected,
+    });
   },
 );
 

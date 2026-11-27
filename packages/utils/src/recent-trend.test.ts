@@ -5,10 +5,21 @@ import {
   type TrendObservation,
   type TrendSettings,
   trendDirection,
+  trendRefusedForValueType,
 } from './recent-trend.ts';
 
-const proportion = { valueType: 'Proportion' };
-const rate: TrendSettings = { valueType: 'Crude rate' };
+const settings = (valueType: string | null, valueMeasure: string | null = null) => ({
+  valueType,
+  valueMeasure,
+});
+const proportion = settings('Proportion');
+const rate: TrendSettings = settings('Crude rate');
+
+/** A Fingertips value type as the import holds it: a percentage point becomes a gap. */
+const serviceSettings = (fingertipsValueType: string) =>
+  fingertipsValueType === 'Percentage point'
+    ? settings('Gap', 'percentage-points')
+    : settings(fingertipsValueType);
 
 function year(
   start: number,
@@ -38,19 +49,40 @@ const direction = (series: TrendObservation[], settings = rate, annual = true) =
 
 describe('published live Fingertips series', () => {
   it.each(publishedTrends.samples)('$key matches published marker $marker.Marker', (sample) => {
-    expect(direction(sample.observations, { valueType: sample.valueType }, sample.annual)).toBe(
+    expect(direction(sample.observations, serviceSettings(sample.valueType), sample.annual)).toBe(
       [null, 'up', 'down', 'right'][sample.marker.Marker],
     );
   });
+
+  it.each(publishedTrends.samples)(
+    '$key is refused for its value type only as published',
+    (sample) => {
+      expect(trendRefusedForValueType(serviceSettings(sample.valueType))).toBe(
+        sample.marker.Message === 'The recent trend cannot be calculated for this value type',
+      );
+    },
+  );
 });
 
 describe('valid rows', () => {
   it.each(['Count', 'Score', null])(
     'cannot calculate %s with complete observations',
     (valueType) => {
-      expect(direction(rising, { valueType })).toBeNull();
+      expect(direction(rising, settings(valueType))).toBeNull();
     },
   );
+
+  it('cannot calculate a gap in percentage points with complete observations', () => {
+    const percentagePoints = settings('Gap', 'percentage-points');
+    expect(trendRefusedForValueType(percentagePoints)).toBe(true);
+    expect(direction(rising, percentagePoints)).toBeNull();
+  });
+
+  it.each([null, 'years'])('allows a gap measured in %s', (valueMeasure) => {
+    const gap = settings('Gap', valueMeasure);
+    expect(trendRefusedForValueType(gap)).toBe(false);
+    expect(direction(rising, gap)).toBe('up');
+  });
 
   it.each([
     'Directly standardised rate',
@@ -60,7 +92,7 @@ describe('valid rows', () => {
     'Ratio',
     'Mean',
   ])('allows %s when the observations support the calculation', (valueType) => {
-    expect(direction(rising, { valueType })).toBe('up');
+    expect(direction(rising, settings(valueType))).toBe('up');
   });
 
   it('only calculates a series of annual periods', () => {

@@ -14,6 +14,7 @@ export function indicatorDetail(
     slug: `indicator-${shortId}`,
     name: `Indicator ${shortId}`,
     valueType: 'Crude rate',
+    valueMeasure: null,
     unit: '%',
     yearType: { value: 'calendar', label: 'Calendar year' },
     updateFrequency: 'annually',

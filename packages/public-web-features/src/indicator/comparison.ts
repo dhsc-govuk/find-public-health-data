@@ -37,7 +37,7 @@ export function comparisonTable(
   ) =>
     recentTrend(
       cell.series,
-      byId.get(row.shortId)?.detail ?? { polarity: null, valueType: null },
+      byId.get(row.shortId)?.detail ?? { polarity: null, valueType: null, valueMeasure: null },
       cell.trendDirection,
     );
   const hasPickedAreas = areas.some(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);

@@ -15,6 +15,7 @@ const indicatorDetail = {
   slug: 'under-75-mortality-rate-from-all-causes',
   name: 'Under 75 mortality rate from all causes',
   valueType: 'Directly standardised rate',
+  valueMeasure: null,
   unit: 'per 100,000',
   yearType: { value: 'calendar' as const, label: 'Calendar' },
   updateFrequency: 'annually' as const,

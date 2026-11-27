@@ -2,6 +2,7 @@ import { z } from '@fphd/config/zod';
 import { ISO_AGE_DURATION } from '@fphd/utils/age-range';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import { CONTROL_CHARACTER } from '@fphd/utils/control-character';
+import { MEASURES } from '@fphd/utils/counts-and-values';
 import { INDICATOR_DATA_STATES, INDICATOR_QUESTIONS } from '@fphd/utils/indicator-page';
 import {
   isObservationPeriodType,
@@ -214,6 +215,8 @@ export const indicatorDetailSchema = z.object({
   slug: indicatorSlugSchema,
   name: z.string().min(1),
   valueType: z.string().min(1),
+  /** What the values measure, where the publisher said; a gap in percentage points has no trend. */
+  valueMeasure: z.enum(MEASURES).nullable(),
   /** Null when the values have no unit, so none is shown beside them. */
   unit: z.string().min(1).nullable(),
   /** Null for an indicator of months, which have no year type. */

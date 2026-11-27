@@ -1,5 +1,5 @@
 import type { CiConfidenceLevel } from '@fphd/utils/ci-confidence-level';
-import { valuesUnit } from '@fphd/utils/counts-and-values';
+import { type Measure, valuesUnit } from '@fphd/utils/counts-and-values';
 import { INDICATOR_QUESTIONS, type IndicatorQuestion } from '@fphd/utils/indicator-page';
 import type { IndicatorSort } from '@fphd/utils/indicator-sort';
 import { ENGLAND_AREA_CODE, type PublishedGrouping } from '@fphd/utils/observation-series';
@@ -204,6 +204,8 @@ export interface IndicatorDetail {
   slug: string;
   name: string;
   valueType: string;
+  /** What the values measure, where the publisher said; a gap in percentage points has no trend. */
+  valueMeasure: Measure | null;
   /** As the public reads it beside a value; null when the values have no unit. */
   unit: string | null;
   /** Null for an indicator of months, which have no year type. */
@@ -513,6 +515,7 @@ export async function getIndicatorDetailsByIds(
           slug: row.slug,
           name: row.name,
           valueType: row.valueType,
+          valueMeasure: row.valueMeasure,
           unit: valuesUnit(row),
           yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
           updateFrequency: row.updateFrequency,

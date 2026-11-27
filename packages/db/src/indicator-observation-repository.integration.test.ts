@@ -40,10 +40,18 @@ it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']]])
       const histories = full.get(id)?.areaData ?? [];
       const pruned = candidates.get(id)?.areaData ?? [];
       expect(candidates.get(id)).toEqual(
-        tableSummary(tableAreaSeries(histories), 'recent', settings.get(id) ?? { valueType: null }),
+        tableSummary(
+          tableAreaSeries(histories),
+          'recent',
+          settings.get(id) ?? { valueType: null, valueMeasure: null },
+        ),
       );
       expect(summaries.get(id)).toEqual(
-        tableSummary(tableAreaSeries(histories), 'latest', settings.get(id) ?? { valueType: null }),
+        tableSummary(
+          tableAreaSeries(histories),
+          'latest',
+          settings.get(id) ?? { valueType: null, valueMeasure: null },
+        ),
       );
       expect(rankings.get(id)?.areaData).toEqual(rankingAreaSeries(histories));
       fullCount += histories.reduce((sum, area) => sum + area.observations.length, 0);
