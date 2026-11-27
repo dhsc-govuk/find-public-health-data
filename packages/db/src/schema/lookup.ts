@@ -12,14 +12,6 @@ export const valueType = pgTable('value_type', {
   ...timestamps,
 });
 
-/** The units of an indicator's values: core data, like the value types. */
-export const unit = pgTable('unit', {
-  id: uuidPrimaryKey(),
-  name: text().notNull().unique(),
-  position: smallint().notNull(),
-  ...timestamps,
-});
-
 export const ciMethod = pgTable(
   'ci_method',
   {

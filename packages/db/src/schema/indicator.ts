@@ -2,6 +2,17 @@ import { AGE_TYPES, AGE_UNIT_DAYS, AGE_UNITS, type AgeType, MAX_AGE } from '@fph
 import { INDICATOR_CALCULATED_BY, type IndicatorCalculatedBy } from '@fphd/utils/calculated-by';
 import { CI_CONFIDENCE_LEVELS } from '@fphd/utils/ci-confidence-level';
 import {
+  GAP_OBJECTS,
+  type GapObject,
+  MEASURES,
+  type Measure,
+  RATE_OBJECTS,
+  RATE_PERS,
+  RATIO_FORMATS,
+  type RateObject,
+  type RatePer,
+} from '@fphd/utils/counts-and-values';
+import {
   INDICATOR_DISCLOSURE_CONTROL,
   type IndicatorDisclosureControl,
 } from '@fphd/utils/disclosure-control';
@@ -34,7 +45,6 @@ import {
   INDIRECTLY_STANDARDISED_VALUE_TYPE_IDS,
   STANDARD_POPULATIONS,
   type StandardPopulation,
-  UNIT_IDS,
   VALUE_TYPE_IDS,
 } from '@fphd/utils/value-type-and-unit';
 import { type AnyColumn, asc, desc, eq, type SQL, sql } from 'drizzle-orm';
@@ -68,7 +78,6 @@ import {
   dataProvider,
   dataProviderSource,
   dataSource,
-  unit,
   valueType,
 } from './lookup.ts';
 import { team } from './team.ts';
@@ -208,15 +217,27 @@ export const indicatorVersion = pgTable(
     // Derived from the name by slugify, and the indicator's public address. An exclusion
     // constraint, which drizzle cannot express, keeps a slug to one indicator for ever.
     slug: text().notNull(),
-    // Value type and units
+    // Value types, counts and units
     valueTypeId: uuid().references(() => valueType.id),
     // Asked of a directly standardised rate only, and the detail of an other population or of
     // the population an indirectly standardised value type is standardised against.
     standardPopulation: text({ enum: STANDARD_POPULATIONS }),
     standardPopulationDetail: text(),
-    unitId: uuid().references(() => unit.id),
-    // The unit a publisher names under "Other".
-    unitDetail: text(),
+    // What the counts and values are. Which of these a value type asks is in
+    // @fphd/utils/counts-and-values, and each detail is the publisher's words under "Other".
+    hasCount: boolean(),
+    countMeasure: text({ enum: MEASURES }),
+    countMeasureDetail: text(),
+    countIsEstimate: boolean(),
+    ratePer: integer().$type<RatePer>(),
+    rateObject: text({ enum: RATE_OBJECTS }),
+    rateObjectDetail: text(),
+    valueSameAsCount: boolean(),
+    valueMeasure: text({ enum: MEASURES }),
+    valueMeasureDetail: text(),
+    gapObject: text({ enum: GAP_OBJECTS }),
+    gapObjectDetail: text(),
+    ratioFormat: text({ enum: RATIO_FORMATS }),
     // Sex, gender and ethnicity: what was collected, and the ones included of each.
     demographics: text({ enum: DEMOGRAPHICS }).array(),
     sexes: text({ enum: SEXES }).array(),
@@ -368,8 +389,41 @@ export const indicatorVersion = pgTable(
       sql`${t.standardPopulation} IS DISTINCT FROM ${literals(['other' satisfies StandardPopulation])} OR ${t.standardPopulationDetail} IS NOT NULL`,
     ),
     check(
-      'indicator_version_unit_detail_check',
-      sql`(${t.unitDetail} IS NOT NULL) = (${t.unitId} IS NOT DISTINCT FROM ${literals([UNIT_IDS.other])})`,
+      'indicator_version_count_measure_check',
+      sql`${t.countMeasure} IN (${literals(MEASURES)})`,
+    ),
+    check(
+      'indicator_version_count_measure_detail_check',
+      detailBesideChoice(t.countMeasure, 'other' satisfies Measure, t.countMeasureDetail),
+    ),
+    check(
+      'indicator_version_rate_per_check',
+      sql`${t.ratePer} IN (${sql.raw(RATE_PERS.join(', '))})`,
+    ),
+    check(
+      'indicator_version_rate_object_check',
+      sql`${t.rateObject} IN (${literals(RATE_OBJECTS)})`,
+    ),
+    check(
+      'indicator_version_rate_object_detail_check',
+      detailBesideChoice(t.rateObject, 'other' satisfies RateObject, t.rateObjectDetail),
+    ),
+    check(
+      'indicator_version_value_measure_check',
+      sql`${t.valueMeasure} IN (${literals(MEASURES)})`,
+    ),
+    check(
+      'indicator_version_value_measure_detail_check',
+      detailBesideChoice(t.valueMeasure, 'other' satisfies Measure, t.valueMeasureDetail),
+    ),
+    check('indicator_version_gap_object_check', sql`${t.gapObject} IN (${literals(GAP_OBJECTS)})`),
+    check(
+      'indicator_version_gap_object_detail_check',
+      detailBesideChoice(t.gapObject, 'other' satisfies GapObject, t.gapObjectDetail),
+    ),
+    check(
+      'indicator_version_ratio_format_check',
+      sql`${t.ratioFormat} IN (${literals(RATIO_FORMATS)})`,
     ),
     check(
       'indicator_version_ci_method_modifications_detail_check',

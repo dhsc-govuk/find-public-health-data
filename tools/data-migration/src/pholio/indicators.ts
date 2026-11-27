@@ -13,7 +13,12 @@ import { INDICATOR_NAME_MAPPINGS, reviewedIndicatorName } from './indicator-name
 import type { PholioRow } from './source.ts';
 import { queryPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
-import { unitValues, unknownUnits, unknownValueTypes, valueTypeId } from './value-type-and-unit.ts';
+import {
+  countsAndValuesColumns,
+  unknownValueTypes,
+  unreadableUnits,
+  valueTypeId,
+} from './value-type-and-unit.ts';
 import { YEAR_TYPES, yearTypeValues } from './year-type.ts';
 
 interface CiLevelRow extends PholioRow {
@@ -162,7 +167,7 @@ export async function exportIndicators(context: PholioExportOptions) {
   );
   if (unmappableValueTypes.length)
     throw new Error(`Cannot translate value types: ${unmappableValueTypes.join(', ')}`);
-  const unmappableUnits = unknownUnits(selectedRows.map((row) => row.UnitName ?? 'No unit'));
+  const unmappableUnits = unreadableUnits(selectedRows.map((row) => row.UnitName ?? 'No unit'));
   if (unmappableUnits.length)
     throw new Error(`Cannot translate units: ${unmappableUnits.join(', ')}`);
   const unmappableYearTypes = selectedRows
@@ -299,8 +304,8 @@ export async function exportIndicators(context: PholioExportOptions) {
 
     const vtName = row.ValueTypeName ?? 'Count';
     const resolvedValueTypeId = valueTypeId(vtName);
-    const unitName = row.UnitName ?? 'No unit';
-    const { unit_id: resolvedUnitId, unit_detail: resolvedUnitDetail } = unitValues(unitName);
+    const countsAndValues = countsAndValuesColumns(vtName, row.UnitName ?? 'No unit', id);
+    if (countsAndValues === undefined) throw new Error(`Indicator ${id}: unit not translated`);
     const yearTypeName = row.YearTypeName;
     const yearTypeEntry = yearTypeName ? yearTypeValues(yearTypeName) : null;
     const ciLevel = ciLevelById.get(id) ?? null;
@@ -343,8 +348,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       value_type_id: resolvedValueTypeId,
       standard_population: null,
       standard_population_detail: null,
-      unit_id: resolvedUnitId,
-      unit_detail: resolvedUnitDetail,
+      ...countsAndValues,
       demographics: null,
       sexes: null,
       genders: null,

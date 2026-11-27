@@ -26,7 +26,6 @@ function committed(list: string, file: string): NamedRecord[] {
 }
 
 const VALUE_TYPES = committed('value types', 'value-types.json');
-const UNITS = committed('units', 'units.json');
 const COMPARATOR_METHODS = committed('comparator methods', 'comparator-methods.json');
 
 describe('the committed core data and seed', () => {
@@ -42,12 +41,10 @@ describe('the committed core data and seed', () => {
     await testDb.drop();
   });
 
-  it('hold the value types and units in the order the files list them', async () => {
+  it('hold the value types in the order the file lists them, and no others', async () => {
     const valueTypes = await sql`SELECT id, name FROM value_type ORDER BY position`;
-    const units = await sql`SELECT id, name FROM unit ORDER BY position`;
 
     expect(valueTypes).toEqual(VALUE_TYPES);
-    expect(units).toEqual(UNITS);
   });
 
   it('hold the comparator methods, which each seeded version names by id', async () => {
@@ -117,8 +114,10 @@ describe('upsertOrderedNames', () => {
     const again = await upsertOrderedNames(db, valueType, VALUE_TYPES);
     const swapped = await upsertOrderedNames(db, valueType, [second, first, ...rest]);
 
-    // The migration's rows all sit at the first position, where the first of them belongs.
-    expect(initial.summary).toEqual({ inserted: 0, updated: VALUE_TYPES.length - 1, unchanged: 1 });
+    // The migrations' rows all sit at the first position, where the first of them belongs. No
+    // migration inserts the two value types the file has listed since, Healthy life expectancy and
+    // Indirectly standardised rate.
+    expect(initial.summary).toEqual({ inserted: 2, updated: VALUE_TYPES.length - 3, unchanged: 1 });
     expect(again.summary).toEqual({ inserted: 0, updated: 0, unchanged: VALUE_TYPES.length });
     expect(swapped.summary).toEqual({
       inserted: 0,

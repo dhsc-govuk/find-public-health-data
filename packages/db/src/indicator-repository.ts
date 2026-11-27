@@ -1,4 +1,5 @@
 import type { CiConfidenceLevel } from '@fphd/utils/ci-confidence-level';
+import { valuesUnit } from '@fphd/utils/counts-and-values';
 import { INDICATOR_QUESTIONS, type IndicatorQuestion } from '@fphd/utils/indicator-page';
 import type { IndicatorSort } from '@fphd/utils/indicator-sort';
 import { ENGLAND_AREA_CODE } from '@fphd/utils/observation-series';
@@ -16,7 +17,6 @@ import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import type { IndicatorSourcePart } from '@fphd/utils/source-part';
 import type { UpdateFrequency } from '@fphd/utils/update-frequency';
 import type { FingertipsFormatting } from '@fphd/utils/value-type-and-unit';
-import { unitLabel } from '@fphd/utils/value-type-and-unit';
 import {
   and,
   asc,
@@ -346,7 +346,6 @@ export async function getIndicatorDetailsByIds(
     indicatorGoal,
     indicatorSource,
     indicatorUpdateSummary,
-    unit,
     valueType,
   } = views;
   if (!indicatorIds.length) return new Map();
@@ -357,9 +356,19 @@ export async function getIndicatorDetailsByIds(
       slug: indicator.slug,
       name: indicator.name,
       valueType: valueType.name,
-      unitId: unit.id,
-      unitName: unit.name,
-      unitDetail: indicator.unitDetail,
+      valueTypeId: indicator.valueTypeId,
+      hasCount: indicator.hasCount,
+      countMeasure: indicator.countMeasure,
+      countMeasureDetail: indicator.countMeasureDetail,
+      ratePer: indicator.ratePer,
+      rateObject: indicator.rateObject,
+      rateObjectDetail: indicator.rateObjectDetail,
+      valueSameAsCount: indicator.valueSameAsCount,
+      valueMeasure: indicator.valueMeasure,
+      valueMeasureDetail: indicator.valueMeasureDetail,
+      gapObject: indicator.gapObject,
+      gapObjectDetail: indicator.gapObjectDetail,
+      ratioFormat: indicator.ratioFormat,
       yearType: indicator.yearType,
       yearEndDay: indicator.yearEndDay,
       yearEndMonth: indicator.yearEndMonth,
@@ -428,7 +437,6 @@ export async function getIndicatorDetailsByIds(
     })
     .from(indicator)
     .leftJoin(valueType, eq(indicator.valueTypeId, valueType.id))
-    .leftJoin(unit, eq(indicator.unitId, unit.id))
     .leftJoin(ciMethod, eq(indicator.ciMethodId, ciMethod.id))
     .leftJoin(comparatorMethod, eq(indicator.comparatorMethodId, comparatorMethod.id))
     .leftJoin(dataSource, eq(indicator.dataSourceId, dataSource.id))
@@ -488,10 +496,7 @@ export async function getIndicatorDetailsByIds(
           slug: row.slug,
           name: row.name,
           valueType: row.valueType,
-          unit:
-            row.unitId === null || row.unitName === null
-              ? null
-              : unitLabel({ id: row.unitId, name: row.unitName }, row.unitDetail),
+          unit: valuesUnit(row),
           yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
           updateFrequency: row.updateFrequency,
           updateFrequencyReason: row.updateFrequencyReason,
@@ -539,16 +544,18 @@ export async function getIndicatorDetailsByIds(
   );
 }
 
-/** The questions a version leaves unanswered. A null unit id is unanswered, not "No unit". */
+/**
+ * The questions a version leaves unanswered. The unit is worked out from the answers about the
+ * counts and values, which follow the value type, so it is answered once the value type is.
+ */
 function unansweredQuestions(row: {
   valueType: string | null;
-  unitId: string | null;
   polarity: Polarity | null;
   updateFrequency: UpdateFrequency | null;
 }): IndicatorQuestion[] {
   const answered: Record<IndicatorQuestion, boolean> = {
     valueType: row.valueType !== null,
-    unit: row.unitId !== null,
+    unit: row.valueType !== null,
     polarity: row.polarity !== null,
     updateFrequency: row.updateFrequency !== null,
   };

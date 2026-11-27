@@ -1,11 +1,13 @@
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { UNIT_IDS } from '@fphd/utils/value-type-and-unit';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { LEGACY_UNITS } from './legacy-value-types-and-units.testing.ts';
 import { migrateBefore, migrateThrough } from './testing.ts';
 
 const MIGRATION = '0042_drop-unit-detail-length-check';
+
+const OTHER_UNIT_ID = LEGACY_UNITS.find(({ name }) => name === 'Other')?.id;
 
 describe(`migration ${MIGRATION}`, () => {
   let testDb: TestDb;
@@ -27,7 +29,7 @@ describe(`migration ${MIGRATION}`, () => {
       INSERT INTO indicator_version
         (indicator_id, name, slug, unit_id, unit_detail, created_by, updated_by)
       SELECT created.id, ${`Indicator ${shortId}`}, ${`indicator-${shortId}`},
-             ${UNIT_IDS.other}, ${unitDetail}, 'migration-test', 'migration-test'
+             ${OTHER_UNIT_ID ?? null}, ${unitDetail}, 'migration-test', 'migration-test'
       FROM created
     `;
   }

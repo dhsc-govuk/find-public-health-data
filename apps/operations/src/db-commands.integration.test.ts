@@ -133,11 +133,6 @@ describe('db seed-dummy-data (integration)', () => {
       error: 'Value types are missing from the database — run `db import-core-data` before seeding',
     },
     {
-      name: 'units are incomplete',
-      statements: ["DELETE FROM unit WHERE name = 'hours'"],
-      error: 'Units are missing from the database — run `db import-core-data` before seeding',
-    },
-    {
       name: 'comparator methods are incomplete',
       statements: ["DELETE FROM comparator_method WHERE name = 'Quintiles'"],
       error:

@@ -12,16 +12,20 @@
     "name": "Directly standardised rate"
   },
   {
-    "id": "01a0d8a5-3ca2-7315-bfca-96ca4c9608e9",
-    "name": "Excess risk"
-  },
-  {
     "id": "01a0d8a5-3ca2-7315-bfca-96cb03846bff",
     "name": "Gap"
   },
   {
+    "id": "01a217b8-441a-7654-b652-f0988bbad8f4",
+    "name": "Healthy life expectancy"
+  },
+  {
     "id": "01a0d8a5-3ca2-7315-bfca-96cc2dc711c3",
     "name": "Indirectly standardised proportion"
+  },
+  {
+    "id": "01a217b8-441c-7078-8e42-15fa9781174a",
+    "name": "Indirectly standardised rate"
   },
   {
     "id": "01a0d8a5-3ca2-7315-bfca-96cda63ea940",
@@ -38,10 +42,6 @@
   {
     "id": "01a0d8a5-3ca2-7315-bfca-96d0928fd186",
     "name": "Median"
-  },
-  {
-    "id": "01a0d8a5-3ca2-7315-bfca-96d1b508d83f",
-    "name": "Percentage point"
   },
   {
     "id": "01a0d8a5-3ca2-7315-bfca-96d2031a65e7",

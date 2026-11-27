@@ -117,7 +117,7 @@ export function sampleAnswers(options: SampleAnswerOptions, now: Date): SampleAn
   return [
     text(valueTypeAndUnitsSection, {
       valueTypeId: named(valueTypesAndUnits.valueTypes, 'Count', 'value type').id,
-      unitId: named(valueTypesAndUnits.units, 'per 100', 'unit').id,
+      countMeasure: 'people',
     }),
     sample(
       sexGenderAndEthnicitySection,

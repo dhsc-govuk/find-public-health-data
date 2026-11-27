@@ -1,5 +1,5 @@
 import { ChartSection } from '@fphd/ui';
-import { formatCalculatedValue } from '../data.ts';
+import { formatCalculatedValue, unitParts, unitSigns } from '../data.ts';
 import type { IndicatorPageDetail } from '../loader.ts';
 import type { sparklineModel } from './chart-data.ts';
 import { chartValue, NoChartData, seriesColours } from './chart-elements.tsx';
@@ -11,7 +11,7 @@ function describeTrend(points: { label: string; value: number | null }[], unit: 
   if (!first || !latest) return '';
   const peak = values.reduce((a, b) => (b.value > a.value ? b : a), first);
   const low = values.reduce((a, b) => (b.value < a.value ? b : a), first);
-  const value = (point: typeof first) => chartValue(point.value, unit === '%' ? unit : null);
+  const value = (point: typeof first) => chartValue(point.value, unitSigns(unit));
   const start = `${chartValue(first.value, unit)} in ${first.label}`;
   const end = `${value(latest)} in ${latest.label}`;
   const description =
@@ -57,15 +57,17 @@ export function Sparkline({
     else lines.push([]);
   }
   const last = coordinates.findLast((point) => point !== null);
+  const unit = unitParts(indicator.unit);
   const endpoint = (point: typeof first) =>
     point ? (
       <span className="govuk-hint">
+        {unit.before}
         {formatCalculatedValue(point.value)}
-        {indicator.unit === '%' ? '%' : null}
-        {indicator.unit && indicator.unit !== '%' ? (
+        {unit.after}
+        {unit.words ? (
           <>
             <br />
-            {indicator.unit}
+            {unit.words}
           </>
         ) : null}
         <br />

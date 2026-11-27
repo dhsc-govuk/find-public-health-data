@@ -13,6 +13,7 @@ import {
   type Measure,
   segmentLabel,
   unitNote,
+  unitParts,
 } from '../data.ts';
 import type { InequalityRow } from '../inequalities.ts';
 import type { IndicatorPageDetail } from '../loader.ts';
@@ -111,7 +112,7 @@ export function InequalitiesTable({
                 ))}
                 <td className="govuk-table__cell govuk-table__cell--numeric">
                   {formatCalculatedValue(benchmark ?? null)}
-                  {benchmark != null && indicator.unit === '%' ? '%' : ''}
+                  {benchmark != null ? unitParts(indicator.unit).after : ''}
                 </td>
                 <td className="govuk-table__cell">Benchmark</td>
               </tr>
@@ -129,7 +130,7 @@ export function InequalitiesTable({
                 ))}
                 <td className="govuk-table__cell govuk-table__cell--numeric">
                   {formatCalculatedValue(observation.value)}
-                  {compare && observation.value != null && indicator.unit === '%' ? '%' : ''}
+                  {compare && observation.value != null ? unitParts(indicator.unit).after : ''}
                   {observation.notes.map(({ text }) => noteMarker(noteTexts, text)).join('')}
                 </td>
                 {compare ? (

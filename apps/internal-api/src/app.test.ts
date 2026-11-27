@@ -175,7 +175,7 @@ describe('internal API', () => {
         findLatest: async () => undefined,
         findDraftDataTable: async () => ({ found: true, dataTable: null }),
       },
-      valueTypesAndUnits: { listOptions: async () => ({ valueTypes: [], units: [] }) },
+      valueTypesAndUnits: { listOptions: async () => ({ valueTypes: [] }) },
     });
     const app = createTestApp(createFakeRepositories(), internalRepositories);
 

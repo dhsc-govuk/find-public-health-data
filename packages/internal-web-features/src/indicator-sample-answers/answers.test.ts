@@ -28,7 +28,7 @@ describe('sampleAnswers', () => {
 
     expect(answers['value-type-and-units']).toMatchObject({
       valueTypeId: '019a0000-0000-7000-8000-000000000002',
-      unitId: '019a0000-0000-7000-8000-000000000004',
+      countMeasure: 'people',
     });
     expect(answers['confidence-intervals']).toMatchObject({
       ciMethodId: '019a0000-0000-7000-8000-000000000005',

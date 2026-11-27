@@ -40,7 +40,7 @@ import {
 import { parseSubtopicsFile, upsertSubtopics } from './subtopic-core-data.ts';
 import { type UpsertResult, upsertTopics } from './topic-import.ts';
 
-const { unit, valueType } = schema;
+const { valueType } = schema;
 
 // Resolves identically from src/ and from dist/, both of which sit one level under the
 // package root alongside data/.
@@ -50,7 +50,6 @@ const ciMethodsFile = fileURLToPath(new URL('../data/ci-methods.json', import.me
 const classificationsFile = fileURLToPath(new URL('../data/classifications.json', import.meta.url));
 const dataProvidersFile = fileURLToPath(new URL('../data/data-providers.json', import.meta.url));
 const valueTypesFile = fileURLToPath(new URL('../data/value-types.json', import.meta.url));
-const unitsFile = fileURLToPath(new URL('../data/units.json', import.meta.url));
 const comparatorMethodsFile = fileURLToPath(
   new URL('../data/comparator-methods.json', import.meta.url),
 );
@@ -64,7 +63,6 @@ export interface CoreDataImport {
   classifications: ClassificationUpsertResult;
   dataProviders: DataProviderUpsertResult;
   valueTypes: NamedUpsertResult;
-  units: NamedUpsertResult;
   comparatorMethods: NamedUpsertResult;
 }
 
@@ -88,7 +86,6 @@ export async function importCoreData(sql: postgres.Sql): Promise<CoreDataImport>
   const classificationRecords = parseClassificationsFile(readJson(classificationsFile));
   const dataProviderRecords = parseDataProvidersFile(readJson(dataProvidersFile));
   const valueTypeRecords = parseNamedRecordsFile('value types', readJson(valueTypesFile));
-  const unitRecords = parseNamedRecordsFile('units', readJson(unitsFile));
   const comparatorMethodRecords = parseNamedRecordsFile(
     'comparator methods',
     readJson(comparatorMethodsFile),
@@ -106,7 +103,6 @@ export async function importCoreData(sql: postgres.Sql): Promise<CoreDataImport>
     classifications: await upsertClassifications(db, classificationRecords),
     dataProviders: await upsertDataProviders(db, dataProviderRecords),
     valueTypes: await upsertOrderedNames(db, valueType, valueTypeRecords),
-    units: await upsertOrderedNames(db, unit, unitRecords),
     comparatorMethods: await upsertComparatorMethods(db, comparatorMethodRecords),
   };
 }
@@ -118,7 +114,6 @@ interface CoreDataCounts {
   classifications: number;
   dataProviders: number;
   valueTypes: number;
-  units: number;
   comparatorMethods: number;
 }
 
@@ -129,9 +124,9 @@ function namedIds(list: string, file: string): string[] {
 
 /**
  * Guard for data that depends on core content: the dummy indicator links reference topics
- * and classifications by id, and the seed points its versions at the CI methods, value types,
- * units and comparator methods, so seeding an environment that has not imported them would
- * silently drop links. The classifications, value types, units and comparator methods are
+ * and classifications by id, and the seed points its versions at the CI methods, value types
+ * and comparator methods, so seeding an environment that has not imported them would silently
+ * drop links. The classifications, value types and comparator methods are
  * checked id by id against the committed files, since a database may hold only some of them.
  * The seed and snapshot map Fingertips' sources onto the data providers.
  */
@@ -142,7 +137,6 @@ export async function assertCoreDataPresent(sql: postgres.Sql): Promise<void> {
     ({ id }) => id,
   );
   const valueTypeIds = namedIds('value types', valueTypesFile);
-  const unitIds = namedIds('units', unitsFile);
   const comparatorMethodIds = namedIds('comparator methods', comparatorMethodsFile);
   let counts: CoreDataCounts | undefined;
   try {
@@ -154,7 +148,6 @@ export async function assertCoreDataPresent(sql: postgres.Sql): Promise<void> {
           AS classifications,
         (SELECT count(*) FROM data_provider)::int AS "dataProviders",
         (SELECT count(*) FROM value_type WHERE id IN ${sql(valueTypeIds)})::int AS "valueTypes",
-        (SELECT count(*) FROM unit WHERE id IN ${sql(unitIds)})::int AS units,
         (SELECT count(*) FROM comparator_method WHERE id IN ${sql(comparatorMethodIds)})::int
           AS "comparatorMethods"
     `;
@@ -180,7 +173,6 @@ export async function assertCoreDataPresent(sql: postgres.Sql): Promise<void> {
     ['Subtopics', counts.subtopics, subtopicIds],
     ['Classifications', counts.classifications, classificationIds],
     ['Value types', counts.valueTypes, valueTypeIds],
-    ['Units', counts.units, unitIds],
     ['Comparator methods', counts.comparatorMethods, comparatorMethodIds],
   ];
 

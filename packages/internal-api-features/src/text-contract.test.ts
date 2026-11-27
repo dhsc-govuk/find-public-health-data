@@ -258,7 +258,10 @@ const sections: [string, number, Refusals, Record<string, string>][] = [
     {
       standardPopulationOther: 'Standard or reference population',
       referencePopulation: 'Standard or reference population',
-      unitDetail: 'Unit',
+      countMeasureDetail: 'What the count is measuring',
+      rateObjectDetail: 'What the rate or proportion is per',
+      valueMeasureDetail: 'What the value is measuring',
+      gapObjectDetail: 'What object the gap is the difference of',
     },
   ],
 ];

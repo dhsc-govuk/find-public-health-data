@@ -11,8 +11,8 @@ let db: Database;
 beforeAll(async () => {
   testDb = await createTestDb();
   db = testDb.db;
-  // Each list in reverse order of id, which no order by name or id would give.
-  for (const table of ['value_type', 'unit']) {
+  // The list in reverse order of id, which no order by name or id would give.
+  for (const table of ['value_type']) {
     await db.execute(sql`
       UPDATE ${sql.identifier(table)} t SET position = r.position
       FROM (
@@ -29,13 +29,12 @@ afterAll(async () => {
 });
 
 describe('listValueTypeAndUnitOptions', () => {
-  it('lists every value type and unit by position, as the form does', async () => {
-    const { valueTypes, units } = await listValueTypeAndUnitOptions(db);
+  it('lists every value type by position, as the form does', async () => {
+    const { valueTypes } = await listValueTypeAndUnitOptions(db);
     const ids = (options: { id: string }[]) => options.map(({ id }) => id);
     const descending = (values: string[]) => [...values].sort().reverse();
 
     expect(valueTypes.length).toBeGreaterThan(1);
     expect(ids(valueTypes)).toEqual(descending(ids(valueTypes)));
-    expect(ids(units)).toEqual(descending(ids(units)));
   });
 });

@@ -1,4 +1,4 @@
-import { UNIT_IDS } from '@fphd/utils/value-type-and-unit';
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -209,16 +209,16 @@ describe('getIndicatorDetailById', () => {
     });
   });
 
-  it('names the unit unanswered when the version has no unit at all', async () => {
+  it('names the unit unanswered when the version has no value type', async () => {
     const id = await resolvedId(GASTROENTERITIS_ADMISSIONS);
     await db.execute(
-      sql`UPDATE indicator_version SET unit_id = NULL, unit_detail = NULL WHERE indicator_id = ${id}`,
+      sql`UPDATE indicator_version SET value_type_id = NULL, rate_per = NULL WHERE indicator_id = ${id}`,
     );
 
     const found = await getIndicatorDetailById(db, publishedViews, id);
 
     expect(found?.unit).toBeNull();
-    expect(found?.unanswered).toContain('unit');
+    expect(found?.unanswered).toEqual(expect.arrayContaining(['valueType', 'unit']));
     expect(found && completeIndicatorDetail(found)).toBeUndefined();
   });
 
@@ -245,15 +245,17 @@ describe('getIndicatorDetailById', () => {
     expect(withEarlier?.lastPublishedAt).toBe(imported?.lastPublishedAt);
   });
 
-  it('names an other unit as its publisher did', async () => {
+  it('labels the values with what the answers say they measure', async () => {
     const id = await resolvedId(GASTROENTERITIS_ADMISSIONS);
     await db.execute(
-      sql`UPDATE indicator_version SET unit_id = ${UNIT_IDS.other}, unit_detail = 'per 1,000 live births'
+      sql`UPDATE indicator_version SET value_type_id = ${VALUE_TYPE_IDS.crudeRate},
+            has_count = true, count_measure = 'admissions',
+            rate_per = 10000, rate_object = 'other', rate_object_detail = 'children aged 0 to 4'
           WHERE indicator_id = ${id}`,
     );
 
     expect((await getIndicatorDetailById(db, publishedViews, id))?.unit).toBe(
-      'per 1,000 live births',
+      'admissions per 10,000 children aged 0 to 4',
     );
   });
 

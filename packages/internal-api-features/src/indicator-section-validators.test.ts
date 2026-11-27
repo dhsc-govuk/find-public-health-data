@@ -1,3 +1,4 @@
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it, vi } from 'vitest';
 import { formatAndSourcesSection, publishingDateSection, toFieldErrors } from './contract.ts';
 import {
@@ -146,16 +147,26 @@ describe('confidenceIntervalsServerSection', () => {
 
 describe('valueTypeAndUnitsServerSection', () => {
   const options = {
-    valueTypes: [{ id: '01a0d8a5-3ca2-7315-bfca-96d2031a65e7', name: 'Proportion' }],
-    units: [{ id: '01a0d8a5-3ca2-7315-bfca-96d615820bd4', name: '%' }],
+    valueTypes: [{ id: VALUE_TYPE_IDS.score, name: 'Score' }],
   };
   const answers = {
-    valueTypeId: '01a0d8a5-3ca2-7315-bfca-96d2031a65e7',
+    valueTypeId: VALUE_TYPE_IDS.score,
     standardPopulation: '',
     standardPopulationOther: '',
     referencePopulation: '',
-    unitId: '01a0d8a5-3ca2-7315-bfca-96d615820bd4',
-    unitDetail: '',
+    hasCount: '',
+    countMeasure: '',
+    countMeasureDetail: '',
+    countIsEstimate: '',
+    ratePer: '',
+    rateObject: '',
+    rateObjectDetail: '',
+    valueSameAsCount: '',
+    valueMeasure: '',
+    valueMeasureDetail: '',
+    gapObject: '',
+    gapObjectDetail: '',
+    ratioFormat: '',
   };
 
   function submit(body: object) {
@@ -174,16 +185,15 @@ describe('valueTypeAndUnitsServerSection', () => {
     return result.success ? undefined : toFieldErrors(result.error, section.fields);
   }
 
-  it('accepts a value type and unit the page offers', async () => {
+  it('accepts a value type the page offers', async () => {
     expect(await fieldErrorsOf(answers)).toBeUndefined();
   });
 
-  it('refuses a value type or unit the page does not offer', async () => {
+  it('refuses a value type the page does not offer', async () => {
     const missing = '00000000-0000-7000-8000-000000000999';
 
-    expect(await fieldErrorsOf({ ...answers, valueTypeId: missing, unitId: missing })).toEqual({
+    expect(await fieldErrorsOf({ ...answers, valueTypeId: missing })).toEqual({
       valueTypeId: 'Select the value type',
-      unitId: 'Select the units',
     });
   });
 

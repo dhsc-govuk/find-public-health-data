@@ -16,13 +16,12 @@ const {
   indicatorVersionSubmission,
   subtopic,
   topic,
-  unit,
   uploadBatch,
   valueType,
 } = schema;
 
 /**
- * The names of the core data the ids refer to, in one statement: CI methods, value types, units,
+ * The names of the core data the ids refer to, in one statement: CI methods, value types,
  * data providers and their sources, topics, subtopics and classifications. Ids are UUIDs, so no
  * two tables share one.
  */
@@ -39,7 +38,6 @@ async function referenceNamesOf(tx: Transaction, ids: readonly string[]): Promis
       .select({ id: valueType.id, name: valueType.name })
       .from(valueType)
       .where(inArray(valueType.id, among)),
-    tx.select({ id: unit.id, name: unit.name }).from(unit).where(inArray(unit.id, among)),
     tx
       .select({ id: dataProvider.id, name: dataProvider.name })
       .from(dataProvider)

@@ -204,7 +204,15 @@ describe('formatting', () => {
 
   it.each([
     ['%', '6.0%', ' (%)'],
+    ['% of people', '6.0% of people', ' (% of people)'],
+    ['£', '£6.0', ' (£)'],
+    ['£ per 1,000 people', '£6.0 per 1,000 people', ' (£ per 1,000 people)'],
     ['per 100,000', '6.0 per 100,000', ' (per 100,000)'],
+    [
+      'admissions per 100,000 people',
+      '6.0 admissions per 100,000 people',
+      ' (admissions per 100,000 people)',
+    ],
     [null, '6.0', ''],
   ])('puts the unit %s beside a value and after a heading', (unit, value, note) => {
     expect(withUnit('6.0', unit)).toBe(value);

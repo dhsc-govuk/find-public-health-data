@@ -195,10 +195,31 @@ export function formatCalculatedValue(value: number | null): string {
   return value === null ? 'No data' : calculatedValueFormat.format(value);
 }
 
-/** A value with its unit: "6.0%", "341.1 per 100,000", or the value alone when it has none. */
+/**
+ * A unit in its parts: a pound sign that goes before the number, a percent sign that goes straight
+ * after it, and any words after those, as "% of people" or "admissions per 100,000 people" give.
+ */
+export function unitParts(unit: string | null): { before: string; after: string; words: string } {
+  const rest = unit ?? '';
+  const before = rest.startsWith('£') ? '£' : '';
+  const afterBefore = rest.slice(before.length).trimStart();
+  const after = afterBefore.startsWith('%') ? '%' : '';
+  return { before, after, words: afterBefore.slice(after.length).trim() };
+}
+
+/** A unit's signs alone, "£" or "%", or null when it has neither. */
+export function unitSigns(unit: string | null): string | null {
+  const { before, after } = unitParts(unit);
+  return before || after ? `${before}${after}` : null;
+}
+
+/**
+ * A value with its unit: "6.0%", "6.0% of people", "£12.0", "341.1 per 100,000", or the value
+ * alone when it has none.
+ */
 export function withUnit(value: string, unit: string | null): string {
-  if (unit === null) return value;
-  return unit === '%' ? `${value}%` : `${value} ${unit}`;
+  const { before, after, words } = unitParts(unit);
+  return `${before}${value}${after}${words ? ` ${words}` : ''}`;
 }
 
 /** The unit after a column heading, " (per 100,000)", or nothing when the values have none. */

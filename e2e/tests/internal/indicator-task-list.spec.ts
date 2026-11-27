@@ -12,7 +12,7 @@ const DATA_TABLE = 'Data table';
 const TASK_GROUPS = {
   Data: [
     DATA_TABLE,
-    'Value type and units',
+    'Value types, counts and units',
     'Sex, gender and ethnicity',
     'Ages',
     'Period type',

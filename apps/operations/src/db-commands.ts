@@ -139,7 +139,6 @@ export async function importCoreData({ sql, logger }: CommandContext): Promise<v
     classifications,
     dataProviders,
     valueTypes,
-    units,
     comparatorMethods,
     references,
     geography,
@@ -200,7 +199,6 @@ export async function importCoreData({ sql, logger }: CommandContext): Promise<v
   }
   const lists = [
     ['Value types', 'Value type', valueTypes],
-    ['Units', 'Unit', units],
     ['Comparator methods', 'Comparator method', comparatorMethods],
   ] as const;
   for (const [plural, singular, { summary, orphaned }] of lists) {

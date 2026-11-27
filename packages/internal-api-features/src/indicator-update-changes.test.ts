@@ -262,7 +262,7 @@ describe('updateChanges', () => {
 
 describe('referencedIds', () => {
   it('lists the core data the answers refer to, leaving out what they leave unanswered', () => {
-    expect(referencedIds({ ...published, unitId: null })).toEqual([
+    expect(referencedIds(published)).toEqual([
       published.ciMethodId,
       published.valueTypeId,
       ons.providerId,

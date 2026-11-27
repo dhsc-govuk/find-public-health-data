@@ -1,6 +1,6 @@
 import { isYearType } from '@fphd/utils/period-type';
 import { hasUpdateFrequencyReason } from '@fphd/utils/update-frequency';
-import { standardisationOf, UNIT_IDS } from '@fphd/utils/value-type-and-unit';
+import { standardisationOf } from '@fphd/utils/value-type-and-unit';
 
 import {
   type Calculation,
@@ -9,6 +9,7 @@ import {
   type ConfidenceIntervals,
   type ConfidenceIntervalsField,
   calculationSection,
+  countsAndValuesOf,
   definitionAndRationaleSection,
   type IndicatorUpdateFrequency,
   justificationsQuestions,
@@ -107,11 +108,24 @@ export const valueTypeAndUnitsColumns: IndicatorSectionColumns<
       standardPopulation: draft.standardPopulation,
       standardPopulationOther: indirect ? null : draft.standardPopulationDetail,
       referencePopulation: indirect ? draft.standardPopulationDetail : null,
-      unitId: draft.unitId,
-      unitDetail: draft.unitDetail,
+      hasCount: yesNoAnswer(draft.hasCount),
+      countMeasure: draft.countMeasure,
+      countMeasureDetail: draft.countMeasureDetail,
+      // The form shows an unticked box for both no and unanswered.
+      countIsEstimate: draft.countIsEstimate === true ? 'yes' : null,
+      ratePer: draft.ratePer === null ? null : String(draft.ratePer),
+      rateObject: draft.rateObject,
+      rateObjectDetail: draft.rateObjectDetail,
+      valueSameAsCount: yesNoAnswer(draft.valueSameAsCount),
+      valueMeasure: draft.valueMeasure,
+      valueMeasureDetail: draft.valueMeasureDetail,
+      gapObject: draft.gapObject,
+      gapObjectDetail: draft.gapObjectDetail,
+      ratioFormat: draft.ratioFormat,
     };
   },
-  // Answers the chosen value type or unit does not ask for are cleared, whatever the form sent.
+  // Answers the chosen value type, or the answers before them, do not ask for are cleared,
+  // whatever the form sent.
   toAttributes: (answers) => {
     const standardisation = standardisationOf(answers.valueTypeId);
     const standardPopulation =
@@ -120,6 +134,7 @@ export const valueTypeAndUnitsColumns: IndicatorSectionColumns<
         : null;
 
     return {
+      ...countsAndValuesOf(answers),
       valueTypeId: answers.valueTypeId,
       standardPopulation,
       standardPopulationDetail:
@@ -128,8 +143,6 @@ export const valueTypeAndUnitsColumns: IndicatorSectionColumns<
           : standardisation === 'indirect'
             ? answers.referencePopulation
             : null,
-      unitId: answers.unitId,
-      unitDetail: answers.unitId === UNIT_IDS.other ? answers.unitDetail : null,
     };
   },
 };

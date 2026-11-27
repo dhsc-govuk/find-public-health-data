@@ -92,21 +92,24 @@ stored total is 433,532 observations.
   types to them, and a name it has no translation for stops the export. Neither export carries a
   `year_type` table; migrations 0034 and 0036 hold the same translation for databases that already
   had Pholio's rows.
-- `indicator_version.value_type_id` and `unit_id` point at the service's own rows, which are core
-  data in `../value-types.json` and `../units.json`, so neither export carries a `value_type` or
-  `unit` table. `export/value_type_and_unit.py` reads the ids from those files and translates
-  Pholio's names; a unit outside the service's list becomes "Other", named in `unit_detail` as
-  Pholio named it. Pholio's placeholders ("Unknown value type 21", "Unknown unit 54") translate as
-  the value type or unit the public Fingertips API gives that id, a unit identified by its label and
-  multiplier. `../../src/pholio-value-types-and-units.json` lists every Pholio value type and unit
-  with what it becomes, and a test checks that each is a name the core data files hold. Any other
-  value type, or a unit named with another placeholder, blank or over 100 characters, stops the
-  export; a version with no unit keeps none. Migration 0035 holds the same translation.
+- `indicator_version.value_type_id` points at the service's own rows, which are core data in
+  `../value-types.json`, so neither export carries a `value_type` table. Fingertips' unit becomes
+  the answers about the counts and values (`rate_per`, `rate_object`, `count_measure`,
+  `value_measure`, `ratio_format` and their details), as far as the value type asks them and the
+  unit says. `export/value_type_and_unit.py` reads the ids from the file and translates Pholio's
+  names, as `tools/data-migration/src/pholio/value-type-and-unit.ts` does for the data migration. A
+  measure or rate object outside the service's lists is "Other", named as Fingertips names it.
+  Pholio's placeholders ("Unknown value type 21", "Unknown unit 54") translate as the value type or
+  unit the public Fingertips API gives that id. `../../src/pholio-value-types-and-units.json` lists
+  every Pholio value type and unit. A percentage point becomes a gap measuring percentage points,
+  and a rate in percent a rate per 100. A unit the value type's questions cannot hold leaves them
+  unanswered. Excess risk, any other value type, and a unit the export cannot read stop the export.
+  `count_is_estimate` is answered beside an answered count measure only, as the form answers it.
 - `observation.count` and `observation.numerator` split Pholio's one Count: it is the numerator for
   an indicator whose value type is calculated from a numerator and a denominator (crude rate,
-  directly standardised rate, indirectly standardised proportion and ratio, proportion and ratio),
-  and the count otherwise. A survey indicator whose count is an estimated number of people, such as
-  smoking prevalence (92443), keeps it as the count whatever its value type.
+  directly standardised rate, indirectly standardised proportion, rate and ratio, proportion and
+  ratio), and the count otherwise. A survey indicator whose count is an estimated number of people,
+  such as smoking prevalence (92443), keeps it as the count whatever its value type.
   `export/split-count-and-numerator.py` moves each count that is a numerator, by the lists in
   `export/count_and_numerator.py`. `countIsNumerator` in `@fphd/utils/value-type-and-unit` holds the
   same lists, and a test checks the committed seed against them. Migration 0052 applied them to

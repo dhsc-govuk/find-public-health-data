@@ -8,11 +8,9 @@ import { loadValueTypeAndUnits } from './loader.ts';
 const id = '00000000-0000-7000-8000-000000000001';
 const sectionPath = `/api/internal/indicators/${id}/value-type-and-units`;
 const valueTypeId = '01a0d8a5-3ca2-7315-bfca-96d2031a65e7';
-const unitId = '01a0d8a5-3ca2-7315-bfca-96d615820bd4';
 
 const options = {
   valueTypes: [{ id: valueTypeId, name: 'Proportion' }],
-  units: [{ id: unitId, name: '%' }],
 };
 
 const unanswered = {
@@ -20,8 +18,19 @@ const unanswered = {
   standardPopulation: '',
   standardPopulationOther: '',
   referencePopulation: '',
-  unitId: '',
-  unitDetail: '',
+  hasCount: '',
+  countMeasure: '',
+  countMeasureDetail: '',
+  countIsEstimate: '',
+  ratePer: '',
+  rateObject: '',
+  rateObjectDetail: '',
+  valueSameAsCount: '',
+  valueMeasure: '',
+  valueMeasureDetail: '',
+  gapObject: '',
+  gapObjectDetail: '',
+  ratioFormat: '',
 };
 
 function context(api: FakeApiClient) {
@@ -45,7 +54,7 @@ function isNotFound(error: unknown) {
 }
 
 describe('loadValueTypeAndUnits', () => {
-  it("fills the form with the draft's answers and offers every value type and unit", async () => {
+  it("fills the form with the draft's answers and offers every value type", async () => {
     const api = createFakeApiClient({
       [`GET ${sectionPath}`]: {
         answers: {
@@ -53,8 +62,19 @@ describe('loadValueTypeAndUnits', () => {
           standardPopulation: null,
           standardPopulationOther: null,
           referencePopulation: null,
-          unitId,
-          unitDetail: null,
+          hasCount: 'yes',
+          countMeasure: 'people',
+          countMeasureDetail: null,
+          countIsEstimate: null,
+          ratePer: null,
+          rateObject: null,
+          rateObjectDetail: null,
+          valueSameAsCount: null,
+          valueMeasure: null,
+          valueMeasureDetail: null,
+          gapObject: null,
+          gapObjectDetail: null,
+          ratioFormat: null,
         },
         version: SHOWN_VERSION,
       },
@@ -69,7 +89,7 @@ describe('loadValueTypeAndUnits', () => {
     ]);
     expect(outcome).toEqual({
       id,
-      values: { ...unanswered, valueTypeId, unitId },
+      values: { ...unanswered, valueTypeId, hasCount: 'yes', countMeasure: 'people' },
       version: SHOWN_VERSION,
       ...options,
     });

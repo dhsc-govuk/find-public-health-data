@@ -39,8 +39,9 @@ async function approvedWithRegion(browser: Browser) {
     const draftId = await createDraft(page, name);
     await completeDraft(page, draftId);
     await page.goto(`/publish/indicators/${draftId}/value-type-and-units`);
-    await page.getByLabel('Select value type').selectOption({ label: 'Proportion' });
-    await page.getByLabel('Select units').selectOption({ label: '%' });
+    await page.getByLabel('What is the value type?').selectOption({ label: 'Proportion' });
+    await page.getByRole('group', { name: 'Is there a count?' }).getByLabel('No').check();
+    await page.getByLabel('What is the value measuring?').selectOption({ label: 'people' });
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.goto(`/publish/indicators/${draftId}/update-frequency`);
     await page.getByLabel('No fixed frequency', { exact: true }).check();

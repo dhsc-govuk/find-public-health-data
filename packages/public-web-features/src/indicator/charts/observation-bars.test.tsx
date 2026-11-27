@@ -5,6 +5,9 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { indicatorDetail, observation } from '../view.testing.ts';
 import { ObservationBars, wrapCategory } from './observation-bars.tsx';
 
+// The width the chart is drawn at, which a test may narrow to a phone's.
+let canvasWidth = 640;
+
 vi.mock('./chart-elements.tsx', async (original) => ({
   ...(await original<typeof import('./chart-elements.tsx')>()),
   ChartCanvas: ({
@@ -16,13 +19,16 @@ vi.mock('./chart-elements.tsx', async (original) => ({
   }) => (
     <div ref={chartRef}>
       {cloneElement(children('description') as ReactElement<{ width: number; height: number }>, {
-        width: 640,
+        width: canvasWidth,
         height: 400,
       })}
     </div>
   ),
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  canvasWidth = 640;
+});
 
 it.each([
   [undefined, 'higher-is-better', ['#f46a25', '#ffc000', '#12436d']],
@@ -95,3 +101,32 @@ it('wraps full category names at word boundaries without shortening them', () =>
     '(IMD2019)',
   ]);
 });
+
+it.each([375, 1280])(
+  'labels the bars with the unit signs alone, so a long unit leaves them their width at %ipx',
+  (width) => {
+    canvasWidth = width;
+    const { container } = render(
+      <ObservationBars
+        rows={[8, 12].map((value) => ({
+          key: String(value),
+          name: String(value),
+          observation: observation(value),
+        }))}
+        confidence="none"
+        indicator={indicatorDetail(108, { unit: 'admissions per 100,000 people' })}
+        title="Bars"
+        group="Area"
+      />,
+    );
+
+    expect(
+      [...container.querySelectorAll('.fphd-bar-value')].map((label) => label.textContent),
+    ).toEqual(['12.0', '8.0']);
+    const barWidths = [...container.querySelectorAll('.recharts-bar-rectangle path')].map((bar) =>
+      Number(bar.getAttribute('width')),
+    );
+    expect(Math.min(...barWidths)).toBeGreaterThan(0);
+    expect(Math.max(...barWidths)).toBeGreaterThan(width / 4);
+  },
+);

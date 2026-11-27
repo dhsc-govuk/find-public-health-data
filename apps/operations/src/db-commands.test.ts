@@ -304,7 +304,6 @@ describe('importCoreData', () => {
         orphaned: [{ id: 'provider-id', name: 'A provider' }],
       },
       valueTypes: { summary, orphaned: [{ id: 'value-type-id', name: 'A value type' }] },
-      units: { summary, orphaned: [{ id: 'unit-id', name: 'A unit' }] },
       comparatorMethods: { summary, orphaned: [{ id: 'comparator-id', name: 'A comparator' }] },
       geography: { area: { summary, orphaned: 0 }, area_relationship: { summary, orphaned: 0 } },
       references: Object.fromEntries(
@@ -329,7 +328,6 @@ describe('importCoreData', () => {
       { id: 'classification-id', slug: 'a-tag' },
       { id: 'provider-id', providerOrSourceName: 'A provider' },
       { id: 'value-type-id', entryName: 'A value type' },
-      { id: 'unit-id', entryName: 'A unit' },
       { id: 'comparator-id', entryName: 'A comparator' },
     ]);
   });
