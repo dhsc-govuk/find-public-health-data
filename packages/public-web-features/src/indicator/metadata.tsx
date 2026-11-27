@@ -9,8 +9,8 @@ import type {
   IndicatorProviderSource,
   IndicatorQuestion,
 } from './loader.ts';
-import { dataValueTitle } from './metadata-data.ts';
-import { dataPlaceholder, isUnanswered, NOT_ENTERED_YET } from './placeholders.ts';
+import { dataValueTitle, rollingTimePeriodsText } from './metadata-data.ts';
+import { dataPlaceholder, isPreview, isUnanswered, NOT_ENTERED_YET } from './placeholders.ts';
 import { TrendTag } from './trend-tag.tsx';
 
 export function DefinitionBlock({ title, text }: { title: string; text: string | null }) {
@@ -291,6 +291,19 @@ function CalculationPart({
   );
 }
 
+/** Whether the time periods roll, shown when they do, on the public page and the preview. */
+function rollingTimePeriodsRow(indicator: IndicatorPageDetail) {
+  const text = rollingTimePeriodsText(indicator);
+  return text === null ? [] : [{ name: 'Rolling time periods', children: text }];
+}
+
+/** Whether the values are cumulative, shown when they are, in the publisher's preview alone. */
+function cumulativeValuesRow(indicator: IndicatorPageDetail) {
+  return isPreview(indicator) && indicator.valuesCumulative === true
+    ? [{ name: 'Cumulative values', children: 'Yes' }]
+    : [];
+}
+
 /** About tab: Overview, Data attributes, Calculation, Other notes, and History. */
 export function BackgroundInformation({
   indicator,
@@ -339,7 +352,9 @@ export function BackgroundInformation({
               (dimensionValues(observations, 'Sex').join(', ') ||
                 (observations.length ? 'Persons' : null)),
           ),
-          ...attribute('Year type', indicator.yearType?.label ?? null),
+          ...answer('Time periods', 'timePeriods', indicator.timePeriods),
+          ...rollingTimePeriodsRow(indicator),
+          ...cumulativeValuesRow(indicator),
           ...updateFrequencyRow('Frequency', indicator),
           ...answer(
             'Polarity',

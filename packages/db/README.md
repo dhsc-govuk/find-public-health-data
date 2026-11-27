@@ -65,7 +65,7 @@ src/
 - **Vocabularies**: a closed set whose values the code behaves on is a checked text column,
   `text({ enum })` beside a check written with `literals()` over the list in its `@fphd/utils`
   module, which also holds the labels and which the contracts and pages import, as `polarity`,
-  `period_type` and `year_type` do. An open list a publisher chooses from is core data (see
+  `time_periods` and `year_type` do. An open list a publisher chooses from is core data (see
   `@fphd/db-operations`), and no new migration inserts its rows.
 - **Yes/no answers and details**: a yes/no answer is `has_<subject>`, always positive, the text
   beside it `<subject>_detail`, and the text beside an "other" choice `<question>_detail`
@@ -130,7 +130,7 @@ version's batch: each version points at the upload batch holding its data
 `published.observation` shows the rows of the batch the current published version points at, with
 `published.observation_dimension` and `published.observation_note` following it. The version's
 nullable `published_from` date also hides observations whose `from_date` precedes it. A null date
-shows the whole batch. The cutoff lives beside `period_type` and `year_type` on `indicator_version`
+shows the whole batch. The cutoff lives beside `time_periods` and `year_type` on `indicator_version`
 so publishing switches the source metadata and its data visibility together. Publishing therefore
 switches an indicator's data over in one step, and a draft's rows never show. The read-model rebuild
 resolves the same published batch and cutoff once per indicator and applies the shared visibility

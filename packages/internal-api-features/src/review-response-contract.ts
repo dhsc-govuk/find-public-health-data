@@ -18,7 +18,7 @@ export const INDICATOR_TASK_TITLES: Readonly<Record<IndicatorTaskKey, string>> =
   'value-type-and-units': 'Value types, counts and units',
   'sex-gender-and-ethnicity': 'Sex, gender and ethnicity',
   ages: 'Ages',
-  'period-type': 'Period type',
+  'period-type': 'Time periods',
   polarity: 'Polarity',
   name: 'Name',
   'definition-and-rationale': 'Definition and rationale',

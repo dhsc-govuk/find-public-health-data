@@ -1,8 +1,8 @@
 import { z } from '@fphd/config';
 import { CORE_REFERENCE_TABLES, PACKAGE_GEOGRAPHY_TABLES, SEED_TABLES } from './seed-tables.ts';
 
-export const DATA_MIGRATION_FORMAT_VERSION = 14;
-export const DATA_MIGRATION_SCHEMA = 'canonical-v14';
+export const DATA_MIGRATION_FORMAT_VERSION = 15;
+export const DATA_MIGRATION_SCHEMA = 'canonical-v15';
 export const DATA_MIGRATION_TABLES = SEED_TABLES;
 // The importer reads these as complete lists, pointing versions at core data by name and
 // staging legacy sources, and stores none of their rows. An incremental therefore carries each in

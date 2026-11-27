@@ -2,7 +2,12 @@ import { apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { type LoaderFunctionArgs, redirect } from 'react-router';
 import type { IndicatorQuestion } from './loader.ts';
-import { dataValueTitle, providerSourceText, updateFrequencyLine } from './metadata-data.ts';
+import {
+  dataValueTitle,
+  providerSourceText,
+  rollingTimePeriodsText,
+  updateFrequencyLine,
+} from './metadata-data.ts';
 import { indicatorPageContext } from './page-context.ts';
 import { isIndicatorSegment, redirectStatus } from './paths.ts';
 import { isUnanswered, NOT_ENTERED_YET } from './placeholders.ts';
@@ -28,7 +33,8 @@ export async function loadIndicatorMetadata({
     ['Rationale', detail.rationale],
     ['Value type', answer('valueType', detail.valueType)],
     ['Unit', answer('unit', detail.unit)],
-    ['Year type', detail.yearType?.label],
+    ['Time periods', answer('timePeriods', detail.timePeriods)],
+    ['Rolling time periods', rollingTimePeriodsText(detail)],
     ['Update frequency', answer('updateFrequency', updateFrequencyLine(detail))],
     ['Data source', detail.dataSource?.name],
     ['Data source URL', detail.dataSource?.url],

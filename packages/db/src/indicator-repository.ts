@@ -6,8 +6,9 @@ import { ENGLAND_AREA_CODE, type PublishedGrouping } from '@fphd/utils/observati
 import type { Period } from '@fphd/utils/period-label';
 import {
   type PublicYearType,
-  publicYearType,
-  type YearEnd,
+  type RollingFrequency,
+  shownYearType,
+  timePeriodsText,
   yearTypeValuesLabelled,
 } from '@fphd/utils/period-type';
 import type { Polarity } from '@fphd/utils/polarity';
@@ -78,7 +79,7 @@ export interface IndicatorSearchRow {
   classifications: { dimension: string; slug: string; name: string }[];
   /** England's latest period in the series the topic Data tab shows first; null without one. */
   latestPeriod: Period | null;
-  /** Null for an indicator of months, which have no year type. */
+  /** Null for an indicator of quarters, months or date ranges alone, which have no year type. */
   yearType: PublicYearType | null;
   dataUpdatedAt: string | null;
 }
@@ -208,8 +209,14 @@ export interface IndicatorDetail {
   valueMeasure: Measure | null;
   /** As the public reads it beside a value; null when the values have no unit. */
   unit: string | null;
-  /** Null for an indicator of months, which have no year type. */
+  /** Null for an indicator of quarters, months or date ranges alone, which have no year type. */
   yearType: PublicYearType | null;
+  /** Each kind of time period the indicator has, in words; null until they are answered. */
+  timePeriods: string | null;
+  /** How often its time periods roll; null for periods that do not roll. */
+  rollingFrequency: RollingFrequency | null;
+  /** Whether its values are cumulative across time periods; null until answered. */
+  valuesCumulative: boolean | null;
   updateFrequency: UpdateFrequency | null;
   /**
    * Why an indicator has no fixed frequency or will no longer be updated. Null beside any other
@@ -377,9 +384,8 @@ export async function getIndicatorDetailsByIds(
       gapObject: indicator.gapObject,
       gapObjectDetail: indicator.gapObjectDetail,
       ratioFormat: indicator.ratioFormat,
-      yearType: indicator.yearType,
-      yearEndDay: indicator.yearEndDay,
-      yearEndMonth: indicator.yearEndMonth,
+      ...timePeriodColumns(indicator),
+      valuesCumulative: indicator.valuesCumulative,
       updateFrequency: indicator.updateFrequency,
       updateFrequencyReason: indicator.updateFrequencyReason,
       updateFrequencyText: indicator.updateFrequencyText,
@@ -517,7 +523,10 @@ export async function getIndicatorDetailsByIds(
           valueType: row.valueType,
           valueMeasure: row.valueMeasure,
           unit: valuesUnit(row),
-          yearType: row.yearType === null ? null : publicYearType(row.yearType, yearEndOf(row)),
+          yearType: shownYearType(row),
+          timePeriods: timePeriodsText(row),
+          rollingFrequency: row.rollingFrequency,
+          valuesCumulative: row.valuesCumulative,
           updateFrequency: row.updateFrequency,
           updateFrequencyReason: row.updateFrequencyReason,
           updateFrequencyText: row.updateFrequencyText,
@@ -587,12 +596,14 @@ function unansweredQuestions(row: {
   valueType: string | null;
   polarity: Polarity | null;
   updateFrequency: UpdateFrequency | null;
+  timePeriods: readonly string[] | null;
 }): IndicatorQuestion[] {
   const answered: Record<IndicatorQuestion, boolean> = {
     valueType: row.valueType !== null,
     unit: row.valueType !== null,
     polarity: row.polarity !== null,
     updateFrequency: row.updateFrequency !== null,
+    timePeriods: row.timePeriods !== null,
   };
   return INDICATOR_QUESTIONS.filter((question) => !answered[question]);
 }
@@ -993,18 +1004,15 @@ export async function searchIndicators(
   }
 
   if (filters.yearTypes.length > 0) {
+    const shown = shownYearTypeSql(indicator);
     conditions.push(
       or(
         ...filters.yearTypes
           .flatMap(yearTypeValuesLabelled)
           .map(({ yearType, yearEnd }) =>
             yearEnd === null
-              ? eq(indicator.yearType, yearType)
-              : and(
-                  eq(indicator.yearType, yearType),
-                  eq(indicator.yearEndDay, yearEnd.day),
-                  eq(indicator.yearEndMonth, yearEnd.month),
-                ),
+              ? sql<boolean>`${shown.yearType} = ${yearType}`
+              : sql<boolean>`${shown.yearType} = ${yearType} AND ${shown.yearEndDay} = ${yearEnd.day} AND ${shown.yearEndMonth} = ${yearEnd.month}`,
           ),
       ) ?? sql<boolean>`false`,
     );
@@ -1162,9 +1170,7 @@ export async function searchIndicators(
         slug: indicator.slug,
         name: indicator.name,
         polarity: indicator.polarity,
-        yearType: indicator.yearType,
-        yearEndDay: indicator.yearEndDay,
-        yearEndMonth: indicator.yearEndMonth,
+        ...shownYearTypeColumns(indicator),
         dataUpdatedAt: indicator.dataUpdatedAt,
         latestPeriod: sql<Period | null>`(${latestEnglandPeriod})`,
       })
@@ -1277,22 +1283,52 @@ export async function searchIndicators(
       topics: topicsByIndicator.get(r.id) ?? [],
       classifications: classificationsByIndicator.get(r.id) ?? [],
       latestPeriod: r.latestPeriod,
-      yearType: r.yearType === null ? null : publicYearType(r.yearType, yearEndOf(r)),
+      yearType: shownYearType(r),
       dataUpdatedAt: r.dataUpdatedAt?.toISOString() ?? null,
     })),
   };
 }
 
-function yearEndOf({
-  yearEndDay,
-  yearEndMonth,
-}: {
-  yearEndDay: number | null;
-  yearEndMonth: number | null;
-}): YearEnd | null {
-  return yearEndDay === null || yearEndMonth === null
-    ? null
-    : { day: yearEndDay, month: yearEndMonth };
+/** The answers about a published indicator's time periods, as the views hold them. */
+function timePeriodColumns(indicator: ViewSet['indicator']) {
+  return {
+    timePeriods: indicator.timePeriods,
+    multipleYearsCount: indicator.multipleYearsCount,
+    dateRangeStartDay: indicator.dateRangeStartDay,
+    dateRangeStartMonth: indicator.dateRangeStartMonth,
+    dateRangeEndDay: indicator.dateRangeEndDay,
+    dateRangeEndMonth: indicator.dateRangeEndMonth,
+    ...shownYearTypeColumns(indicator),
+  };
+}
+
+/** The answers `shownYearType` reads the year type the public sees from. */
+function shownYearTypeColumns(indicator: ViewSet['indicator']) {
+  return {
+    yearType: indicator.yearType,
+    yearEndDay: indicator.yearEndDay,
+    yearEndMonth: indicator.yearEndMonth,
+    multipleYearsYearType: indicator.multipleYearsYearType,
+    multipleYearsEndDay: indicator.multipleYearsEndDay,
+    multipleYearsEndMonth: indicator.multipleYearsEndMonth,
+    periodsRolling: indicator.periodsRolling,
+    rollingFrequency: indicator.rollingFrequency,
+  };
+}
+
+/**
+ * The year type the public reads a published indicator's periods by, and its end date, as SQL
+ * that a search filters on. It follows `shownYearType`: rolling where the time periods roll on by
+ * the quarter or the month, otherwise the single years' year type, or else that of the periods of
+ * more than 1 year.
+ */
+function shownYearTypeSql(indicator: ViewSet['indicator']) {
+  const ofSingleYears = sql`${indicator.yearType} IS NOT NULL`;
+  return {
+    yearType: sql`CASE WHEN ${indicator.periodsRolling} IS TRUE AND ${indicator.rollingFrequency} <> 'years' THEN 'rolling' WHEN ${ofSingleYears} THEN ${indicator.yearType} ELSE ${indicator.multipleYearsYearType} END`,
+    yearEndDay: sql`CASE WHEN ${ofSingleYears} THEN ${indicator.yearEndDay} ELSE ${indicator.multipleYearsEndDay} END`,
+    yearEndMonth: sql`CASE WHEN ${ofSingleYears} THEN ${indicator.yearEndMonth} ELSE ${indicator.multipleYearsEndMonth} END`,
+  };
 }
 
 /** The labels of the year types published indicators have, for the search filter to offer. */
@@ -1303,17 +1339,14 @@ async function listPublishedYearTypeLabels(
 ): Promise<string[]> {
   const { indicator } = views;
   const rows = await db
-    .selectDistinct({
-      yearType: indicator.yearType,
-      yearEndDay: indicator.yearEndDay,
-      yearEndMonth: indicator.yearEndMonth,
-    })
+    .selectDistinct(shownYearTypeColumns(indicator))
     .from(indicator)
     .where(inTopics);
 
-  const labels = rows.flatMap(({ yearType, ...yearEnd }) =>
-    yearType === null ? [] : [publicYearType(yearType, yearEndOf(yearEnd)).label],
-  );
+  const labels = rows.flatMap((row) => {
+    const shown = shownYearType(row);
+    return shown === null ? [] : [shown.label];
+  });
   return [...new Set(labels)].sort((a, b) => a.localeCompare(b));
 }
 

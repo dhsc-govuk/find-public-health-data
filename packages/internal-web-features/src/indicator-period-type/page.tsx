@@ -1,136 +1,243 @@
-import { type PeriodTypeField, periodTypeSection } from '@fphd/internal-api-features/contract';
-import { DateInput, datePartId, datePartName, firstRadioId, Radios, TextInput } from '@fphd/ui';
 import {
-  PERIOD_TYPE_LABELS,
-  PERIOD_TYPES_WITH_YEAR_TYPE,
+  type PeriodTypeField,
+  type PeriodTypeFormValues,
+  periodTypeSection,
+} from '@fphd/internal-api-features/contract';
+import {
+  Checkboxes,
+  DateInput,
+  datePartId,
+  firstCheckboxId,
+  firstRadioId,
+  Radios,
+  TextInput,
+} from '@fphd/ui';
+import {
+  ROLLING_FREQUENCIES,
+  ROLLING_FREQUENCY_LABELS,
+  TIME_PERIOD_LABELS,
+  TIME_PERIODS,
+  type TimePeriod,
+  YEAR_TYPE_DATES,
   YEAR_TYPE_LABELS,
+  YEAR_TYPES,
 } from '@fphd/utils/period-type';
+import type { ReactNode } from 'react';
 
-import type { ControlNames } from '../form-values.ts';
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
 
-/** The period types that ask for a year type, each asking it in its own reveal. */
-type YearTypeSet = (typeof PERIOD_TYPES_WITH_YEAR_TYPE)[number];
+type FieldErrors = Partial<Record<PeriodTypeField, string>>;
 
-type YearTypeField = Exclude<PeriodTypeField, 'periodType' | 'publishedFrom'>;
+type DateField = Exclude<PeriodTypeField, 'timePeriods'>;
 
-/** Without JavaScript every reveal shows, so each set of year type controls has its own names. */
-function yearTypeControls(set: YearTypeSet, control: (group: string, part: string) => string) {
-  return {
-    yearType: `${set}YearType`,
-    yearEndDay: control(`${set}YearEnd`, 'day'),
-    yearEndMonth: control(`${set}YearEnd`, 'month'),
-  } satisfies Record<YearTypeField, string>;
+/** A date input's name, and the fields its day and month answer. */
+interface DateControl {
+  name: string;
+  day: DateField;
+  month: DateField;
 }
 
-function yearTypeSetOf(periodType: string): YearTypeSet | undefined {
-  return PERIOD_TYPES_WITH_YEAR_TYPE.find((set) => set === periodType);
+const MULTIPLE_YEARS_END = {
+  name: 'multipleYearsEnd',
+  day: 'multipleYearsEndDay',
+  month: 'multipleYearsEndMonth',
+} as const satisfies DateControl;
+
+const YEAR_END = {
+  name: 'yearEnd',
+  day: 'yearEndDay',
+  month: 'yearEndMonth',
+} as const satisfies DateControl;
+
+const DATE_RANGE_START = {
+  name: 'dateRangeStart',
+  day: 'dateRangeStartDay',
+  month: 'dateRangeStartMonth',
+} as const satisfies DateControl;
+
+const DATE_RANGE_END = {
+  name: 'dateRangeEnd',
+  day: 'dateRangeEndDay',
+  month: 'dateRangeEndMonth',
+} as const satisfies DateControl;
+
+/** Where the error summary links each date's fields: the day and month inputs themselves. */
+function dateFieldIds({ name, day, month }: DateControl) {
+  return { [day]: datePartId(name, 'day'), [month]: datePartId(name, 'month') };
 }
 
-/** The year type answers are read from the set under the chosen period type, and no other. */
-export function periodTypeControlNames(formData: FormData): ControlNames<PeriodTypeField> {
-  const periodType = formData.get('periodType');
-  const set = typeof periodType === 'string' ? yearTypeSetOf(periodType) : undefined;
-
-  return set === undefined ? {} : yearTypeControls(set, datePartName);
+interface QuestionProps {
+  values: PeriodTypeFormValues;
+  fieldErrors: FieldErrors;
 }
 
-const NO_YEAR_TYPE: Record<YearTypeField, string> = {
-  yearType: '',
-  yearEndDay: '',
-  yearEndMonth: '',
-};
-
-interface YearTypeQuestionProps {
-  set: YearTypeSet;
-  /** The answers and messages of the set under the chosen period type; empty for the other. */
-  values: Record<YearTypeField, string>;
-  fieldErrors: Partial<Record<PeriodTypeField, string>>;
+/** A day and month with no year, as each year ending on a specified date and each date range asks. */
+function DayAndMonth({
+  control,
+  label,
+  values,
+  fieldErrors,
+}: QuestionProps & { control: DateControl; label: ReactNode }) {
+  return (
+    <DateInput
+      defaultValue={{ day: values[control.day], month: values[control.month] }}
+      error={{ day: fieldErrors[control.day], month: fieldErrors[control.month] }}
+      // Without one of its own the component offers an example; the design asks for none.
+      hint={null}
+      label={label}
+      labelClassModifiers="s"
+      name={control.name}
+      year={false}
+    />
+  );
 }
 
-function YearTypeQuestion({ fieldErrors, set, values }: YearTypeQuestionProps) {
-  const { yearEndDay, yearEndMonth, yearType: yearTypeError } = fieldErrors;
-  const yearEndError = { day: yearEndDay, month: yearEndMonth };
-
+/** Which year a kind of period belongs to, its end date asked under "Ending a specified date". */
+function YearTypeQuestion({
+  field,
+  end,
+  values,
+  fieldErrors,
+}: QuestionProps & { field: 'multipleYearsYearType' | 'yearType'; end: DateControl }) {
   return (
     <Radios
       classModifiers="small"
-      defaultValue={values.yearType}
-      error={yearTypeError}
+      defaultValue={values[field]}
+      error={fieldErrors[field]}
       label="Select year type"
       labelClassModifiers="s"
-      name={`${set}YearType`}
-      options={[
-        ...(['calendar', 'financial', 'academic', 'rolling'] as const).map((value) => ({
-          label: YEAR_TYPE_LABELS[value],
-          value,
-        })),
-        {
-          label: YEAR_TYPE_LABELS['specified-end-date'],
-          value: 'specified-end-date',
-          conditional: (
-            <DateInput
-              defaultValue={{ day: values.yearEndDay, month: values.yearEndMonth }}
-              error={yearEndError}
-              // Without one of its own the component offers an example; the design asks for none.
-              hint={null}
-              label={<span className="govuk-visually-hidden">Enter date</span>}
-              name={`${set}YearEnd`}
-              year={false}
-            />
-          ),
-        },
-      ]}
+      name={field}
+      options={YEAR_TYPES.map((value) =>
+        value === 'specified-end-date'
+          ? {
+              label: YEAR_TYPE_LABELS[value],
+              value,
+              conditional: (
+                <DayAndMonth
+                  control={end}
+                  fieldErrors={fieldErrors}
+                  // The day and month labels name the inputs, so the legend is for screen readers.
+                  label={<span className="govuk-visually-hidden">Enter date</span>}
+                  values={values}
+                />
+              ),
+            }
+          : { label: `${YEAR_TYPE_LABELS[value]} (${YEAR_TYPE_DATES[value]})`, value },
+      )}
     />
   );
 }
 
-// The same year type question sits under both Years and Quarters; only the chosen one is read.
-export function PeriodTypePage(form: SectionPageProps<PeriodTypeField>) {
-  const { fieldErrors, values } = form;
-  const chosenSet = yearTypeSetOf(values.periodType);
+/** The questions each kind of time period reveals when it is ticked; quarters and months ask none. */
+function revealed(period: TimePeriod, props: QuestionProps): ReactNode {
+  const { values, fieldErrors } = props;
 
-  const question = (set: YearTypeSet) => (
-    <YearTypeQuestion
-      fieldErrors={set === chosenSet ? fieldErrors : {}}
-      set={set}
-      values={set === chosenSet ? values : NO_YEAR_TYPE}
-    />
-  );
+  switch (period) {
+    case 'multiple-years':
+      return (
+        <>
+          <TextInput
+            autoComplete="off"
+            className="govuk-input--width-2"
+            defaultValue={values.multipleYearsCount}
+            error={fieldErrors.multipleYearsCount}
+            inputMode="numeric"
+            label="Enter number of years"
+            name="multipleYearsCount"
+            spellCheck={false}
+          />
+          <YearTypeQuestion {...props} end={MULTIPLE_YEARS_END} field="multipleYearsYearType" />
+        </>
+      );
+    case 'single-years':
+      return <YearTypeQuestion {...props} end={YEAR_END} field="yearType" />;
+    case 'date-range':
+      return (
+        <>
+          <DayAndMonth {...props} control={DATE_RANGE_START} label="Start date" />
+          <DayAndMonth {...props} control={DATE_RANGE_END} label="End date" />
+        </>
+      );
+    default:
+      return undefined;
+  }
+}
+
+export function PeriodTypePage(form: SectionPageProps<PeriodTypeField, PeriodTypeFormValues>) {
+  const { fieldErrors, values } = form;
+  const props = { fieldErrors, values };
 
   return (
     <IndicatorSectionForm
-      form={form}
       fieldIds={{
-        periodType: firstRadioId('periodType'),
-        ...(chosenSet === undefined
-          ? {}
-          : {
-              ...yearTypeControls(chosenSet, datePartId),
-              yearType: firstRadioId(`${chosenSet}YearType`),
-            }),
+        timePeriods: firstCheckboxId('timePeriods'),
+        multipleYearsYearType: firstRadioId('multipleYearsYearType'),
+        ...dateFieldIds(MULTIPLE_YEARS_END),
+        yearType: firstRadioId('yearType'),
+        ...dateFieldIds(YEAR_END),
+        ...dateFieldIds(DATE_RANGE_START),
+        ...dateFieldIds(DATE_RANGE_END),
+        periodsRolling: firstRadioId('periodsRolling'),
+        rollingFrequency: firstRadioId('rollingFrequency'),
+        valuesCumulative: firstRadioId('valuesCumulative'),
       }}
+      form={form}
       section={periodTypeSection}
-      title="What is the period type in this indicator?"
+      title="Time periods"
     >
-      <Radios
-        defaultValue={values.periodType}
-        error={fieldErrors.periodType}
-        label="Select period type"
+      <Checkboxes
+        defaultValue={values.timePeriods}
+        error={fieldErrors.timePeriods}
+        label="Select all time periods used in this indicator"
         labelHeading="h2"
-        name="periodType"
+        name="timePeriods"
+        // Each kind's questions show without JavaScript. With it, they show only while it is ticked.
+        options={TIME_PERIODS.map((period) => {
+          const conditional = revealed(period, props);
+          return {
+            value: period,
+            label: TIME_PERIOD_LABELS[period],
+            ...(conditional === undefined ? {} : { conditional }),
+          };
+        })}
+      />
+      <Radios
+        defaultValue={values.periodsRolling}
+        error={fieldErrors.periodsRolling}
+        label="Are time periods rolling?"
+        labelHeading="h2"
+        name="periodsRolling"
         options={[
           {
-            label: PERIOD_TYPE_LABELS.years,
-            value: 'years',
-            conditional: question('years'),
+            label: 'Yes',
+            value: 'yes',
+            conditional: (
+              <Radios
+                classModifiers="small"
+                defaultValue={values.rollingFrequency}
+                error={fieldErrors.rollingFrequency}
+                label="Select rolling frequency"
+                labelClassModifiers="s"
+                name="rollingFrequency"
+                options={ROLLING_FREQUENCIES.map((value) => ({
+                  label: ROLLING_FREQUENCY_LABELS[value],
+                  value,
+                }))}
+              />
+            ),
           },
-          {
-            label: PERIOD_TYPE_LABELS.quarters,
-            value: 'quarters',
-            conditional: question('quarters'),
-          },
-          { label: PERIOD_TYPE_LABELS.months, value: 'months' },
+          { label: 'No', value: 'no' },
+        ]}
+      />
+      <Radios
+        defaultValue={values.valuesCumulative}
+        error={fieldErrors.valuesCumulative}
+        label="Are values cumulative across time periods?"
+        labelHeading="h2"
+        name="valuesCumulative"
+        options={[
+          { label: 'Yes', value: 'yes' },
+          { label: 'No', value: 'no' },
         ]}
       />
       <TextInput

@@ -120,6 +120,8 @@ def _csv_value(value):
         return ""
     if value is True or value is False:
         return "t" if value else "f"
+    if isinstance(value, list):
+        return "{" + ",".join(value) + "}"
     return str(value)
 
 
@@ -173,7 +175,7 @@ def main(seed_dir):
         if row["year_type_id"]:
             version.update(
                 {
-                    column: "" if value is None else value
+                    column: _csv_value(value)
                     for column, value in year_type_values(
                         year_type_names[row["year_type_id"]]
                     ).items()

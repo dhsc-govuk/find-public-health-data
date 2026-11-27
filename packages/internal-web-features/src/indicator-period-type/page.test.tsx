@@ -1,30 +1,34 @@
 // @vitest-environment jsdom
+import type { PeriodTypeFormValues } from '@fphd/internal-api-features/contract';
 import { serviceName } from '@fphd/ui';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { noRefusal } from '../testing.ts';
-import { PeriodTypePage, periodTypeControlNames } from './page.tsx';
+import { PeriodTypePage } from './page.tsx';
 
 afterEach(cleanup);
 
-const TITLE = 'What is the period type in this indicator?';
+const TITLE = 'Time periods';
 
-const unanswered = {
-  periodType: '',
+const unanswered: PeriodTypeFormValues = {
+  timePeriods: [],
+  multipleYearsCount: '',
+  multipleYearsYearType: '',
+  multipleYearsEndDay: '',
+  multipleYearsEndMonth: '',
   yearType: '',
   yearEndDay: '',
   yearEndMonth: '',
+  dateRangeStartDay: '',
+  dateRangeStartMonth: '',
+  dateRangeEndDay: '',
+  dateRangeEndMonth: '',
+  periodsRolling: '',
+  rollingFrequency: '',
+  valuesCumulative: '',
   publishedFrom: '',
-};
-
-const quartersEndingOn = {
-  publishedFrom: '',
-  periodType: 'quarters',
-  yearType: 'specified-end-date',
-  yearEndDay: '30',
-  yearEndMonth: '9',
 };
 
 // The error summary's links read router state, so the page renders inside a router.
@@ -36,114 +40,147 @@ function renderPage(props: Partial<Parameters<typeof PeriodTypePage>[0]> = {}) {
   );
 }
 
-function radiosNamed(name: string) {
-  return [...document.querySelectorAll<HTMLInputElement>(`input[type=radio][name="${name}"]`)];
+function inputsNamed(name: string, type: 'radio' | 'checkbox' = 'radio') {
+  return [...document.querySelectorAll<HTMLInputElement>(`input[type=${type}][name="${name}"]`)];
 }
 
-function labelsOf(radios: HTMLInputElement[]) {
-  return radios.map((radio) => radio.labels?.[0]?.textContent);
+function labelsOf(inputs: HTMLInputElement[]) {
+  return inputs.map((input) => input.labels?.[0]?.textContent);
 }
+
+function controlValue(name: string): string | undefined {
+  return (document.getElementsByName(name)[0] as HTMLInputElement | undefined)?.value;
+}
+
+const YEAR_TYPES = [
+  'Calendar (1 January to 31 December)',
+  'Financial (1 April to 31 March)',
+  'Academic (1 September to 31 August)',
+  'Ending a specified date',
+];
 
 describe('PeriodTypePage', () => {
-  it('titles the page with the question and names the period type options', () => {
+  it('titles the page and offers each kind of time period as a checkbox', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { level: 1, name: TITLE })).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Select period type' })).toBeTruthy();
     expect(document.title).toBe(`${TITLE} - ${serviceName} - GOV.UK`);
-    expect(labelsOf(radiosNamed('periodType'))).toEqual(['Years', 'Quarters', 'Months']);
-    expect(radiosNamed('periodType').map(({ value }) => value)).toEqual([
-      'years',
-      'quarters',
-      'months',
+    expect(
+      screen.getByRole('group', { name: 'Select all time periods used in this indicator' }),
+    ).toBeTruthy();
+    expect(labelsOf(inputsNamed('timePeriods', 'checkbox'))).toEqual([
+      'Periods of more than 1 year',
+      'Single years',
+      'Quarters',
+      'Months',
+      'Specific date range',
     ]);
   });
 
-  it('asks the year type under both years and quarters, each under names of its own', () => {
+  it('asks periods of more than 1 year and single years each for a year type of their own', () => {
     renderPage();
 
-    const yearTypes = ['Calendar', 'Financial', 'Academic', 'Rolling', 'Ending a specified date'];
-
-    expect(labelsOf(radiosNamed('yearsYearType'))).toEqual(yearTypes);
-    expect(labelsOf(radiosNamed('quartersYearType'))).toEqual(yearTypes);
+    expect(screen.getByRole('textbox', { name: 'Enter number of years' })).toBeTruthy();
+    expect(labelsOf(inputsNamed('multipleYearsYearType'))).toEqual(YEAR_TYPES);
+    expect(labelsOf(inputsNamed('yearType'))).toEqual(YEAR_TYPES);
     expect(screen.getAllByRole('group', { name: 'Select year type' })).toHaveLength(2);
-    expect(document.getElementsByName('yearsYearEnd[day]')).toHaveLength(1);
-    expect(document.getElementsByName('quartersYearEnd[month]')).toHaveLength(1);
+    expect(document.getElementsByName('multipleYearsEnd[day]')).toHaveLength(1);
+    expect(document.getElementsByName('yearEnd[month]')).toHaveLength(1);
   });
 
-  it('shows the answers under the chosen period type only', () => {
-    renderPage({ values: quartersEndingOn });
+  it('asks a specific date range for the day and month it starts and ends on, with no year', () => {
+    renderPage();
 
-    const [years, quarters] = screen.getAllByRole('group', { name: 'Select year type' });
-    const checked = (group: HTMLElement | undefined) =>
-      within(group as HTMLElement)
-        .getAllByRole('radio')
-        .filter((radio) => (radio as HTMLInputElement).checked);
+    for (const name of ['Start date', 'End date']) {
+      const group = screen.getByRole('group', { name });
+      expect(
+        within(group)
+          .getAllByRole('textbox')
+          .map((input) => input.getAttribute('name')),
+      ).toHaveLength(2);
+    }
+    expect(document.getElementsByName('dateRangeStart[day]')).toHaveLength(1);
+    expect(document.getElementsByName('dateRangeEnd[month]')).toHaveLength(1);
+    expect(document.getElementsByName('dateRangeEnd[year]')).toHaveLength(0);
+  });
 
-    expect(checked(years)).toEqual([]);
-    expect(labelsOf(checked(quarters) as HTMLInputElement[])).toEqual(['Ending a specified date']);
-    expect((document.getElementsByName('quartersYearEnd[day]')[0] as HTMLInputElement).value).toBe(
-      '30',
-    );
-    expect((document.getElementsByName('yearsYearEnd[day]')[0] as HTMLInputElement).value).toBe('');
+  it('asks whether time periods roll, with their frequency under Yes, and whether values add up', () => {
+    renderPage();
+
+    expect(labelsOf(inputsNamed('periodsRolling'))).toEqual(['Yes', 'No']);
+    expect(labelsOf(inputsNamed('rollingFrequency'))).toEqual(['Years', 'Quarters', 'Months']);
+    expect(
+      screen.getByRole('group', { name: 'Are values cumulative across time periods?' }),
+    ).toBeTruthy();
+    expect(labelsOf(inputsNamed('valuesCumulative'))).toEqual(['Yes', 'No']);
+  });
+
+  it("shows the draft's answers", () => {
+    renderPage({
+      values: {
+        ...unanswered,
+        timePeriods: ['multiple-years', 'date-range'],
+        multipleYearsCount: '3',
+        multipleYearsYearType: 'specified-end-date',
+        multipleYearsEndDay: '31',
+        multipleYearsEndMonth: '7',
+        dateRangeStartDay: '1',
+        dateRangeStartMonth: '10',
+        dateRangeEndDay: '31',
+        dateRangeEndMonth: '3',
+        periodsRolling: 'yes',
+        rollingFrequency: 'years',
+        valuesCumulative: 'no',
+      },
+    });
+
+    const checked = (inputs: HTMLInputElement[]) => inputs.filter(({ checked }) => checked);
+
+    expect(labelsOf(checked(inputsNamed('timePeriods', 'checkbox')))).toEqual([
+      'Periods of more than 1 year',
+      'Specific date range',
+    ]);
+    expect(controlValue('multipleYearsCount')).toBe('3');
+    expect(labelsOf(checked(inputsNamed('multipleYearsYearType')))).toEqual([
+      'Ending a specified date',
+    ]);
+    expect(controlValue('multipleYearsEnd[day]')).toBe('31');
+    expect(checked(inputsNamed('yearType'))).toEqual([]);
+    expect(controlValue('dateRangeStart[month]')).toBe('10');
+    expect(controlValue('dateRangeEnd[day]')).toBe('31');
+    expect(labelsOf(checked(inputsNamed('rollingFrequency')))).toEqual(['Years']);
+    expect(labelsOf(checked(inputsNamed('valuesCumulative')))).toEqual(['No']);
   });
 
   // The date is given a message for each part, both missing while nothing is wrong. An absent
   // message must not read as an empty one and mark the date as refused.
-  it('marks nothing on the date while no part of it is refused', () => {
-    renderPage({ values: quartersEndingOn });
+  it('marks nothing on the dates while no part of them is refused', () => {
+    renderPage({ values: { ...unanswered, timePeriods: ['date-range'] } });
 
     expect(document.querySelectorAll('.govuk-input--error')).toHaveLength(0);
     expect(document.querySelectorAll('.govuk-error-message')).toHaveLength(0);
   });
 
-  it('links each refusal to the control under the chosen period type', () => {
-    renderPage({
-      values: quartersEndingOn,
-      fieldErrors: { yearEndDay: 'Date must be a real date' },
-    });
-
-    const link = within(screen.getByRole('alert')).getByRole('link');
-
-    expect(link.getAttribute('href')).toBe('#quartersYearEnd-day');
-    expect(document.querySelectorAll('.govuk-input--error')).toHaveLength(1);
-  });
-
-  it('links a missing year type to the first year type under the chosen period type', () => {
-    renderPage({
-      values: { ...unanswered, periodType: 'years' },
-      fieldErrors: { yearType: 'Select the year type' },
-    });
-
-    expect(within(screen.getByRole('alert')).getByRole('link').getAttribute('href')).toBe(
-      '#yearsYearType-radio-0',
-    );
-  });
-});
-
-describe('periodTypeControlNames', () => {
-  function formData(entries: Record<string, string>) {
-    const data = new FormData();
-    for (const [name, value] of Object.entries(entries)) data.set(name, value);
-    return data;
-  }
-
   it.each([
-    ['years', 'years'],
-    ['quarters', 'quarters'],
-  ])('reads the year type from the controls under %s', (set, periodType) => {
-    expect(periodTypeControlNames(formData({ periodType }))).toEqual({
-      yearType: `${set}YearType`,
-      yearEndDay: `${set}YearEnd[day]`,
-      yearEndMonth: `${set}YearEnd[month]`,
-    });
-  });
+    [
+      'timePeriods',
+      'Select the time periods included in this indicator',
+      '#timePeriods-checkbox-0',
+    ],
+    ['multipleYearsCount', 'Enter the number of years', '#multipleYearsCount-input'],
+    ['multipleYearsYearType', 'Select the year type', '#multipleYearsYearType-radio-0'],
+    ['yearEndMonth', 'Date must include a month', '#yearEnd-month'],
+    ['dateRangeStartDay', 'Enter the start date', '#dateRangeStart-day'],
+    ['rollingFrequency', 'Select the rolling frequency', '#rollingFrequency-radio-0'],
+    [
+      'valuesCumulative',
+      'Select whether values are cumulative across time periods',
+      '#valuesCumulative-radio-0',
+    ],
+  ] as const)('links a refusal of %s to its control', (field, message, href) => {
+    renderPage({ fieldErrors: { [field]: message } });
 
-  it.each([
-    ['months', 'months'],
-    ['no period type', ''],
-  ])('reads no year type for %s', (_, periodType) => {
-    expect(periodTypeControlNames(formData({ periodType }))).toEqual({});
+    expect(within(screen.getByRole('alert')).getByRole('link').getAttribute('href')).toBe(href);
   });
 });
 

@@ -778,6 +778,13 @@
       "when": 1795796915020,
       "tag": "0110_fingertips-recent-trend",
       "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1795801893801,
+      "tag": "0111_time-periods",
+      "breakpoints": true
     }
   ]
 }

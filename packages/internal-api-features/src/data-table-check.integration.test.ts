@@ -15,6 +15,8 @@ import { processDataUpload } from './data-upload-load-repository.ts';
 import { updateIndicatorDraft } from './indicator-draft-repository.ts';
 import { createDraftFromPublished } from './indicator-publish-repository.ts';
 import { ACTOR, AS_ACTOR, lockWaited, newDraft } from './indicator-repository.testing.ts';
+import { periodTypeColumns } from './indicator-section-columns.ts';
+import { periodTypeAnswers } from './period-type.testing.ts';
 import { createInternalRepositories } from './repositories.ts';
 import {
   createRouterTestApp,
@@ -251,7 +253,9 @@ describe('GET /api/internal/indicators/:id/data-table', () => {
       internalDb,
       indicatorId,
       'period-type',
-      { periodType: 'years', yearType: 'specified-end-date', yearEndDay: 31, yearEndMonth: 7 },
+      periodTypeColumns.toAttributes(
+        periodTypeAnswers({ yearType: 'specified-end-date', yearEndDay: '31', yearEndMonth: '7' }),
+      ),
       {},
       AS_ACTOR,
     );
@@ -610,7 +614,9 @@ describe('GET /api/internal/indicators/:id/data-table, filtered', () => {
       internalDb,
       indicatorId,
       'period-type',
-      { periodType: 'years', yearType: 'rolling' },
+      periodTypeColumns.toAttributes(
+        periodTypeAnswers({ periodsRolling: 'yes', rollingFrequency: 'months' }),
+      ),
       {},
       AS_ACTOR,
     );

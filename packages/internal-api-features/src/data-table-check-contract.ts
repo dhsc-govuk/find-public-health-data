@@ -1,5 +1,5 @@
 import { z } from '@fphd/config/zod';
-import { YEAR_TYPES } from '@fphd/utils/period-type';
+import { PUBLIC_YEAR_TYPES } from '@fphd/utils/period-type';
 
 import { DATA_TABLE_COLUMNS } from './data-table-columns.ts';
 import {
@@ -58,9 +58,10 @@ export const dataTableRowSchema = z.object({
  * One page of the draft's uploaded data table, or null if no file has been uploaded yet. It has
  * the columns the file included, the total number of rows, the filters that apply, the number
  * of rows that match them, and the matching rows on this page. A filter whose value isn't in the
- * table is left out. Confirming the table sends back `batchId`. `yearType` is the draft's, and is
- * used to label the periods. `replacesPublished` is true on an update whose draft has a data table
- * of its own, which replaces all of the live indicator's data values.
+ * table is left out. Confirming the table sends back `batchId`. `yearType` is the draft's as the
+ * public reads it, rolling where its time periods roll, and is used to label the periods.
+ * `replacesPublished` is true on an update whose draft has a data table of its own, which replaces
+ * all of the live indicator's data values.
  */
 export const dataTableCheckSchema = z.object({
   dataTable: z
@@ -70,7 +71,7 @@ export const dataTableCheckSchema = z.object({
       rowCount: z.number().int().min(0),
       filters: z.array(dataTableFilterSchema),
       matchingRowCount: z.number().int().min(0),
-      yearType: z.object({ value: z.enum(YEAR_TYPES), label: z.string().min(1) }).nullable(),
+      yearType: z.object({ value: z.enum(PUBLIC_YEAR_TYPES), label: z.string().min(1) }).nullable(),
       replacesPublished: z.boolean(),
       page: z.number().int().min(1),
       rowsPerPage: z.number().int().min(1),

@@ -107,7 +107,7 @@ describe('a new draft with nothing answered', () => {
       unit: null,
       polarity: null,
       updateFrequency: null,
-      unanswered: ['valueType', 'unit', 'polarity', 'updateFrequency'],
+      unanswered: ['valueType', 'unit', 'polarity', 'updateFrequency', 'timePeriods'],
     });
     // The transaction's driver parses timestamps as the client does.
     expect(detail?.firstPublishedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);

@@ -17,8 +17,9 @@ import {
   type IndicatorDisclosureControl,
 } from '@fphd/utils/disclosure-control';
 import {
-  PERIOD_TYPES,
-  PERIOD_TYPES_WITH_YEAR_TYPE,
+  ROLLING_FREQUENCIES,
+  TIME_PERIODS,
+  type TimePeriod,
   YEAR_TYPES,
   type YearType,
 } from '@fphd/utils/period-type';
@@ -155,6 +156,27 @@ function listBesideDemographic(
   return sql`((${demographics} @> ARRAY[${literals([demographic])}]::text[]) IS TRUE) = (${list} IS NOT NULL)`;
 }
 
+/**
+ * An answer a kind of time period asks for, such as the number of years, which the contract
+ * requires when that kind is ticked. It is kept beside that kind being ticked and nothing else.
+ */
+function besideTimePeriod(timePeriods: AnyPgColumn, period: TimePeriod, answer: AnyPgColumn): SQL {
+  return sql`((${timePeriods} @> ARRAY[${literals([period])}]::text[]) IS TRUE) = (${answer} IS NOT NULL)`;
+}
+
+/**
+ * A year type's end date, kept beside a year ending on a specified date and nothing else, with
+ * both its day and its month.
+ */
+function yearEndBesideYearType(yearType: AnyPgColumn, day: AnyPgColumn, month: AnyPgColumn): SQL {
+  return sql`(${day} IS NOT NULL) = (${yearType} IS NOT DISTINCT FROM ${literals(['specified-end-date' satisfies YearType])}) AND (${month} IS NOT NULL) = (${day} IS NOT NULL)`;
+}
+
+/** A day of that month in some year, so 29 February is one. */
+function dayOfMonth(day: AnyPgColumn, month: AnyPgColumn): SQL {
+  return sql`${month} BETWEEN 1 AND 12 AND ${day} BETWEEN 1 AND CASE WHEN ${month} = 2 THEN 29 WHEN ${month} IN (4, 6, 9, 11) THEN 30 ELSE 31 END`;
+}
+
 /** An age in days, as the contract compares ages; null when either part is. */
 function ageInDays(age: AnyPgColumn, unit: AnyPgColumn): SQL {
   const days = Object.entries(AGE_UNIT_DAYS).map(
@@ -249,12 +271,27 @@ export const indicatorVersion = pgTable(
     specificAge: smallint(),
     specificAgeUnit: text({ enum: AGE_UNITS }),
     ageDetail: text(),
-    // Period type
-    periodType: text({ enum: PERIOD_TYPES }),
-    // Asked of years and quarters only, and the end date only of a year ending on a specified one.
+    // Time periods: the kinds of period ticked, each kind keeping the answers it asks for.
+    timePeriods: text({ enum: TIME_PERIODS }).array(),
+    // Periods of more than 1 year ask how many years and which year they belong to.
+    multipleYearsCount: smallint(),
+    multipleYearsYearType: text({ enum: YEAR_TYPES }),
+    multipleYearsEndDay: smallint(),
+    multipleYearsEndMonth: smallint(),
+    // Single years ask which year they belong to. Each year type asks for the end date only of a
+    // year ending on a specified one.
     yearType: text({ enum: YEAR_TYPES }),
     yearEndDay: smallint(),
     yearEndMonth: smallint(),
+    // A specific date range is a window of the year, from one day and month to another, which
+    // recurs every year and may cross the new year.
+    dateRangeStartDay: smallint(),
+    dateRangeStartMonth: smallint(),
+    dateRangeEndDay: smallint(),
+    dateRangeEndMonth: smallint(),
+    periodsRolling: boolean(),
+    rollingFrequency: text({ enum: ROLLING_FREQUENCIES }),
+    valuesCumulative: boolean(),
     publishedFrom: date(),
     // Polarity
     polarity: text({ enum: POLARITIES }),
@@ -541,23 +578,65 @@ export const indicatorVersion = pgTable(
       'indicator_version_age_detail_check',
       detailBesideChoice(t.ageType, 'other' satisfies AgeType, t.ageDetail),
     ),
+    check('indicator_version_time_periods_check', someOf(t.timePeriods, TIME_PERIODS)),
     check(
-      'indicator_version_period_type_check',
-      sql`${t.periodType} IN (${literals(PERIOD_TYPES)})`,
+      'indicator_version_multiple_years_count_check',
+      sql`${t.multipleYearsCount} BETWEEN 2 AND 99`,
+    ),
+    check(
+      'indicator_version_multiple_years_count_period_check',
+      besideTimePeriod(t.timePeriods, 'multiple-years', t.multipleYearsCount),
+    ),
+    check(
+      'indicator_version_multiple_years_year_type_check',
+      sql`${t.multipleYearsYearType} IN (${literals(YEAR_TYPES)})`,
+    ),
+    check(
+      'indicator_version_multiple_years_year_type_period_check',
+      besideTimePeriod(t.timePeriods, 'multiple-years', t.multipleYearsYearType),
+    ),
+    check(
+      'indicator_version_multiple_years_end_check',
+      yearEndBesideYearType(
+        t.multipleYearsYearType,
+        t.multipleYearsEndDay,
+        t.multipleYearsEndMonth,
+      ),
+    ),
+    check(
+      'indicator_version_multiple_years_end_date_check',
+      dayOfMonth(t.multipleYearsEndDay, t.multipleYearsEndMonth),
     ),
     check('indicator_version_year_type_check', sql`${t.yearType} IN (${literals(YEAR_TYPES)})`),
     check(
       'indicator_version_year_type_period_check',
-      sql`(${t.yearType} IS NOT NULL) = (${t.periodType} IS NOT NULL AND ${t.periodType} IN (${literals(PERIOD_TYPES_WITH_YEAR_TYPE)}))`,
+      besideTimePeriod(t.timePeriods, 'single-years', t.yearType),
     ),
     check(
       'indicator_version_year_end_check',
-      sql`(${t.yearEndDay} IS NOT NULL) = (${t.yearType} IS NOT DISTINCT FROM ${literals(['specified-end-date' satisfies YearType])}) AND (${t.yearEndMonth} IS NOT NULL) = (${t.yearEndDay} IS NOT NULL)`,
+      yearEndBesideYearType(t.yearType, t.yearEndDay, t.yearEndMonth),
     ),
-    // A day of that month in some year, so 29 February is one.
+    check('indicator_version_year_end_date_check', dayOfMonth(t.yearEndDay, t.yearEndMonth)),
+    // A date range has both its days and both its months, beside that kind and nothing else.
     check(
-      'indicator_version_year_end_date_check',
-      sql`${t.yearEndMonth} BETWEEN 1 AND 12 AND ${t.yearEndDay} BETWEEN 1 AND CASE WHEN ${t.yearEndMonth} = 2 THEN 29 WHEN ${t.yearEndMonth} IN (4, 6, 9, 11) THEN 30 ELSE 31 END`,
+      'indicator_version_date_range_check',
+      sql`${besideTimePeriod(t.timePeriods, 'date-range', t.dateRangeStartDay)} AND (${t.dateRangeStartMonth} IS NOT NULL) = (${t.dateRangeStartDay} IS NOT NULL) AND (${t.dateRangeEndDay} IS NOT NULL) = (${t.dateRangeStartDay} IS NOT NULL) AND (${t.dateRangeEndMonth} IS NOT NULL) = (${t.dateRangeStartDay} IS NOT NULL)`,
+    ),
+    check(
+      'indicator_version_date_range_start_date_check',
+      dayOfMonth(t.dateRangeStartDay, t.dateRangeStartMonth),
+    ),
+    check(
+      'indicator_version_date_range_end_date_check',
+      dayOfMonth(t.dateRangeEndDay, t.dateRangeEndMonth),
+    ),
+    check(
+      'indicator_version_rolling_frequency_check',
+      sql`${t.rollingFrequency} IN (${literals(ROLLING_FREQUENCIES)})`,
+    ),
+    check(
+      'indicator_version_rolling_frequency_rolling_check',
+      detailBesideYes(t.periodsRolling, t.rollingFrequency),
     ),
     check(
       'indicator_version_data_table_confirmed_check',

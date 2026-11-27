@@ -398,7 +398,10 @@ def add_indicators(cur, metadata, seed_dir):
                has_count, count_measure, count_measure_detail, count_is_estimate, rate_per,
                rate_object, rate_object_detail, value_same_as_count, value_measure,
                value_measure_detail, gap_object, gap_object_detail, ratio_format,
-               period_type, year_type, year_end_day, year_end_month,
+               time_periods, multiple_years_count, multiple_years_year_type,
+               multiple_years_end_day, multiple_years_end_month, year_type, year_end_day,
+               year_end_month, date_range_start_day, date_range_start_month, date_range_end_day,
+               date_range_end_month, periods_rolling, rolling_frequency, values_cumulative,
                ci_method_id, polarity, update_frequency, comparator_method_id,
                ci_confidence_level, definition, rationale, standard_method_used, methodology,
                has_numerator_denominator, numerator_definition, numerator_disclosure_control,
@@ -410,7 +413,8 @@ def add_indicators(cur, metadata, seed_dir):
             VALUES
               (%s, %s, 'published', true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+               %s, %s, %s, %s, %s)
             """,
             (
                 version_id,

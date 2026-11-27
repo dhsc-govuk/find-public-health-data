@@ -14,6 +14,9 @@ const detail = {
   valueMeasure: null,
   unit: 'per 100,000',
   yearType: null,
+  timePeriods: null,
+  rollingFrequency: null,
+  valuesCumulative: null,
   updateFrequency: 'annually',
   updateFrequencyReason: null,
   updateFrequencyText: null,
@@ -73,6 +76,12 @@ describe('indicatorDetailSchema', () => {
 
     expect(parsed).not.toHaveProperty('unanswered');
     expect(parsed).not.toHaveProperty('dataState');
+  });
+
+  it('keeps how often the time periods roll, which the public page shows', () => {
+    expect(indicatorDetailSchema.parse({ ...detail, rollingFrequency: 'months' })).toMatchObject({
+      rollingFrequency: 'months',
+    });
   });
 });
 

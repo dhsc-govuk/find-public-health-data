@@ -1,4 +1,4 @@
-import { isYearType } from '@fphd/utils/period-type';
+import { isYearType, ROLLING_FREQUENCIES, type YearType } from '@fphd/utils/period-type';
 import { hasUpdateFrequencyReason } from '@fphd/utils/update-frequency';
 import { standardisationOf } from '@fphd/utils/value-type-and-unit';
 
@@ -20,6 +20,7 @@ import {
   otherCommentsQuestions,
   otherCommentsSection,
   type PeriodType,
+  type PeriodTypeAnswers,
   type PeriodTypeField,
   type PublishingDate,
   type PublishingDateField,
@@ -184,26 +185,85 @@ export const confidenceIntervalsColumns: IndicatorSectionColumns<
   },
 };
 
-export const periodTypeColumns: IndicatorSectionColumns<PeriodTypeField, PeriodType> = {
+/** A year type the schema has accepted, with its end date only where it asks for one. */
+function yearTypeAttributes(yearType: string, day: string, month: string) {
+  const kept: YearType | null = isYearType(yearType) ? yearType : null;
+  const endsOnDate = kept === 'specified-end-date';
+
+  return {
+    yearType: kept,
+    endDay: endsOnDate ? Number(day) : null,
+    endMonth: endsOnDate ? Number(month) : null,
+  };
+}
+
+/** A day or month a kind of time period asks for, kept only while that kind is ticked. */
+function numberIf(asked: boolean, value: string): number | null {
+  return asked ? Number(value) : null;
+}
+
+export const periodTypeColumns: IndicatorSectionColumns<
+  PeriodTypeField,
+  PeriodType,
+  PeriodTypeAnswers
+> = {
   fromDraft: (draft) => ({
-    periodType: draft.periodType,
+    timePeriods: draft.timePeriods ?? [],
+    multipleYearsCount: numberText(draft.multipleYearsCount),
+    multipleYearsYearType: draft.multipleYearsYearType,
+    multipleYearsEndDay: numberText(draft.multipleYearsEndDay),
+    multipleYearsEndMonth: numberText(draft.multipleYearsEndMonth),
     yearType: draft.yearType,
     yearEndDay: numberText(draft.yearEndDay),
     yearEndMonth: numberText(draft.yearEndMonth),
+    dateRangeStartDay: numberText(draft.dateRangeStartDay),
+    dateRangeStartMonth: numberText(draft.dateRangeStartMonth),
+    dateRangeEndDay: numberText(draft.dateRangeEndDay),
+    dateRangeEndMonth: numberText(draft.dateRangeEndMonth),
+    periodsRolling: yesNoAnswer(draft.periodsRolling),
+    rollingFrequency: draft.rollingFrequency,
+    valuesCumulative: yesNoAnswer(draft.valuesCumulative),
     publishedFrom: draft.publishedFrom,
   }),
-  // Answers the chosen period and year types do not ask for are cleared, whatever the form sent.
-  toAttributes: ({ periodType, yearType, yearEndDay, yearEndMonth, publishedFrom }) => {
-    // The schema has refused any other year type beside years or quarters.
-    const kept = periodType === 'months' || !isYearType(yearType) ? null : yearType;
-    const endsOnDate = kept === 'specified-end-date';
+  // The answers of a kind of time period not ticked are cleared, whatever the form sent, as are
+  // the end date of a year type that does not ask for one and the frequency of periods that do
+  // not roll.
+  toAttributes: (answers) => {
+    const multipleYears = answers.timePeriods.includes('multiple-years');
+    const singleYears = answers.timePeriods.includes('single-years');
+    const dateRange = answers.timePeriods.includes('date-range');
+    const multipleYearsYearType = yearTypeAttributes(
+      multipleYears ? answers.multipleYearsYearType : '',
+      answers.multipleYearsEndDay,
+      answers.multipleYearsEndMonth,
+    );
+    const yearType = yearTypeAttributes(
+      singleYears ? answers.yearType : '',
+      answers.yearEndDay,
+      answers.yearEndMonth,
+    );
+    const rolling = answers.periodsRolling === 'yes';
 
     return {
-      periodType,
-      publishedFrom: publishedFrom || null,
-      yearType: kept,
-      yearEndDay: endsOnDate ? Number(yearEndDay) : null,
-      yearEndMonth: endsOnDate ? Number(yearEndMonth) : null,
+      timePeriods: answers.timePeriods,
+      multipleYearsCount: numberIf(multipleYears, answers.multipleYearsCount),
+      multipleYearsYearType: multipleYearsYearType.yearType,
+      multipleYearsEndDay: multipleYearsYearType.endDay,
+      multipleYearsEndMonth: multipleYearsYearType.endMonth,
+      yearType: yearType.yearType,
+      yearEndDay: yearType.endDay,
+      yearEndMonth: yearType.endMonth,
+      dateRangeStartDay: numberIf(dateRange, answers.dateRangeStartDay),
+      dateRangeStartMonth: numberIf(dateRange, answers.dateRangeStartMonth),
+      dateRangeEndDay: numberIf(dateRange, answers.dateRangeEndDay),
+      dateRangeEndMonth: numberIf(dateRange, answers.dateRangeEndMonth),
+      periodsRolling: rolling,
+      // The schema has refused any other frequency beside rolling time periods.
+      rollingFrequency: rolling
+        ? (ROLLING_FREQUENCIES.find((frequency) => frequency === answers.rollingFrequency) ?? null)
+        : null,
+      valuesCumulative: answers.valuesCumulative === 'yes',
+      publishedFrom: answers.publishedFrom || null,
     };
   },
 };

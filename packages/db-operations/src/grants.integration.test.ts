@@ -71,11 +71,11 @@ async function insertDraftOnlyIndicator(): Promise<void> {
 
   const [version] = await owner<{ id: string }[]>`
     INSERT INTO indicator_version
-      (indicator_id, status, name, slug, value_type_id, period_type, year_type,
+      (indicator_id, status, name, slug, value_type_id, time_periods, year_type,
        polarity, update_frequency, definition, created_by, updated_by)
     SELECT ${draftIndicatorId}, 'draft', 'grants-test draft indicator',
            'grants-test-draft-indicator',
-           vt.id, 'years', 'calendar', 'lower-is-better',
+           vt.id, '{single-years}', 'calendar', 'lower-is-better',
            'annually', 'a draft definition', ${ACTOR}, ${ACTOR}
     FROM value_type vt
     LIMIT 1
@@ -166,9 +166,21 @@ const PUBLISHED_INDICATOR_COLUMNS = [
   'indicator.gap_object text',
   'indicator.gap_object_detail text',
   'indicator.ratio_format text',
+  'indicator.time_periods ARRAY',
+  'indicator.multiple_years_count smallint',
+  'indicator.multiple_years_year_type text',
+  'indicator.multiple_years_end_day smallint',
+  'indicator.multiple_years_end_month smallint',
   'indicator.year_type text',
   'indicator.year_end_day smallint',
   'indicator.year_end_month smallint',
+  'indicator.date_range_start_day smallint',
+  'indicator.date_range_start_month smallint',
+  'indicator.date_range_end_day smallint',
+  'indicator.date_range_end_month smallint',
+  'indicator.periods_rolling boolean',
+  'indicator.rolling_frequency text',
+  'indicator.values_cumulative boolean',
   'indicator.ci_method_id uuid',
   'indicator.polarity text',
   'indicator.update_frequency text',

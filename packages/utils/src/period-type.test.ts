@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { isDayOfMonth, publicYearType, yearTypeValuesLabelled } from './period-type.ts';
+import {
+  isDayOfMonth,
+  publicYearType,
+  shownYearType,
+  type TimePeriodAnswers,
+  timePeriodsText,
+  yearTypeValuesLabelled,
+} from './period-type.ts';
 
 describe('isDayOfMonth', () => {
   it.each([
@@ -128,4 +135,113 @@ describe('yearTypeValuesLabelled', () => {
       expect(yearTypeValuesLabelled(label)).toEqual([]);
     },
   );
+});
+
+const noTimePeriods: TimePeriodAnswers = {
+  timePeriods: null,
+  multipleYearsCount: null,
+  multipleYearsYearType: null,
+  multipleYearsEndDay: null,
+  multipleYearsEndMonth: null,
+  yearType: null,
+  yearEndDay: null,
+  yearEndMonth: null,
+  dateRangeStartDay: null,
+  dateRangeStartMonth: null,
+  dateRangeEndDay: null,
+  dateRangeEndMonth: null,
+  periodsRolling: null,
+  rollingFrequency: null,
+};
+
+describe('shownYearType', () => {
+  it("reads the single years' year type first", () => {
+    expect(
+      shownYearType({
+        ...noTimePeriods,
+        yearType: 'financial',
+        multipleYearsYearType: 'calendar',
+      }),
+    ).toEqual({ value: 'financial', label: 'Financial' });
+  });
+
+  it('reads the year type of periods of more than 1 year where there are no single years', () => {
+    expect(
+      shownYearType({
+        ...noTimePeriods,
+        multipleYearsYearType: 'specified-end-date',
+        multipleYearsEndDay: 31,
+        multipleYearsEndMonth: 3,
+      }),
+    ).toEqual({ value: 'financial', label: 'Financial' });
+  });
+
+  it.each(['quarters', 'months'] as const)(
+    'is rolling for periods rolling on by the %s',
+    (frequency) => {
+      expect(
+        shownYearType({
+          ...noTimePeriods,
+          yearType: 'calendar',
+          periodsRolling: true,
+          rollingFrequency: frequency,
+        }),
+      ).toEqual({ value: 'rolling', label: 'Rolling' });
+    },
+  );
+
+  it('keeps the year type of periods rolling on by the year, which start on one date each year', () => {
+    expect(
+      shownYearType({
+        ...noTimePeriods,
+        multipleYearsYearType: 'academic',
+        periodsRolling: true,
+        rollingFrequency: 'years',
+      }),
+    ).toEqual({ value: 'academic', label: 'Academic' });
+  });
+
+  it('is null for quarters, months and date ranges, which have no year type', () => {
+    expect(shownYearType(noTimePeriods)).toBeNull();
+  });
+});
+
+describe('timePeriodsText', () => {
+  it('is null until the time periods are answered', () => {
+    expect(timePeriodsText(noTimePeriods)).toBeNull();
+  });
+
+  it('words each kind of time period, in the order the page asks them, with its dates', () => {
+    expect(
+      timePeriodsText({
+        ...noTimePeriods,
+        timePeriods: ['date-range', 'months', 'quarters', 'single-years', 'multiple-years'],
+        multipleYearsCount: 3,
+        multipleYearsYearType: 'calendar',
+        yearType: 'financial',
+        dateRangeStartDay: 1,
+        dateRangeStartMonth: 10,
+        dateRangeEndDay: 31,
+        dateRangeEndMonth: 3,
+      }),
+    ).toBe(
+      '3-year Calendar years (1 January to 31 December), Financial years (1 April to 31 March), Quarters, Months, 1 October to 31 March',
+    );
+  });
+
+  it('words years ending on a specified date by that date', () => {
+    expect(
+      timePeriodsText({
+        ...noTimePeriods,
+        timePeriods: ['multiple-years', 'single-years'],
+        multipleYearsCount: 5,
+        multipleYearsYearType: 'specified-end-date',
+        multipleYearsEndDay: 15,
+        multipleYearsEndMonth: 11,
+        yearType: 'specified-end-date',
+        yearEndDay: 31,
+        yearEndMonth: 3,
+      }),
+    ).toBe('5-year years ending 15 November, Years ending 31 March');
+  });
 });

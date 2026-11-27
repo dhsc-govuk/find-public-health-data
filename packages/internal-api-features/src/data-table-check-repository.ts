@@ -1,6 +1,6 @@
 import { type Database, schema } from '@fphd/db';
 import { type Actor, changesBetween, recordAudit } from '@fphd/db/audit-log';
-import { type PublicYearType, publicYearType } from '@fphd/utils/period-type';
+import { type PublicYearType, shownYearType } from '@fphd/utils/period-type';
 import { and, asc, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 
 import type { DataTablePage, DataTableRow } from './data-table-check-contract.ts';
@@ -71,6 +71,11 @@ export async function findDraftDataTable(
       yearType: draftVersion.yearType,
       yearEndDay: draftVersion.yearEndDay,
       yearEndMonth: draftVersion.yearEndMonth,
+      multipleYearsYearType: draftVersion.multipleYearsYearType,
+      multipleYearsEndDay: draftVersion.multipleYearsEndDay,
+      multipleYearsEndMonth: draftVersion.multipleYearsEndMonth,
+      periodsRolling: draftVersion.periodsRolling,
+      rollingFrequency: draftVersion.rollingFrequency,
       publishedId: publishedVersion.id,
       publishedBatchId: publishedVersion.uploadBatchId,
     })
@@ -86,22 +91,13 @@ export async function findDraftDataTable(
   if (row.draftLocked) return { found: false, reason: 'locked' };
   if (row.batchId === null) return { found: true, dataTable: null };
 
-  const { yearType, yearEndDay, yearEndMonth } = row;
   return {
     found: true,
     dataTable: {
       batchId: row.batchId,
       columns: columnsOf(row.columnNames ?? []),
       rowCount: row.rowCount ?? 0,
-      yearType:
-        yearType === null
-          ? null
-          : publicYearType(
-              yearType,
-              yearEndDay === null || yearEndMonth === null
-                ? null
-                : { day: yearEndDay, month: yearEndMonth },
-            ),
+      yearType: shownYearType(row),
       replacesPublished: row.publishedId !== null && row.publishedBatchId !== row.batchId,
     },
   };

@@ -21,7 +21,7 @@ import {
   unitNameForLabel,
   valueTypeId,
 } from './pholio/value-type-and-unit.ts';
-import { yearTypeValues } from './pholio/year-type.ts';
+import { timePeriodColumns } from './pholio/year-type.ts';
 import { standardMethodUsed } from './standard-method.ts';
 
 const indicatorConfig = {
@@ -304,13 +304,17 @@ async function addIndicators(
       Number(shortId),
     );
     if (countsAndValues === undefined) throw new Error(`Indicator ${shortId}: unit not translated`);
-    const yt = yearTypeValues(item.YearType.Name);
+    const yt = timePeriodColumns(item.YearType.Name);
     await tx`
       INSERT INTO indicator_version
         (id, indicator_id, status, is_locked, published_at, name, slug,
          value_type_id, has_count, count_measure, count_measure_detail, count_is_estimate,
          rate_per, rate_object, rate_object_detail, value_same_as_count, value_measure,
-         value_measure_detail, gap_object, gap_object_detail, ratio_format, period_type, year_type, year_end_day, year_end_month,
+         value_measure_detail, gap_object, gap_object_detail, ratio_format,
+         time_periods, multiple_years_count, multiple_years_year_type, multiple_years_end_day,
+         multiple_years_end_month, year_type, year_end_day, year_end_month,
+         date_range_start_day, date_range_start_month, date_range_end_day, date_range_end_month,
+         periods_rolling, rolling_frequency, values_cumulative,
          ci_method_id, polarity,
          update_frequency, comparator_method_id, ci_confidence_level,
          definition, rationale, standard_method_used, methodology, has_numerator_denominator,
@@ -326,7 +330,12 @@ async function addIndicators(
         ${countsAndValues.has_count}, ${countsAndValues.count_measure}, ${countsAndValues.count_measure_detail}, ${countsAndValues.count_is_estimate},
         ${countsAndValues.rate_per}, ${countsAndValues.rate_object}, ${countsAndValues.rate_object_detail}, ${countsAndValues.value_same_as_count}, ${countsAndValues.value_measure},
         ${countsAndValues.value_measure_detail}, ${countsAndValues.gap_object}, ${countsAndValues.gap_object_detail}, ${countsAndValues.ratio_format},
-        ${yt.period_type}, ${yt.year_type}, ${yt.year_end_day}, ${yt.year_end_month},
+        ${yt.time_periods}, ${yt.multiple_years_count}, ${yt.multiple_years_year_type},
+        ${yt.multiple_years_end_day}, ${yt.multiple_years_end_month},
+        ${yt.year_type}, ${yt.year_end_day}, ${yt.year_end_month},
+        ${yt.date_range_start_day}, ${yt.date_range_start_month},
+        ${yt.date_range_end_day}, ${yt.date_range_end_month},
+        ${yt.periods_rolling}, ${yt.rolling_frequency}, ${yt.values_cumulative},
         ${await namedId(tx, 'ci_method', item.ConfidenceIntervalMethod.Name)},
         ${translatePolarity(config.polarity)},
         ${translateFrequency('Annual')},

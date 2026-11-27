@@ -24,6 +24,7 @@ import {
 } from './contract.ts';
 import { editVersion } from './edit-version.ts';
 import { indicatorSectionsRouter } from './indicator-sections.ts';
+import { periodTypeAnswers } from './period-type.testing.ts';
 import {
   createFakeInternalRepositories,
   createRouterTestApp,
@@ -160,26 +161,14 @@ it.each([
       .put('/api/internal/indicators/00000000-0000-7000-8000-000000000001/period-type')
       .set('Cookie', await testSessionCookie(['publisher']))
       .send({
-        answers: {
-          periodType: 'months',
-          yearType: '',
-          yearEndDay: '',
-          yearEndMonth: '',
-          publishedFrom,
-        },
+        answers: periodTypeAnswers({ timePeriods: ['months'], yearType: '', publishedFrom }),
         version: editVersion({}),
       });
     expect(response.status).toBe(200);
     expect(updateDraft).toHaveBeenCalledWith(
       '00000000-0000-7000-8000-000000000001',
       'period-type',
-      {
-        periodType: 'months',
-        yearType: null,
-        yearEndDay: null,
-        yearEndMonth: null,
-        publishedFrom: stored,
-      },
+      expect.objectContaining({ timePeriods: ['months'], yearType: null, publishedFrom: stored }),
       {},
       testActor(response),
       expect.objectContaining({ version: editVersion({}) }),

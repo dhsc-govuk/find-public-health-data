@@ -3,7 +3,13 @@
  * yet, each a field of the indicator's detail. A preview shows a placeholder for each one its
  * draft leaves unanswered.
  */
-export const INDICATOR_QUESTIONS = ['valueType', 'unit', 'polarity', 'updateFrequency'] as const;
+export const INDICATOR_QUESTIONS = [
+  'valueType',
+  'unit',
+  'polarity',
+  'updateFrequency',
+  'timePeriods',
+] as const;
 
 export type IndicatorQuestion = (typeof INDICATOR_QUESTIONS)[number];
 

@@ -14,7 +14,8 @@ const unanswered = {
   valueType: null,
   unit: null,
   updateFrequency: null,
-  unanswered: ['valueType', 'unit', 'updateFrequency'],
+  timePeriods: null,
+  unanswered: ['valueType', 'unit', 'updateFrequency', 'timePeriods'],
   dataState: 'no-upload',
 };
 
@@ -42,6 +43,29 @@ it("gives a preview's unanswered questions as [Not entered yet]", async () => {
   expect(text).toContain('Value type: [Not entered yet]');
   expect(text).toContain('Unit: [Not entered yet]');
   expect(text).toContain('Update frequency: [Not entered yet]');
+  expect(text).toContain('Time periods: [Not entered yet]');
+});
+
+it('gives the time periods in place of the year type', async () => {
+  const api = createFakeApiClient({ 'GET /api/indicators/indicator-108': indicatorDetail(108) });
+
+  const text = await (await loader(args(api, false))).text();
+
+  expect(text).toContain('Time periods: Calendar years (1 January to 31 December)');
+  expect(text).not.toContain('Year type');
+  expect(text).not.toContain('Rolling time periods');
+});
+
+it('gives time periods that roll, with their frequency, after the time periods', async () => {
+  const api = createFakeApiClient({
+    'GET /api/indicators/indicator-108': { ...indicatorDetail(108), rollingFrequency: 'months' },
+  });
+
+  const text = await (await loader(args(api, false))).text();
+
+  expect(text).toContain(
+    'Time periods: Calendar years (1 January to 31 December)\n\nRolling time periods: Months',
+  );
 });
 
 it('never gives a placeholder on the public side, whose schema drops the unanswered list', async () => {
