@@ -159,3 +159,22 @@ files as the CI job, seed it, then run `pnpm check:perf` with the database conne
 environment (`POSTGRES_PASSWORD`, and `DB_HOST`, `DB_PORT`, `POSTGRES_DB`, `POSTGRES_USER` if they
 differ from the defaults). The compose database is the development one, so this replaces your local
 data.
+
+## Driver benchmark
+
+`pnpm --filter @fphd/perf bench:drivers` times postgres.js against node-postgres (`pg`, with
+`pg-copy-streams` for COPY) on one database. It creates its own `bench_*` tables, so point it at a
+disposable database, never one with data you need: it reads `DB_HOST`, `DB_PORT`, `POSTGRES_DB`,
+`POSTGRES_USER` and `POSTGRES_PASSWORD`.
+
+The variants are postgres.js as installed, postgres.js with Nagle's algorithm turned off through its
+`socket` option, `pg`, and `pg` in pipeline mode for the burst on one connection. Each round runs
+every case once per variant, starting one variant further along each round. `--rounds` (default 30)
+and `--warm-up` (default 3, not recorded) set how many. The cases are single queries, 200 concurrent
+queries, 200 two-row COPYs in a transaction, a COPY of the observation seed in and out, a
+100,000-row read, Drizzle on each driver and a three-statement transaction.
+
+It prints a Markdown table of medians, 95th percentiles and minimums, appends it to
+`GITHUB_STEP_SUMMARY` when that is set, and writes every sample to `--out` (default
+`driver-bench.json`). Numbers from macOS and Docker Desktop miss the delay Linux adds when Nagle's
+algorithm is on, so compare drivers on Linux.

@@ -1475,6 +1475,15 @@ importers:
 
   tools/perf:
     dependencies:
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@types/pg@8.23.1)(pg@8.23.1)(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.1
+      pg-copy-streams:
+        specifier: 'catalog:'
+        version: 7.0.0
       postgres:
         specifier: 'catalog:'
         version: 3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5)
@@ -1485,6 +1494,12 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.23.1
+      '@types/pg-copy-streams':
+        specifier: 'catalog:'
+        version: 1.2.5
       tsx:
         specifier: 'catalog:'
         version: 4.23.15

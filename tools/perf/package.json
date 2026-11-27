@@ -4,17 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "bench:drivers": "tsx src/driver-bench.ts",
     "check:perf": "tsx src/cli.ts",
     "perf:accept": "tsx src/accept.ts",
     "perf:load": "tsx src/load.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "drizzle-orm": "catalog:",
+    "pg": "catalog:",
+    "pg-copy-streams": "catalog:",
     "postgres": "catalog:"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "@types/pg-copy-streams": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
