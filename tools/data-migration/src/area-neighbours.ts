@@ -11,6 +11,7 @@ import {
   type GeographyFileEntry,
   writeGeographyFile,
 } from './geography-files.ts';
+import { DERIVED_ID_TIMESTAMP_MS, uuid7 } from './uuid7.ts';
 
 /** Upper tier local authorities. */
 const AREA_TYPE = 502;
@@ -46,17 +47,9 @@ export interface AreaNeighbour {
  * whatever else the file holds.
  */
 export function areaNeighbourId(code: string, position: number): string {
-  const timestamp = 1_777_593_600_000n;
   const digest = createHash('sha256').update(`${code}\0${SCHEME}\0${position}`).digest();
   const suffix = digest.readBigUInt64BE(0) & ((1n << 62n) - 1n);
-  const value =
-    (timestamp << 80n) |
-    (0x7n << 76n) |
-    (BigInt(AREA_NEIGHBOUR_TAG) << 64n) |
-    (0x2n << 62n) |
-    suffix;
-  const hex = value.toString(16).padStart(32, '0');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return uuid7(DERIVED_ID_TIMESTAMP_MS, AREA_NEIGHBOUR_TAG, suffix);
 }
 
 /**

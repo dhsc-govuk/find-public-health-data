@@ -20,6 +20,7 @@ import { normaliseHeader, normaliseRow } from './normalise.ts';
 import { writePreparedDirectory } from './prepared-directory.ts';
 import { tidyReferenceNames } from './reference-names.ts';
 import { foreignKeyIndexes, TABLE_TAGS, TABLES } from './tables.ts';
+import { DERIVED_ID_TIMESTAMP_MS, uuid7 } from './uuid7.ts';
 
 const sourceFileSchema = z.object({
   file: z.string(),
@@ -71,10 +72,7 @@ export function deterministicUuid(table: string, sourceId: string): string {
     throw new Error(`${table} id is outside the supported range: ${sourceId}`);
   const tag = TABLE_TAGS[table];
   if (tag === undefined) throw new Error(`Unknown table: ${table}`);
-  const timestamp = 1_777_593_600_000n;
-  const value = (timestamp << 80n) | (0x7n << 76n) | (BigInt(tag) << 64n) | (0x2n << 62n) | encoded;
-  const hex = value.toString(16).padStart(32, '0');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return uuid7(DERIVED_ID_TIMESTAMP_MS, tag, encoded);
 }
 
 export async function rekeyTable(path: string, table: string, expectedRows?: number) {
