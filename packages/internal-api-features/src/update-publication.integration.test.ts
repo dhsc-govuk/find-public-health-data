@@ -250,9 +250,10 @@ describe('publishing a scheduled update', () => {
       .where(eq(schema.indicator.id, indicatorId));
     await db.execute(sql`
       INSERT INTO observation
-        (indicator_id, upload_batch_id, area_id, from_date, to_date, value, dimension_key)
+        (indicator_id, upload_batch_id, area_id, from_date, to_date, value, count,
+         denominator, lower_ci_95, upper_ci_95, dimension_key)
       SELECT ${indicatorId}, ${published.batchId}, a.id, make_date(y, 1, 1),
-        make_date(y, 12, 31), y, ''
+        make_date(y, 12, 31), y, y, 10000, y - 1, y + 1, ''
       FROM area a CROSS JOIN generate_series(2020, 2025) y
       WHERE a.code IN ('E92000001', 'E12000007')
     `);
@@ -297,18 +298,21 @@ describe('publishing a scheduled update', () => {
     expect(availability.map(({ areaCount }) => areaCount)).toEqual(
       after === null ? [1, 1, 1] : [1, 1],
     );
-    const englandValues = englandYears.slice(-5).reverse();
+    const englandTrend = { run: englandYears.length, points: englandYears.slice(-5) };
     expect(
-      await db
-        .select({ trendValues: schema.observationSeriesBatch.trendValues })
-        .from(schema.observationSeriesBatch)
-        .where(eq(schema.observationSeriesBatch.indicatorId, indicatorId)),
-    ).toEqual([{ trendValues: englandValues }]);
-    const series = await db.execute<{ recent_values: number[] }>(sql`
-      SELECT s.recent_values FROM observation_series s JOIN area a ON a.id = s.area_id
-      WHERE s.indicator_id = ${indicatorId} AND a.code = 'E92000001'
-    `);
-    expect(series).toEqual([{ recent_values: englandValues }]);
+      await db.execute(sql`
+        SELECT trend->'run' AS run, jsonb_path_query_array(trend, '$.points[*].value') AS points
+        FROM observation_series_batch WHERE indicator_id = ${indicatorId}
+      `),
+    ).toEqual([englandTrend]);
+    expect(
+      await db.execute(sql`
+        SELECT s.trend->'run' AS run,
+          jsonb_path_query_array(s.trend, '$.points[*].value') AS points
+        FROM observation_series s JOIN area a ON a.id = s.area_id
+        WHERE s.indicator_id = ${indicatorId} AND a.code = 'E92000001'
+      `),
+    ).toEqual([englandTrend]);
     const search = await publicSite.indicators.searchWithFilters({
       query: name,
       topics: [],

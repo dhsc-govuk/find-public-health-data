@@ -1,7 +1,14 @@
 import { isoDurationDays } from './age-range.ts';
-import { recentTrendDirection, type TrendDirection } from './recent-trend.ts';
+import {
+  summariseTrend,
+  type TrendDirection,
+  type TrendObservation,
+  type TrendSettings,
+  type TrendSummary,
+  trendDirection,
+} from './recent-trend.ts';
 
-export const OBSERVATION_SERIES_VERSION = 9;
+export const OBSERVATION_SERIES_VERSION = 11;
 export const ENGLAND_AREA_CODE = 'E92000001';
 export const SEX_DIMENSION_NAME = 'Sex';
 export type CumulativePeriodType = `cumulative-quarter-${string}`;
@@ -118,6 +125,16 @@ export function seriesPeriodTypes(
 
 export function isRollingPeriod(observation: ObservationPeriod): boolean {
   return periodTypeLength(observationPeriodType(observation)) > 365.25;
+}
+
+/** A series in period order, oldest first, summarised for its recent trend. */
+export function seriesTrend(series: readonly TrendObservation[]): TrendSummary {
+  return summariseTrend(series, series.every(isTrendPeriod));
+}
+
+/** A year, or a single day as a yearly count at a date is: the periods Fingertips trends. */
+export function isTrendPeriod(observation: Pick<SeriesObservation, 'fromDate' | 'toDate'>) {
+  return periodYears(observation) === 1 || observation.fromDate === observation.toDate;
 }
 
 export function observationSeriesKey(observation: SeriesObservation): string {
@@ -276,11 +293,12 @@ interface SortedSeriesObservation extends SeriesObservation {
 export function tableSummary<
   T extends {
     areaCode: string;
-    observations: (SortedSeriesObservation & { value: number | null })[];
+    observations: (SortedSeriesObservation & TrendObservation)[];
   },
 >(
   areas: T[],
-  points: 'recent' | 'latest' | 'sparkline' = 'recent',
+  points: 'recent' | 'latest' | 'sparkline',
+  trend: TrendSettings,
 ): { tableSeries: TableSeriesSelection[]; areaData: T[] } {
   const sexes = new Set([
     '',
@@ -329,7 +347,7 @@ export function tableSummary<
         const headline = headlineSeries(area.observations)[0];
         if (headline && observationSeriesKey(headline) === observationSeriesKey(latest))
           headlines[area.areaCode] = true;
-        trends[area.areaCode] = recentTrendDirection(series.map(({ value }) => value));
+        trends[area.areaCode] = trendDirection(seriesTrend(series), trend);
         if (points !== 'latest')
           for (const point of series.filter(({ value }) => value !== null).slice(-5))
             keep.add(point);

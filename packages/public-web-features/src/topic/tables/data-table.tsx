@@ -3,7 +3,12 @@ import { indicatorPath } from '@fphd/utils/indicator-path';
 import { memo, type ReactNode, useId } from 'react';
 import { Link } from 'react-router';
 import { SpineChart, SpineChartKey } from '../../indicator/charts/spine-chart.tsx';
-import { formatCalculatedValue, formatValue, recentTrend, withUnit } from '../../indicator/data.ts';
+import {
+  formatCalculatedValue,
+  formatValue,
+  UNCALCULATED_TREND,
+  withUnit,
+} from '../../indicator/data.ts';
 import { TrendTag } from '../../indicator/trend-tag.tsx';
 import {
   comparisonSummary,
@@ -94,7 +99,7 @@ function measureValue(
   unit: Row['unit'],
 ) {
   if (measure === 'trend') {
-    return <TrendTag trend={(cell as Partial<Cell>)?.trend ?? recentTrend([], null)} />;
+    return <TrendTag trend={(cell as Partial<Cell>)?.trend ?? UNCALCULATED_TREND} />;
   }
   const value = (cell as Record<string, number | null | undefined> | null | undefined)?.[measure];
   if (value == null) return <NoData />;

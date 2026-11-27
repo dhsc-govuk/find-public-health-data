@@ -106,7 +106,7 @@ export function topicDataTableModel(
               areaCode: cell.areaCode,
               value: latest?.value ?? null,
               count: latest?.count ?? null,
-              trend: recentTrend(cell.series, entry.detail.polarity, cell.trendDirection),
+              trend: recentTrend(cell.series, entry.detail, cell.trendDirection),
               ...(compared && rangeFor(cell) ? { range: rangeFor(cell) } : {}),
               judgement:
                 benchmark?.value != null

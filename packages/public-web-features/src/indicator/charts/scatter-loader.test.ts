@@ -170,7 +170,7 @@ it('keeps the history fallback when the elected populations differ', () => {
   }));
   const canonical = indicators.map((entry) => ({
     ...entry,
-    areaData: tableSummary(tableAreaSeries(entry.areaData)).areaData,
+    areaData: tableSummary(tableAreaSeries(entry.areaData), 'recent', entry.detail).areaData,
   }));
   expect(loadScatterComparison(canonical, new URLSearchParams())?.points).toMatchObject([
     {

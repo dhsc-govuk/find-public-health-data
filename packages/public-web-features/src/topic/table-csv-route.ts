@@ -1,6 +1,6 @@
 import { formatDate } from '@fphd/ui';
 import type { LoaderFunctionArgs } from 'react-router';
-import { recentTrend } from '../indicator/data.ts';
+import { UNCALCULATED_TREND } from '../indicator/data.ts';
 import { tableCsv } from '../indicator/download.ts';
 import {
   comparisonSummary,
@@ -105,7 +105,7 @@ function dataCsv(table: TopicDataTableModel, params: URLSearchParams) {
     cell: Partial<TopicDataTableModel['rows'][number]['cells'][number]> | null | undefined,
   ) =>
     measure === 'trend'
-      ? (cell?.trend ?? recentTrend([], null)).label
+      ? (cell?.trend ?? UNCALCULATED_TREND).label
       : measure === 'count'
         ? (cell?.count ?? null)
         : (cell?.value ?? null);

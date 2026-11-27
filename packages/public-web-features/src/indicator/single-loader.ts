@@ -154,7 +154,7 @@ export async function loadIndicatorPage(args: LoaderFunctionArgs) {
       ...indicatorComparisonModel(selected, comparison),
       areaChart: compactIndicator({
         detail: page.detail,
-        areaData: tableSummary(selected[0]?.areaData ?? [], 'latest').areaData,
+        areaData: tableSummary(selected[0]?.areaData ?? [], 'latest', page.detail).areaData,
       }),
       compareAreaRanges,
       scatter: scatter ? compactScatterComparison(scatter) : undefined,

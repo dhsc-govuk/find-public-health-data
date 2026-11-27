@@ -25,6 +25,7 @@ import {
   observationDimension,
   observationSeriesBatch,
   publishedViews,
+  valueType,
 } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
@@ -76,6 +77,16 @@ async function withSegments(
       const older = findDimension('70-74 yrs');
       if (!model?.batchId || areas.length !== 3) throw new Error('Missing seeded fixture');
       const uploadBatchId = model.batchId;
+      // The recent trend needs a value type that Fingertips calculates one for.
+      const [proportion] = await tx
+        .select({ id: valueType.id })
+        .from(valueType)
+        .where(eq(valueType.name, 'Proportion'));
+      if (!proportion) throw new Error('Missing Proportion value type');
+      await tx
+        .update(indicatorVersion)
+        .set({ valueTypeId: proportion.id })
+        .where(eq(indicatorVersion.indicatorId, model.id));
       await tx.delete(observation).where(eq(observation.indicatorId, model.id));
       const [type] = await tx
         .insert(dimensionType)
@@ -127,6 +138,10 @@ async function withSegments(
               fromDate: `${2024 + index}-04-01`,
               toDate: `${2025 + index}-03-31`,
               value: 5 - index,
+              count: (5 - index) * 100,
+              denominator: 10000,
+              lowerCi95: 4.5 - index,
+              upperCi95: 5.5 - index,
             })),
           ],
         ] as const) {

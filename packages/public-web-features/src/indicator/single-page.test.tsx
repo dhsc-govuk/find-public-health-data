@@ -22,6 +22,7 @@ function selected(shortId: number, name: string, value: number): SelectedIndicat
     slug: `indicator-${shortId}`,
     name,
     valueType: 'Proportion',
+    valueMeasure: null,
     unit: '%',
     yearType: null,
     updateFrequency: 'annually',

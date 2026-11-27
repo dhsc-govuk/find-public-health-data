@@ -2,7 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, expect, it } from 'vitest';
-import { recentTrend } from '../../indicator/data.ts';
+import { UNCALCULATED_TREND } from '../../indicator/data.ts';
 import type { TopicColumn } from '../data.ts';
 import type { TopicDataTableModel } from '../table-models.ts';
 import { TopicDataTable } from './data-table.tsx';
@@ -28,7 +28,7 @@ const row = (
       areaCode: england ? 'E12000001' : 'E92000001',
       value: area.value,
       count: null,
-      trend: recentTrend([], null),
+      trend: UNCALCULATED_TREND,
       judgement: area.judgement,
     },
   ],

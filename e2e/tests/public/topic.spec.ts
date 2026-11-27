@@ -125,7 +125,12 @@ for (const { title, query, area, note } of [
       expect(unavailable).toEqual(unavailable.toSorted((a, b) => Number(a) - Number(b)));
     };
     for (const sort of ['trend-desc', 'trend-asc', 'trend-better', 'trend-worse']) {
-      await openTopicPage(page, `/topics/health-behaviours?tab-topic=data&sort=${sort}${query}`);
+      // Air pollution has no England figure and no trend in London; the topic's other
+      // indicators have trends in both.
+      await openTopicPage(
+        page,
+        `/topics/mortality-and-life-expectancy?tab-topic=data&sort=${sort}${query}`,
+      );
       const panel = page.getByRole('tabpanel', { name: 'Data', exact: true });
       await expect(panel.getByRole('combobox', { name: 'Sort by', exact: true })).toHaveValue(sort);
       await expect(panel.getByText(/^Trend sorting uses/)).toHaveText(

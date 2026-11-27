@@ -54,13 +54,38 @@ function dim(type: string, value: string, overrides = {}) {
 }
 
 describe('recentTrend', () => {
+  it.each([
+    ['Proportion', 'up'],
+    ['Indirectly standardised proportion', 'up'],
+    ['Crude rate', 'right'],
+    ['Directly standardised rate', 'right'],
+    ['Indirectly standardised ratio', 'right'],
+    ['Count', null],
+    ['Score', null],
+  ])('uses the value type for the %s fallback', (valueType, expected) => {
+    const points = [10, 12, 14, 16, 18].map((value, index) =>
+      obs({
+        fromDate: `${2019 + index}-01-01`,
+        toDate: `${2019 + index}-12-31`,
+        value,
+        count: value * 10,
+        denominator: 1000,
+        lowerCi95: 0,
+        upperCi95: 1e6,
+      }),
+    );
+    expect(recentTrend(points, { polarity: null, valueType, valueMeasure: null }).direction).toBe(
+      expected,
+    );
+  });
+
   it.each([undefined, 'up', 'right', null] as const)(
     'marks multi-year periods unavailable even with precomputed direction %s',
     (precomputed) => {
       expect(
         recentTrend(
           [obs({ fromDate: '2020-01-01', toDate: '2022-12-31' })],
-          'higher-is-better',
+          { polarity: 'higher-is-better', valueType: 'Proportion', valueMeasure: null },
           precomputed,
         ),
       ).toEqual({
@@ -79,13 +104,62 @@ describe('recentTrend', () => {
     'keeps partial multi-year spans out of annual trends for periods ending %s',
     (toDate, label) => {
       expect(
-        recentTrend([obs({ fromDate: '2020-01-01', toDate })], 'higher-is-better', 'up').label,
+        recentTrend(
+          [obs({ fromDate: '2020-01-01', toDate })],
+          { polarity: 'higher-is-better', valueType: 'Proportion', valueMeasure: null },
+          'up',
+        ).label,
       ).toBe(label);
     },
   );
 
+  it.each([
+    ['Count', null],
+    ['Score', null],
+    ['Gap', 'percentage-points'],
+  ] as const)(
+    'explains that a %s in %s has no trend, even with ten complete years',
+    (valueType, valueMeasure) => {
+      const points = Array.from({ length: 10 }, (_, index) =>
+        obs({
+          fromDate: `${2015 + index}-01-01`,
+          toDate: `${2015 + index}-12-31`,
+          value: 10 + index * 2,
+          count: (10 + index * 2) * 10,
+          denominator: 1000,
+          lowerCi95: 9 + index * 2,
+          upperCi95: 11 + index * 2,
+        }),
+      );
+      const expected = {
+        direction: null,
+        label: 'Trend unavailable',
+        tone: 'grey',
+        reason: 'not calculated for this value type',
+      };
+      for (const precomputed of [undefined, null] as const)
+        expect(
+          recentTrend(
+            points,
+            { polarity: 'higher-is-better', valueType, valueMeasure },
+            precomputed,
+          ),
+        ).toEqual(expected);
+      expect(
+        recentTrend(points, { polarity: 'higher-is-better', valueType: 'Gap', valueMeasure: null })
+          .direction,
+      ).toBe('up');
+    },
+  );
+
   it('explains when there are too few valid annual observations', () => {
-    expect(recentTrend([obs(), obs({ value: null })], null)).toEqual({
+    expect(
+      recentTrend([obs(), obs({ value: null })], {
+        polarity: null,
+        valueType: 'Proportion',
+        valueMeasure: null,
+      }),
+    ).toEqual({
       direction: null,
       label: 'Trend unavailable',
       tone: 'grey',
@@ -754,7 +828,13 @@ it.each([3, 5, 7])('labels and guards %i year rolling periods', (years) => {
   const point = obs({ fromDate: `${2025 - years}-09-01`, toDate: '2025-08-31' });
   expect(availablePeriodTypes([point])).toEqual([`${years}-year`]);
   expect(periodTypeLabel(`${years}-year`)).toBe(`${years} year rolling average`);
-  expect(recentTrend([point], 'higher-is-better', 'up')).toMatchObject({
+  expect(
+    recentTrend(
+      [point],
+      { polarity: 'higher-is-better', valueType: 'Proportion', valueMeasure: null },
+      'up',
+    ),
+  ).toMatchObject({
     direction: null,
     reason: 'multi-year periods',
   });
@@ -833,7 +913,13 @@ it.each([
   const point = obs({ fromDate, toDate });
   expect(availablePeriodTypes([point])).toEqual([type]);
   expect(periodTypeLabel(type)).toBe(label);
-  expect(recentTrend([point], 'higher-is-better', 'up')).toMatchObject({
+  expect(
+    recentTrend(
+      [point],
+      { polarity: 'higher-is-better', valueType: 'Proportion', valueMeasure: null },
+      'up',
+    ),
+  ).toMatchObject({
     direction: null,
     reason: 'multi-year periods',
   });
@@ -919,7 +1005,9 @@ it('offers the current cumulative series without annual or duration-based altern
   expect(periodCovered(observations, publicYearType('financial', null))).toBe(
     '2022/23 Q1 - 2026/27 Q1',
   );
-  expect(recentTrend(filtered, null)).toMatchObject({
+  expect(
+    recentTrend(filtered, { polarity: null, valueType: 'Proportion', valueMeasure: null }),
+  ).toMatchObject({
     direction: null,
     reason: 'cumulative periods',
   });

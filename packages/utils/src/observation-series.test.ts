@@ -13,10 +13,68 @@ import {
   periodYears,
   rankingAreaSeries,
   seriesPeriodTypes,
+  seriesTrend,
   tableAreaSeries,
   tableSummary,
   uncertainHeadlineAge,
 } from './observation-series.ts';
+import { trendDirection } from './recent-trend.ts';
+
+const trendSettings = { valueType: 'Proportion', valueMeasure: null };
+const trendObservation = (value: number | null) => ({
+  value,
+  count: value === null ? null : value * 10,
+  denominator: 1000,
+  lowerCi95: value === null ? null : value - 0.5,
+  upperCi95: value === null ? null : value + 0.5,
+});
+
+it('ends the trend run at a missing year', () => {
+  const observations = (years: number[]) =>
+    series('All ages', years).map((point, index) => ({
+      ...point,
+      ...trendObservation(10 + index * 2),
+    }));
+  const unbroken = seriesTrend(observations([2016, 2017, 2019, 2020, 2021, 2022, 2023]));
+  expect(unbroken).toEqual({
+    annual: true,
+    run: 5,
+    runHasCountEqualToDenominator: false,
+    points: [14, 16, 18, 20, 22].map(trendObservation),
+  });
+  expect(trendDirection(unbroken, trendSettings)).toBe('up');
+  const broken = seriesTrend(observations([2018, 2019, 2021, 2022, 2023]));
+  expect(broken.run).toBe(3);
+  expect(trendDirection(broken, trendSettings)).toBeNull();
+});
+
+it('trends a yearly count at a date, as Fingertips does', () => {
+  const summary = seriesTrend(
+    [2020, 2021, 2022, 2023, 2024].map((year, index) => ({
+      fromDate: `${year}-03-31`,
+      toDate: `${year}-03-31`,
+      ...trendObservation(10 + index * 2),
+    })),
+  );
+  expect(summary).toMatchObject({ annual: true, run: 5 });
+  expect(trendDirection(summary, trendSettings)).toBe('up');
+});
+
+it('leaves series of periods other than a year uncalculated', () => {
+  const observations = (toDate: (year: number) => string) =>
+    series('All ages', [2018, 2019, 2020, 2021, 2022]).map((point, index) => ({
+      ...point,
+      toDate: toDate(2018 + index),
+      ...trendObservation(10 + index * 2),
+    }));
+  const threeYear = seriesTrend(observations((year) => `${year + 2}-12-31`));
+  const quarterly = seriesTrend(observations((year) => `${year}-03-31`));
+  for (const summary of [threeYear, quarterly]) {
+    expect(summary.annual).toBe(false);
+    expect(trendDirection(summary, trendSettings)).toBeNull();
+  }
+  expect(seriesTrend(observations((year) => `${year}-12-31`)).annual).toBe(true);
+});
 
 function series(age: string, years: number[]) {
   return years.map((year) => ({
@@ -32,19 +90,21 @@ it('adds eight periods with null gaps for sparklines without changing recent inp
       fromDate: `${2000 + index}-01-01`,
       toDate: `${2000 + index}-12-31`,
       dimensions: [],
-      value,
+      ...trendObservation(value),
     }),
   );
   const areas = [{ areaCode: 'E92000001', observations }];
-  const recent = tableSummary(areas);
-  const sparkline = tableSummary(areas, 'sparkline');
+  const recent = tableSummary(areas, 'recent', trendSettings);
+  const sparkline = tableSummary(areas, 'sparkline', trendSettings);
   expect(sparkline.tableSeries).toEqual(recent.tableSeries);
   expect(recent.areaData[0]?.observations).toEqual(
     observations.filter(({ value }) => value !== null).slice(-5),
   );
   expect(sparkline.areaData[0]?.observations.slice(-8)).toEqual(observations.slice(-8));
   expect(sparkline.areaData[0]?.observations).toHaveLength(11);
-  expect(tableSummary(areas, 'latest').areaData[0]?.observations).toEqual(observations.slice(-1));
+  expect(tableSummary(areas, 'latest', trendSettings).areaData[0]?.observations).toEqual(
+    observations.slice(-1),
+  );
 });
 
 it('keeps England histories matching another area even when its headline uses a different age', () => {
@@ -196,7 +256,7 @@ it('keeps mixed three, five and seven year histories and cache selections separa
     Array.from({ length: 10 }, (_, index) => ({
       fromDate: `${2000 + index}-09-01`,
       toDate: `${2000 + index + years}-08-31`,
-      value: years * 100 + index,
+      ...trendObservation(years * 100 + index),
       dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }],
     }));
   const three = history(3);
@@ -211,7 +271,7 @@ it('keeps mixed three, five and seven year histories and cache selections separa
   ]);
   const complete = tableAreaSeries([{ areaCode: 'local', observations }]);
   expect(complete[0]?.observations).toEqual(observations);
-  const summary = tableSummary(complete, 'sparkline');
+  const summary = tableSummary(complete, 'sparkline', trendSettings);
   for (const [points, type] of [
     [three, '3-year'],
     [five, '5-year'],
@@ -258,13 +318,13 @@ it('offers only the periods each sex publishes and caches only offered variants'
     {
       fromDate: '2024-01-01',
       toDate: '2024-12-31',
-      value: 1,
+      ...trendObservation(1),
       dimensions: [{ type: 'Sex', value: 'Male', sortOrder: 2 }],
     },
     ...[3, 5].map((years) => ({
       fromDate: '2020-01-01',
       toDate: `${2020 + years - 1}-12-31`,
-      value: 2,
+      ...trendObservation(2),
       dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }],
     })),
   ];
@@ -275,19 +335,19 @@ it('offers only the periods each sex publishes and caches only offered variants'
     { sex: 'Male', periodType: '1-year' },
   ]);
   expect(
-    tableSummary([{ areaCode: 'local', observations }])
+    tableSummary([{ areaCode: 'local', observations }], 'recent', trendSettings)
       .tableSeries.filter(({ segments }) => segments.local)
       .map(({ sex, periodType }) => ({ sex, periodType })),
   ).toEqual(expect.arrayContaining(variants));
   expect(
-    tableSummary([{ areaCode: 'local', observations }]).tableSeries.filter(
+    tableSummary([{ areaCode: 'local', observations }], 'recent', trendSettings).tableSeries.filter(
       ({ rowOrder }) => rowOrder?.local !== undefined,
     ),
   ).toHaveLength(3);
 });
 
 it('keeps every area headline for aggregate comparisons without offering an extra row', () => {
-  const point = { fromDate: '2024-01-01', toDate: '2024-12-31', value: 10 };
+  const point = { fromDate: '2024-01-01', toDate: '2024-12-31', ...trendObservation(10) };
   const areas = [
     { areaCode: 'aggregate', observations: [{ ...point, dimensions: [] }] },
     {
@@ -295,7 +355,7 @@ it('keeps every area headline for aggregate comparisons without offering an extr
       observations: [{ ...point, dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }] }],
     },
   ];
-  const summary = tableSummary(areas);
+  const summary = tableSummary(areas, 'recent', trendSettings);
   const aggregate = summary.tableSeries.find(({ sex, periodType }) => !sex && periodType === 'all');
   expect(aggregate?.segments).toEqual({ aggregate: '|1-year', sexed: 'Sex:Female|1-year' });
   expect(aggregate?.headlines).toEqual({ aggregate: true, sexed: true });
@@ -469,14 +529,19 @@ it('keeps all cumulative quarters together, replaces the old baseline and separa
     toDate: new Date(Date.UTC(2022, 6 + index * 3, 0)).toISOString().slice(0, 10),
     periodType: 'cumulative-quarter-2022-04-01' as const,
     dimensions: [],
-    value: index + 1,
+    ...trendObservation(index + 1),
   }));
   const old = cumulative.map((point) => ({
     ...point,
     fromDate: '2021-04-01',
     periodType: 'cumulative-quarter-2021-04-01' as const,
   }));
-  const annual = { fromDate: '2022-04-01', toDate: '2023-03-31', dimensions: [], value: 99 };
+  const annual = {
+    fromDate: '2022-04-01',
+    toDate: '2023-03-31',
+    dimensions: [],
+    ...trendObservation(99),
+  };
   const observations = [...old, annual, ...cumulative];
   expect(headlineSeries(observations)).toEqual(cumulative);
   expect(seriesPeriodTypes(observations)).toEqual(['cumulative-quarter-2022-04-01']);
@@ -486,7 +551,7 @@ it('keeps all cumulative quarters together, replaces the old baseline and separa
   const fourth = cumulative[3];
   if (!fourth) throw new Error('Missing fourth quarter');
   expect(observationPeriodType(fourth)).toBe('cumulative-quarter-2022-04-01');
-  const summary = tableSummary([{ areaCode: 'E92000001', observations }]);
+  const summary = tableSummary([{ areaCode: 'E92000001', observations }], 'recent', trendSettings);
   expect(summary.areaData[0]?.observations).toEqual(cumulative.slice(-5));
   expect(summary.tableSeries.map(({ periodType }) => periodType)).toEqual([
     'all',
@@ -500,9 +565,14 @@ it('keeps annual twins out of year-end benchmarks and scatter values', () => {
     toDate: new Date(Date.UTC(2022, 3 + quarter * 3, 0)).toISOString().slice(0, 10),
     periodType: 'cumulative-quarter-2022-04-01' as const,
     dimensions: [],
-    value: quarter,
+    ...trendObservation(quarter),
   }));
-  const annual = { fromDate: '2022-04-01', toDate: '2023-03-31', dimensions: [], value: 99 };
+  const annual = {
+    fromDate: '2022-04-01',
+    toDate: '2023-03-31',
+    dimensions: [],
+    ...trendObservation(99),
+  };
   const areas = ['E06000052', 'E92000001'].map((areaCode) => ({
     areaCode,
     areaName: areaCode,
@@ -512,10 +582,9 @@ it('keeps annual twins out of year-end benchmarks and scatter values', () => {
     cumulative,
     cumulative,
   ]);
-  expect(tableSummary(areas).areaData.map(({ observations }) => observations)).toEqual([
-    cumulative,
-    cumulative,
-  ]);
+  expect(
+    tableSummary(areas, 'recent', trendSettings).areaData.map(({ observations }) => observations),
+  ).toEqual([cumulative, cumulative]);
   expect(pairedAreaValues(areas, areas).map(({ x, y, xPeriod }) => ({ x, y, xPeriod }))).toEqual(
     areas.map(() => ({
       x: 4,

@@ -1,4 +1,5 @@
 import type { SeriesPeriodType } from '@fphd/utils/observation-series';
+import type { TrendSummary } from '@fphd/utils/recent-trend';
 import {
   date,
   doublePrecision,
@@ -23,7 +24,8 @@ export interface ObservationSeriesVariant {
 
 export const observationSeriesBatch = pgTable('observation_series_batch', {
   version: integer().notNull().default(0),
-  trendValues: doublePrecision().array(),
+  // England's headline series; null when England has no data.
+  trend: jsonb().$type<TrendSummary>(),
   uploadBatchId: uuid().primaryKey(),
   indicatorId: uuid().notNull(),
 });
@@ -42,7 +44,8 @@ export const observationSeries = pgTable(
     rankingObservationId: uuid(),
     recentObservationIds: uuid().array().notNull(),
     sparklineObservationIds: uuid().array(),
-    recentValues: doublePrecision().array().notNull(),
+    // Null only in rows written before this column existed, which the batch version rules out.
+    trend: jsonb().$type<TrendSummary>(),
   },
   (t) => [
     primaryKey({ columns: [t.uploadBatchId, t.areaId, t.sex, t.periodType] }),

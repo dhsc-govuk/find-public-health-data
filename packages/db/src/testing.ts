@@ -1,13 +1,14 @@
 import { randomBytes } from 'node:crypto';
 
 import { parseEnv, z } from '@fphd/config';
-import { asc, eq, getTableColumns, type Table } from 'drizzle-orm';
+import type { TrendSettings } from '@fphd/utils/recent-trend';
+import { asc, eq, getTableColumns, inArray, type Table } from 'drizzle-orm';
 import type postgres from 'postgres';
 
 import { createDbFromClient, createPostgresClient, type Database } from './client.ts';
 import { resolveDbTls } from './env.ts';
 import type { Repositories } from './repositories.ts';
-import { auditLog } from './schema/index.ts';
+import { auditLog, publishedViews } from './schema/index.ts';
 import { createOwnerClient, loadOwnerEnv } from './scripts/owner-client.ts';
 
 export { createOwnerClient, loadOwnerEnv } from './scripts/owner-client.ts';
@@ -292,4 +293,18 @@ export async function auditEntriesFor(db: Database, entityId: string) {
     .from(auditLog)
     .where(eq(auditLog.entityId, entityId))
     .orderBy(asc(auditLog.occurredAt), asc(auditLog.id));
+}
+
+/** Each published indicator's trend settings, as the repositories read them inside their queries. */
+export async function publishedTrendSettings(
+  db: Database,
+  ids: string[],
+): Promise<Map<string, TrendSettings>> {
+  const { indicator, valueType } = publishedViews;
+  const rows = await db
+    .select({ id: indicator.id, valueType: valueType.name, valueMeasure: indicator.valueMeasure })
+    .from(indicator)
+    .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
+    .where(inArray(indicator.id, ids));
+  return new Map(rows.map(({ id, valueType, valueMeasure }) => [id, { valueType, valueMeasure }]));
 }

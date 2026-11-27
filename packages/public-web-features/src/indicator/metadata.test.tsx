@@ -14,6 +14,7 @@ const indicator: IndicatorDetail = {
   slug: 'an-indicator',
   name: 'An indicator',
   valueType: 'Proportion',
+  valueMeasure: null,
   unit: '%',
   yearType: { value: 'calendar', label: 'Calendar' },
   updateFrequency: 'annually',

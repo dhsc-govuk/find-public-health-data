@@ -1,6 +1,6 @@
 import { type Database, schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { observationPeriodType } from '@fphd/utils/observation-series';
+import { observationPeriodType, seriesTrend } from '@fphd/utils/observation-series';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -146,8 +146,8 @@ describe('refreshIndicatorReadModels', () => {
       VALUES (${indicatorId}, 'Stale', '2099-01-01', '2099-12-31', '', 1, 1)
     `);
     await db.execute(sql`
-      INSERT INTO observation_series_batch (upload_batch_id, indicator_id, trend_values)
-      VALUES (uuidv7(), ${indicatorId}, '{1}')
+      INSERT INTO observation_series_batch (upload_batch_id, indicator_id, trend)
+      VALUES (uuidv7(), ${indicatorId}, '{"annual":true,"run":0,"runHasCountEqualToDenominator":false,"points":[]}')
     `);
 
     await db.transaction((tx) => refreshIndicatorReadModels(tx, indicatorId));
@@ -361,6 +361,14 @@ it.each([false, true])(
         await tx
           .delete(schema.observation)
           .where(eq(schema.observation.uploadBatchId, uploadBatchId));
+        const trendFields = (value: number, index: number) => ({
+          // A missing count stops the run at index 3; a count equal to its denominator sits
+          // inside the run only for the sexed series.
+          count: index === 3 ? null : index === 1 || (sexed && index === 5) ? 1000000 : value * 10,
+          denominator: 1000000,
+          lowerCi95: value - 0.5,
+          upperCi95: value + 0.5,
+        });
         const rows = await tx
           .insert(schema.observation)
           .values([
@@ -373,6 +381,7 @@ it.each([false, true])(
                 fromDate: `2050-${String(index + 1).padStart(2, '0')}-01`,
                 toDate: new Date(Date.UTC(2050, index + months, 0)).toISOString().slice(0, 10),
                 value: months * 10 + index,
+                ...trendFields(months * 10 + index, index),
               })),
             ),
             ...[3, 5, 7].flatMap((years) =>
@@ -384,6 +393,7 @@ it.each([false, true])(
                 fromDate: `${2050 + index}-09-01`,
                 toDate: `${2050 + index + years}-08-31`,
                 value: years * 100 + index,
+                ...trendFields(years * 100 + index, index),
               })),
             ),
             ...[500, 550].flatMap((days) =>
@@ -397,10 +407,11 @@ it.each([false, true])(
                   .toISOString()
                   .slice(0, 10),
                 value: days * 100 + index,
+                ...trendFields(days * 100 + index, index),
               })),
             ),
           ])
-          .returning({ id: schema.observation.id });
+          .returning();
         if (sexed)
           await tx.insert(schema.observationDimension).values(
             rows.map(({ id }) => ({
@@ -445,10 +456,45 @@ it.each([false, true])(
             ? ['1-month', '3-month', '3-year', '5-year', '500-day', '550-day', '7-year', 'all']
             : ['all'],
         );
+        const expectedTrend = (periodType: string) =>
+          seriesTrend(
+            rows
+              .filter((point) => observationPeriodType(point) === periodType)
+              .sort(
+                (a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate),
+              ),
+          );
+        for (const periodType of [
+          '1-month',
+          '3-month',
+          '3-year',
+          '5-year',
+          '7-year',
+          '500-day',
+          '550-day',
+        ]) {
+          const summary = expectedTrend(periodType);
+          // The month-long periods start a month apart; every other period a year apart, so
+          // its run reaches back to the missing count.
+          const monthly = periodType.endsWith('-month');
+          expect(summary).toMatchObject(
+            monthly
+              ? { annual: false, run: 1 }
+              : { annual: false, run: 6, runHasCountEqualToDenominator: sexed },
+          );
+          expect(summary.points.map(({ value }) => value)).toEqual(
+            rows
+              .filter((point) => observationPeriodType(point) === periodType)
+              .slice(monthly ? -1 : -5)
+              .map(({ value }) => value),
+          );
+          if (sexed)
+            expect(cached.find((row) => row.periodType === periodType)?.trend).toEqual(summary);
+        }
         for (const years of sexed ? [3, 5, 7] : []) {
           const row = cached.find(({ periodType }) => periodType === `${years}-year`);
           expect(row?.sparklineObservationIds).toHaveLength(8);
-          expect(row?.recentValues).toEqual([9, 8, 7, 6, 5].map((index) => years * 100 + index));
+          expect(row?.trend).toEqual(expectedTrend(`${years}-year`));
           expect(row?.variants.map(({ sex, periodType }) => ({ sex, periodType }))).toEqual(
             expect.arrayContaining([
               ...[1, 3].map((months) => ({ sex: 'Female', periodType: `${months}-month` })),
@@ -471,7 +517,7 @@ it.each([false, true])(
         for (const months of sexed ? [1, 3] : []) {
           const row = cached.find(({ periodType }) => periodType === `${months}-month`);
           expect(row?.sparklineObservationIds).toHaveLength(8);
-          expect(row?.recentValues).toEqual([9, 8, 7, 6, 5].map((index) => months * 10 + index));
+          expect(row?.trend).toEqual(expectedTrend(`${months}-month`));
           const points = await tx
             .select()
             .from(schema.observation)
@@ -481,7 +527,7 @@ it.each([false, true])(
         }
         for (const days of sexed ? [500, 550] : []) {
           const row = cached.find(({ periodType }) => periodType === `${days}-day`);
-          expect(row?.recentValues).toEqual([9, 8, 7, 6, 5].map((index) => days * 100 + index));
+          expect(row?.trend).toEqual(expectedTrend(`${days}-day`));
           const points = await tx
             .select()
             .from(schema.observation)
@@ -513,11 +559,11 @@ it.each([false, true])(
           .select()
           .from(schema.observationSeriesBatch)
           .where(eq(schema.observationSeriesBatch.indicatorId, indicatorId));
-        expect(batch?.trendValues).toEqual([709, 708, 707, 706, 705]);
+        expect(batch?.trend).toEqual(expectedTrend('7-year'));
         if (!sexed)
-          expect(cached.find(({ periodType }) => periodType === 'all')?.recentValues).toEqual([
-            709, 708, 707, 706, 705,
-          ]);
+          expect(cached.find(({ periodType }) => periodType === 'all')?.trend).toEqual(
+            expectedTrend('7-year'),
+          );
         throw new RolledBack();
       }),
     ).rejects.toBeInstanceOf(RolledBack);

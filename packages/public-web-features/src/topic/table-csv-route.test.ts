@@ -589,7 +589,11 @@ it.each([
           englandOnly(
             2,
             'With a trend',
-            [20, 21, 22, 23, 24].map((value, index) => annualObservation(2020 + index, value)),
+            [20, 21, 22, 23, 24].map((value, index) => ({
+              ...annualObservation(2020 + index, value),
+              count: value * 1000,
+              denominator: 100_000,
+            })),
           ),
         ],
         benchmarkGeography: { regionByCode: {}, levelByCode: {} },
@@ -603,4 +607,47 @@ it.each([
   } as LoaderFunctionArgs);
   const lines = (await response.text()).trim().split(/\r?\n/);
   expect(lines.slice(1).map((line) => line.split(',')[0])).toEqual(expected);
+});
+
+it('exports an unavailable trend for value types without one, even with ten complete years', async () => {
+  const tenYears = Array.from({ length: 10 }, (_, index) => ({
+    ...annualObservation(2015 + index, 20 + index * 2),
+    count: (20 + index * 2) * 10,
+    denominator: 1000,
+    lowerCi95: 19.5 + index * 2,
+    upperCi95: 20.5 + index * 2,
+  }));
+  const englandOnly = (shortId: number, overrides: Parameters<typeof indicatorDetail>[1]) => ({
+    detail: indicatorDetail(shortId, overrides),
+    areaData: [{ areaCode: 'E92000001', areaName: 'England', observations: tenYears }],
+  });
+  vi.mocked(loadTopic).mockResolvedValue({
+    topic: { slug: 'example', title: 'Example' },
+    content: {
+      data: {
+        selected: [
+          englandOnly(1, { name: 'A count', valueType: 'Count' }),
+          englandOnly(2, {
+            name: 'B percentage point gap',
+            valueType: 'Gap',
+            valueMeasure: 'percentage-points',
+          }),
+          englandOnly(3, { name: 'C gap', valueType: 'Gap' }),
+        ],
+        benchmarkGeography: { regionByCode: {}, levelByCode: {} },
+      },
+    },
+  } as unknown as Awaited<ReturnType<typeof loadTopic>>);
+  const response = await loader({
+    request: new Request(
+      'http://local/topics/example/table.csv?tab-topic=data&columns-topic=trend&sort=name-asc',
+    ),
+  } as LoaderFunctionArgs);
+  const lines = (await response.text()).trim().split(/\r?\n/);
+  // The download shows the label alone, so every unavailable trend reads the same there.
+  expect(lines.slice(1)).toEqual([
+    'A count,,%,Trend unavailable',
+    'B percentage point gap,,%,Trend unavailable',
+    'C gap,,%,Increasing and getting better',
+  ]);
 });

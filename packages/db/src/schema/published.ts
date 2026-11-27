@@ -11,6 +11,7 @@ import type { ObservationPeriodType, SeriesPeriodType } from '@fphd/utils/observ
 import { YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { GOAL_LOWER_COMPARISONS, GOAL_UPPER_COMPARISONS } from '@fphd/utils/policy-goal';
+import type { TrendSummary } from '@fphd/utils/recent-trend';
 import { INDICATOR_SOURCE_PARTS } from '@fphd/utils/source-part';
 import { UPDATE_FREQUENCIES } from '@fphd/utils/update-frequency';
 import type { FingertipsFormatting } from '@fphd/utils/value-type-and-unit';
@@ -243,7 +244,7 @@ export function createVersionedViews(schema: PgSchema<string>) {
     observationSeriesBatch: schema
       .view('observation_series_batch', {
         version: integer('version').notNull(),
-        trendValues: doublePrecision('trend_values').array(),
+        trend: jsonb('trend').$type<TrendSummary>(),
         indicatorId: uuid('indicator_id').notNull(),
       })
       .existing(),
@@ -259,7 +260,7 @@ export function createVersionedViews(schema: PgSchema<string>) {
         rankingObservationId: uuid('ranking_observation_id'),
         recentObservationIds: uuid('recent_observation_ids').array().notNull(),
         sparklineObservationIds: uuid('sparkline_observation_ids').array(),
-        recentValues: doublePrecision('recent_values').array().notNull(),
+        trend: jsonb('trend').$type<TrendSummary>(),
       })
       .existing(),
     indicator: schema

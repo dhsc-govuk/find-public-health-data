@@ -376,13 +376,15 @@ export function topicPageTests() {
     await expect(
       panel.getByText('In West Sussex, the trend over the last 5 data points is:', { exact: true }),
     ).toBeVisible();
+    // West Sussex has diabetes mortality only for 3-year periods, which Fingertips calculates no
+    // recent trend for.
     await expect(panel.locator('.fphd-trend-tag')).toHaveText([
       '0 are getting better',
-      '1 is getting worse',
+      '0 are getting worse',
       '0 show no significant change',
       '1 is going up (higher is neither better nor worse)',
       '0 are going down (higher is neither better nor worse)',
-      '0 cannot have a trend calculated',
+      '1 cannot have a trend calculated',
       'Increasing',
     ]);
     await expect(panel.locator('.fphd-topic-highlight h3 .govuk-hint')).toHaveText([
@@ -505,8 +507,8 @@ export function topicPageTests() {
           exact: true,
         }),
       ).toBeVisible();
-      await expect(page.locator('#topic-overview .fphd-trend-tag').nth(1)).toHaveText(
-        '1 is getting worse',
+      await expect(page.locator('#topic-overview .fphd-trend-tag').nth(5)).toHaveText(
+        '1 cannot have a trend calculated',
       );
     });
   });

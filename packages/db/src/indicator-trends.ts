@@ -1,55 +1,102 @@
 import { ENGLAND_AREA_CODE, OBSERVATION_SERIES_VERSION } from '@fphd/utils/observation-series';
-import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
+import {
+  type TrendDirection,
+  type TrendSettings,
+  type TrendSummary,
+  trendDirection,
+} from '@fphd/utils/recent-trend';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { DatabaseReader } from './client.ts';
 import { dimensionKeyOrder, dimensionKeyRank, headlineOrder } from './headline-order.ts';
-import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
+import {
+  observationPeriodSql,
+  periodLengthSql,
+  trendSummarySql,
+} from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
+/** A series' trend summary with the value type and measure that pick Fingertips' test for it. */
+interface TrendInput extends TrendSettings {
+  summary: TrendSummary;
+}
+
 /**
- * The trend of each indicator's headline series in one area, from its five latest valid values.
- * The series is chosen once per indicator, in the order `headlineOrder` gives, not per sex and
- * period type as the stored series are. Indicators without a single value for the area, such as those
- * whose values are all suppressed, are left out of the result. England reads the trend values
- * cached at publication and works out only the ones missing.
+ * The trend summary of each indicator's headline series in one area, with its value type. The
+ * series is chosen once per indicator, in the order `headlineOrder` gives, not per sex and period
+ * type as the stored series are. Indicators without a single value for the area, such as those
+ * whose values are all suppressed, are left out of the result. England reads the summaries cached
+ * at publication and works out only the ones missing.
  */
+async function trendInputs(
+  db: DatabaseReader,
+  views: ViewSet,
+  ids: string[],
+  areaCode: string,
+): Promise<Map<string, TrendInput>> {
+  const { indicator, observationSeriesBatch: batches, valueType } = views;
+  if (ids.length === 0) return new Map();
+  if (areaCode !== ENGLAND_AREA_CODE) return areaTrendInputs(db, views, ids, areaCode);
+  const cached = await db
+    .select({
+      id: batches.indicatorId,
+      summary: batches.trend,
+      valueType: valueType.name,
+      valueMeasure: indicator.valueMeasure,
+    })
+    .from(batches)
+    .innerJoin(indicator, eq(indicator.id, batches.indicatorId))
+    .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
+    .where(and(inArray(batches.indicatorId, ids), eq(batches.version, OBSERVATION_SERIES_VERSION)));
+  const result = new Map<string, TrendInput>(
+    cached.flatMap(({ id, summary, valueType, valueMeasure }) =>
+      summary === null ? [] : [[id, { summary, valueType, valueMeasure }] as const],
+    ),
+  );
+  const missing = ids.filter((id) => !result.has(id));
+  if (missing.length)
+    for (const entry of await areaTrendInputs(db, views, missing, ENGLAND_AREA_CODE))
+      result.set(...entry);
+  return result;
+}
+
+/** The trend summary of each indicator's headline series in one area, as `trendInputs` finds it. */
+export async function indicatorTrendSummaries(
+  db: DatabaseReader,
+  views: ViewSet,
+  ids: string[],
+  areaCode = ENGLAND_AREA_CODE,
+): Promise<Map<string, TrendSummary>> {
+  const inputs = await trendInputs(db, views, ids, areaCode);
+  return new Map([...inputs].map(([id, { summary }]) => [id, summary] as const));
+}
+
+/** The recent trend of each indicator's headline series in one area, by Fingertips' rules. */
 export async function indicatorTrendDirections(
   db: DatabaseReader,
   views: ViewSet,
   ids: string[],
   areaCode = ENGLAND_AREA_CODE,
 ): Promise<Map<string, TrendDirection>> {
-  const { observationSeriesBatch: batches } = views;
-  if (ids.length === 0) return new Map();
-  if (areaCode !== ENGLAND_AREA_CODE) return areaTrendDirections(db, views, ids, areaCode);
-  const cached = await db
-    .select({ id: batches.indicatorId, values: batches.trendValues })
-    .from(batches)
-    .where(and(inArray(batches.indicatorId, ids), eq(batches.version, OBSERVATION_SERIES_VERSION)));
-  const result = new Map(
-    cached.flatMap(({ id, values }) =>
-      values === null ? [] : [[id, recentTrendDirection([...values].reverse())] as const],
+  const inputs = await trendInputs(db, views, ids, areaCode);
+  return new Map(
+    [...inputs].map(
+      ([id, { summary, ...settings }]) => [id, trendDirection(summary, settings)] as const,
     ),
   );
-  const missing = ids.filter((id) => !result.has(id));
-  if (!missing.length) return result;
-  return new Map([
-    ...result,
-    ...(await areaTrendDirections(db, views, missing, ENGLAND_AREA_CODE)),
-  ]);
 }
 
-async function areaTrendDirections(
+async function areaTrendInputs(
   db: DatabaseReader,
   views: ViewSet,
   ids: string[],
   areaCode: string,
-): Promise<Map<string, TrendDirection>> {
-  const { area, observation } = views;
+): Promise<Map<string, TrendInput>> {
+  const { area, indicator, observation, valueType } = views;
   const rows = await db.execute<{
     indicator_id: string;
-    period_type: string;
-    values: number[];
+    trend: TrendSummary;
+    value_type: string | null;
+    value_measure: string | null;
   }>(sql`
     with cumulative_periods as (
       select ${observation.indicatorId} as indicator_id, ${observation.dimensionKey} as segment,
@@ -60,7 +107,9 @@ async function areaTrendDirections(
     ), points as materialized (
       select ${observation.indicatorId} as indicator_id, ${observation.fromDate} as from_date,
         ${observation.toDate} as to_date, ${observation.value} as value,
-        ${observation.dimensionKey} as segment,
+        coalesce(${observation.count}, ${observation.numerator}) as count,
+        ${observation.denominator} as denominator, ${observation.lowerCi95} as lower_ci_95,
+        ${observation.upperCi95} as upper_ci_95, ${observation.dimensionKey} as segment,
         ${observationPeriodSql(observation.fromDate, observation.toDate, observation.periodType)} as period_type
       from ${observation}
       join ${area} on ${area.id} = ${observation.areaId} and ${area.code} = ${areaCode}
@@ -83,23 +132,33 @@ async function areaTrendDirections(
         sql`, `,
       )}, ${dimensionKeyOrder(sql`segment`, views)}
     )
-    select s.indicator_id, s.period_type,
-      coalesce((array_agg(p.value order by p.from_date desc, p.to_date desc)
-        filter (where p.value is not null))[1:5], '{}') as values
+    select s.indicator_id, ${trendSummarySql({
+      fromDate: sql`p.from_date`,
+      toDate: sql`p.to_date`,
+      value: sql`p.value`,
+      count: sql`p.count`,
+      denominator: sql`p.denominator`,
+      lowerCi95: sql`p.lower_ci_95`,
+      upperCi95: sql`p.upper_ci_95`,
+      periodType: sql`p.period_type`,
+    })} as trend,
+      (select ${valueType.name} from ${indicator}
+        join ${valueType} on ${valueType.id} = ${indicator.valueTypeId}
+        where ${indicator.id} = s.indicator_id) as value_type,
+      (select ${indicator.valueMeasure} from ${indicator}
+        where ${indicator.id} = s.indicator_id) as value_measure
     from series s join points p on p.indicator_id = s.indicator_id and p.segment = s.segment
         and p.period_type = s.period_type
     where s.has_value
-    group by s.indicator_id, s.period_type
+    group by s.indicator_id
 
   `);
   return new Map(
     rows.map(
-      ({ indicator_id, period_type, values }) =>
+      ({ indicator_id, trend, value_type, value_measure }) =>
         [
           indicator_id,
-          period_type.startsWith('cumulative-quarter-')
-            ? null
-            : recentTrendDirection([...values].reverse()),
+          { summary: trend, valueType: value_type, valueMeasure: value_measure },
         ] as const,
     ),
   );

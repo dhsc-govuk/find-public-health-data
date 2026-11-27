@@ -40,10 +40,10 @@ beforeAll(async () => {
   for (const year of [2020, 2021, 2022, 2023, 2024, 2025]) {
     await sql`
       INSERT INTO observation
-        (indicator_id, upload_batch_id, area_id, from_date, to_date, value,
-         dimension_key)
+        (indicator_id, upload_batch_id, area_id, from_date, to_date, value, count,
+         denominator, lower_ci_95, upper_ci_95, dimension_key)
       SELECT ${indicatorId}, ${indicator.batch}, a.id, ${`${year}-01-01`}::date,
-        ${`${year}-12-31`}::date, ${year}, ''
+        ${`${year}-12-31`}::date, ${year}, ${year}, 10000, ${year - 1}, ${year + 1}, ''
       FROM area a WHERE a.code = 'E92000001'
     `;
   }
@@ -146,8 +146,9 @@ it('rebuilds ranges, latest periods, rankings, area availability and topic trend
     AND from_date < '2021-01-01'`,
   ).toEqual([]);
   expect(
-    await sql`SELECT trend_values FROM published.observation_series_batch WHERE indicator_id = ${indicatorId}`,
-  ).toEqual([{ trend_values: [2025, 2024, 2023, 2022, 2021] }]);
+    await sql`SELECT trend->'run' AS run, jsonb_path_query_array(trend, '$.points[*].value') AS points
+    FROM published.observation_series_batch WHERE indicator_id = ${indicatorId}`,
+  ).toEqual([{ run: 5, points: [2021, 2022, 2023, 2024, 2025] }]);
 });
 
 it.each([2014, 2020])(
@@ -187,8 +188,9 @@ it('keeps a draft cutoff from changing the published batch visibility', async ()
     await sql`SELECT count(*)::int AS n FROM published.observation WHERE indicator_id = ${indicatorId}`,
   ).toEqual([{ n: 5 }]);
   expect(
-    await sql`SELECT trend_values FROM published.observation_series_batch WHERE indicator_id = ${indicatorId}`,
-  ).toEqual([{ trend_values: [2025, 2024, 2023, 2022, 2021] }]);
+    await sql`SELECT trend->'run' AS run, jsonb_path_query_array(trend, '$.points[*].value') AS points
+    FROM published.observation_series_batch WHERE indicator_id = ${indicatorId}`,
+  ).toEqual([{ run: 5, points: [2021, 2022, 2023, 2024, 2025] }]);
 });
 
 it('shows all retained rows and rebuilds their ranges and trends when the start date is null', async () => {

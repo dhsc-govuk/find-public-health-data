@@ -5,6 +5,7 @@ import {
   observationSegmentKey,
   rankingAreaSeries,
   seriesPeriodTypes,
+  seriesTrend,
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
@@ -32,8 +33,9 @@ import {
   publishedArea,
   publishedViews,
   uploadBatch,
+  valueType,
 } from './schema/index.ts';
-import { apiLogin, createTestDb, type TestDb } from './testing.ts';
+import { apiLogin, createTestDb, publishedTrendSettings, type TestDb } from './testing.ts';
 
 const { indicator: publishedIndicator, observationSeries: publishedObservationSeries } =
   publishedViews;
@@ -103,9 +105,130 @@ afterAll(async () => {
   await database.drop();
 });
 
+it.each([
+  { equalCountInRun: false, runEnd: 'a missing year' },
+  { equalCountInRun: true, runEnd: 'a row without intervals' },
+])(
+  'matches SQL trend summaries and history-based tables when the run ends at $runEnd',
+  async ({ equalCountInRun, runEnd }) => {
+    class RolledBack extends Error {}
+    await database.db
+      .transaction(async (tx) => {
+        const [model] = await tx.select().from(observationSeries).limit(1);
+        const [england] = await tx.select().from(area).where(eq(area.code, 'E92000001'));
+        const [proportion] = await tx
+          .select()
+          .from(valueType)
+          .where(eq(valueType.name, 'Proportion'));
+        if (!model || !england || !proportion) throw new Error('Expected seeded trend fixtures');
+        await tx
+          .update(indicatorVersion)
+          .set({ valueTypeId: proportion.id })
+          .where(eq(indicatorVersion.indicatorId, model.indicatorId));
+        await tx.delete(observation).where(eq(observation.indicatorId, model.indicatorId));
+        // The run is 2014 to 2021. Before it: a row with no count, and the year that ends it.
+        const equal = equalCountInRun ? 5 : 2;
+        const rows = await tx
+          .insert(observation)
+          .values(
+            Array.from({ length: 12 }, (_, index) => index)
+              .filter((index) => runEnd !== 'a missing year' || index !== 3)
+              .map((index) => {
+                const value = index === equal ? 100 : 10 + index * 2;
+                const intervals = runEnd === 'a row without intervals' && index === 3;
+                return {
+                  indicatorId: model.indicatorId,
+                  uploadBatchId: model.uploadBatchId,
+                  areaId: england.id,
+                  dimensionKey: '',
+                  fromDate: `${2010 + index}-01-01`,
+                  toDate: `${2010 + index}-12-31`,
+                  value,
+                  count: index === 1 ? null : value * 100,
+                  denominator: 10000,
+                  lowerCi95: intervals ? null : value - 1,
+                  upperCi95: intervals ? null : value + 1,
+                };
+              }),
+          )
+          .returning();
+        await replaceObservationSeries(tx, model.indicatorId, model.uploadBatchId, null);
+        rows.sort((a, b) => a.fromDate.localeCompare(b.fromDate));
+        const summary = seriesTrend(rows);
+        expect(summary).toMatchObject({
+          annual: true,
+          run: 8,
+          runHasCountEqualToDenominator: equalCountInRun,
+        });
+        expect(summary.points.map(({ value }) => value)).toEqual(
+          rows.slice(-5).map(({ value }) => value),
+        );
+        const cachedRows = await tx
+          .select()
+          .from(observationSeries)
+          .where(eq(observationSeries.indicatorId, model.indicatorId));
+        expect(cachedRows).toHaveLength(1);
+        expect(cachedRows[0]?.trend).toEqual(summary);
+        const [batch] = await tx
+          .select()
+          .from(observationSeriesBatch)
+          .where(eq(observationSeriesBatch.indicatorId, model.indicatorId));
+        expect(batch?.trend).toEqual(summary);
+        const codes = ['E92000001'];
+        const full = await getIndicatorObservationData(
+          tx,
+          publishedViews,
+          [model.indicatorId],
+          codes,
+        );
+        for (const mode of ['recent', 'latest', 'sparkline'] as const) {
+          const expected = tableSummary(
+            tableAreaSeries(full.get(model.indicatorId)?.areaData ?? []),
+            mode,
+            { valueType: 'Proportion', valueMeasure: null },
+          );
+          const actual = (
+            await getIndicatorSeriesData(tx, publishedViews, [model.indicatorId], codes, mode)
+          )?.get(model.indicatorId);
+          expect(actual).toBeDefined();
+          // Empty sex/period choices carry no cells and are omitted from the read model.
+          const withCells = (choices: typeof expected.tableSeries) =>
+            choices.filter(({ segments }) => Object.keys(segments).length);
+          expect(withCells(actual?.tableSeries ?? [])).toEqual(withCells(expected.tableSeries));
+          expect(actual?.tableSeries?.[0]?.trends).toEqual({
+            E92000001: equalCountInRun ? null : 'up',
+          });
+          expect(
+            actual?.areaData.map((entry) => ({
+              ...entry,
+              observations: entry.observations.toSorted((a, b) =>
+                a.fromDate.localeCompare(b.fromDate),
+              ),
+            })),
+          ).toEqual(
+            expected.areaData.map((entry) => ({
+              ...entry,
+              observations: entry.observations.toSorted((a, b) =>
+                a.fromDate.localeCompare(b.fromDate),
+              ),
+            })),
+          );
+        }
+        expect(await indicatorTrendDirections(tx, publishedViews, [model.indicatorId])).toEqual(
+          new Map([[model.indicatorId, equalCountInRun ? null : 'up']]),
+        );
+        throw new RolledBack();
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof RolledBack)) throw error;
+      });
+  },
+);
+
 it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], [['UNKNOWN']]])(
   'matches history-based table cells, trends and rankings for %j',
   async (areas) => {
+    const settings = await publishedTrendSettings(db, ids);
     const full = await getIndicatorObservationData(db, publishedViews, ids, areas);
     for (const mode of ['recent', 'latest', 'ranking', 'sparkline'] as const) {
       const cached = await getIndicatorSeriesData(db, publishedViews, ids, areas, mode);
@@ -115,7 +238,11 @@ it.each([[['E92000001']], [['E06000052', 'E92000001', 'E07000223', 'UNKNOWN']], 
         const expected =
           mode === 'ranking'
             ? { areaData: rankingAreaSeries(history) }
-            : tableSummary(tableAreaSeries(history), mode);
+            : tableSummary(
+                tableAreaSeries(history),
+                mode,
+                settings.get(id) ?? { valueType: null, valueMeasure: null },
+              );
         const actual = cached?.get(id);
         const normaliseAreas = (areas: IndicatorAreaData[]) =>
           areas.map((area) => ({
@@ -319,7 +446,7 @@ it('uses canonical data when the published batch has no completed read model', a
 
 it('matches canonical topic trends when published-batch trend inputs are available', async () => {
   const cached = await indicatorTrendDirections(db, publishedViews, ids);
-  await database.sql`update observation_series_batch set trend_values = null`;
+  await database.sql`update observation_series_batch set trend = null`;
   expect(await indicatorTrendDirections(db, publishedViews, ids)).toEqual(cached);
 });
 
@@ -544,7 +671,20 @@ it('uses canonical comparisons and trends for caches written by an older series 
   try {
     await database.db
       .update(observationSeriesBatch)
-      .set({ version: 0, trendValues: [1, 2, 3, 4, 5] })
+      .set({
+        version: 0,
+        trend: seriesTrend(
+          [1, 2, 3, 4, 5].map((value, index) => ({
+            fromDate: `${2020 + index}-01-01`,
+            toDate: `${2020 + index}-12-31`,
+            value,
+            count: value * 100,
+            denominator: 10000,
+            lowerCi95: value - 0.5,
+            upperCi95: value + 0.5,
+          })),
+        ),
+      })
       .where(eq(observationSeriesBatch.indicatorId, id));
     await database.sql`update observation_series set period_type = 'annual',
       variants = '[{"sex":"","periodType":"annual"}]'::jsonb

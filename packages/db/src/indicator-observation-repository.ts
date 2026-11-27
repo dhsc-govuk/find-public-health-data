@@ -5,6 +5,7 @@ import {
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
+import type { TrendSettings } from '@fphd/utils/recent-trend';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import { isoDurationSql } from './age-span-sql.ts';
@@ -75,11 +76,15 @@ export async function getIndicatorObservationData(
     dimensionType,
     dimensionValue,
     dimensionValueAgeRange: ages,
+    indicator,
     noteType,
     observation,
     observationNote,
+    valueType,
   } = views;
   if (indicatorIds.length === 0 || areaCodes.length === 0) return new Map();
+  const summarised =
+    projection === 'table' || projection === 'summary' || projection === 'sparkline';
   const fields = {
     obsId: observation.id,
     indicatorId: observation.indicatorId,
@@ -99,12 +104,23 @@ export async function getIndicatorObservationData(
     denominator: observation.denominator,
     areaCode: area.code,
     areaName: area.name,
+    // The trend's test depends on the value type and measure, which only the summarised
+    // projections need.
+    valueType: summarised ? valueType.name : sql<string | null>`null`,
+    valueMeasure: summarised ? indicator.valueMeasure : sql<string | null>`null`,
   };
-  const query = db
+  const base = db
     .select(fields)
     .from(observation)
     .innerJoin(area, and(eq(observation.areaId, area.id), inArray(area.code, areaCodes)))
-    .where(inArray(observation.indicatorId, indicatorIds));
+    .$dynamic();
+  const query = (
+    summarised
+      ? base
+          .leftJoin(indicator, eq(indicator.id, observation.indicatorId))
+          .leftJoin(valueType, eq(valueType.id, indicator.valueTypeId))
+      : base
+  ).where(inArray(observation.indicatorId, indicatorIds));
   const rows = await query.orderBy(
     asc(observation.fromDate),
     asc(observation.toDate),
@@ -151,6 +167,7 @@ export async function getIndicatorObservationData(
 
   type Point = IndicatorObservation & { obsId: string };
   const byIndicator = new Map<string, Map<string, Point[]>>();
+  const trendSettings = new Map<string, TrendSettings>();
   for (const {
     obsId,
     indicatorId,
@@ -159,8 +176,11 @@ export async function getIndicatorObservationData(
     periodType,
     areaCode,
     areaName: _areaName,
+    valueType: indicatorValueType,
+    valueMeasure,
     ...observationRow
   } of rows) {
+    trendSettings.set(indicatorId, { valueType: indicatorValueType, valueMeasure });
     const byArea = byIndicator.get(indicatorId) ?? new Map<string, Point[]>();
     const observations = byArea.get(areaCode) ?? [];
     observations.push({
@@ -188,7 +208,7 @@ export async function getIndicatorObservationData(
     });
     return {
       id,
-      ...(projection === 'table' || projection === 'summary' || projection === 'sparkline'
+      ...(summarised
         ? tableSummary(
             tableAreaSeries(areaData),
             projection === 'summary'
@@ -196,6 +216,7 @@ export async function getIndicatorObservationData(
               : projection === 'sparkline'
                 ? 'sparkline'
                 : 'recent',
+            trendSettings.get(id) ?? { valueType: null, valueMeasure: null },
           )
         : { areaData: projection === 'ranking' ? rankingAreaSeries(areaData) : areaData }),
     };

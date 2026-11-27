@@ -10,6 +10,7 @@ import {
   filterSeries,
   headlineSeries,
   isRollingPeriod,
+  isTrendPeriod,
   observationPeriodType,
   observationSegmentKey,
   observationSeriesKey,
@@ -18,13 +19,19 @@ import {
   publishedAgeChoice,
   type SeriesPeriodType,
   seriesPeriodTypes,
+  seriesTrend,
   type TableSeriesSelection,
   uncertainHeadlineAge,
 } from '@fphd/utils/observation-series';
 import { periodLabel } from '@fphd/utils/period-label';
 import type { PublicYearType } from '@fphd/utils/period-type';
 import type { Polarity } from '@fphd/utils/polarity';
-import { recentTrendDirection, type TrendDirection } from '@fphd/utils/recent-trend';
+import {
+  type TrendDirection,
+  type TrendSettings,
+  trendDirection,
+  trendRefusedForValueType,
+} from '@fphd/utils/recent-trend';
 
 import { formatConfidenceLimit } from './confidence-interval.ts';
 
@@ -841,9 +848,19 @@ export type RecentTrend =
       reason:
         | 'cumulative periods'
         | 'multi-year periods'
+        | 'periods shorter than a year'
+        | 'not calculated for this value type'
         | 'not enough data points'
         | 'no England figure';
     };
+
+/** The trend of a series that Fingertips' rules cannot calculate one for. */
+export const UNCALCULATED_TREND: RecentTrend = {
+  direction: null,
+  label: 'Trend unavailable',
+  tone: 'grey',
+  reason: 'not enough data points',
+};
 
 /** The summary's trend for an indicator with no England value. */
 export const NO_ENGLAND_TREND: RecentTrend = {
@@ -854,13 +871,12 @@ export const NO_ENGLAND_TREND: RecentTrend = {
 };
 
 /**
- * Direction of the latest five aggregate values, read with the indicator's polarity so
- * the tag can say whether the movement is good. A change smaller than 2% of the series
- * mean is reported as no significant change rather than a trend.
+ * Fingertips' recent trend of the headline series, read with the indicator's polarity so the tag
+ * can say whether the movement is good.
  */
 export function recentTrend(
   observations: IndicatorObservation[],
-  polarity: Polarity | null,
+  { polarity, valueType, valueMeasure }: { polarity: Polarity | null } & TrendSettings,
   precomputed?: TrendDirection,
 ): RecentTrend {
   const series = trendSeries(observations);
@@ -874,17 +890,24 @@ export function recentTrend(
       tone: 'grey',
       reason: cumulative ? 'cumulative periods' : 'multi-year periods',
     };
-  const direction =
-    precomputed === undefined
-      ? recentTrendDirection(series.map(({ value }) => value))
-      : precomputed;
-  if (direction === null)
+  if (!series.every(isTrendPeriod))
     return {
       direction: null,
       label: 'Trend unavailable',
       tone: 'grey',
-      reason: 'not enough data points',
+      reason: 'periods shorter than a year',
     };
+  const settings = { valueType, valueMeasure };
+  if (trendRefusedForValueType(settings))
+    return {
+      direction: null,
+      label: 'Trend unavailable',
+      tone: 'grey',
+      reason: 'not calculated for this value type',
+    };
+  const direction =
+    precomputed === undefined ? trendDirection(seriesTrend(series), settings) : precomputed;
+  if (direction === null) return UNCALCULATED_TREND;
   if (direction === 'right') return { direction, label: 'No significant change', tone: 'yellow' };
   const goodDirection = polarityGoodDirection(polarity);
   const word = direction === 'up' ? 'Increasing' : 'Decreasing';
