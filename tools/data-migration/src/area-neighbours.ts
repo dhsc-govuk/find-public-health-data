@@ -134,7 +134,7 @@ export function areaNeighbourCsv(
 export async function exportAreaNeighbours(
   dataDirectory: string,
   fetchJson: FetchJson,
-): Promise<GeographyFileEntry & { areas: number }> {
+): Promise<GeographyFileEntry & { written: boolean; areas: number }> {
   const geography = join(dataDirectory, 'geography');
   const areaIds = await currentAreaIds(geography);
   const rows = await neighbourRows(fetchJson);

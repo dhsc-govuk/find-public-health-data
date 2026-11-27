@@ -171,8 +171,8 @@ pnpm --filter @fphd/data-migration data-migration export-area-categories
 Each writes its file into `data/geography/` and updates that file's row count, size and digest in
 the manifest. Neighbour ids are derived from the council's code, the scheme and the position, so an
 unchanged ranking keeps its ids. The categories command caches the API's responses in this
-worktree's `node_modules/.cache/area-categories`; clear it first to fetch new ones. Re-running
-either command on unchanged data writes the same rows, and the same bytes on the same Node version.
+worktree's `node_modules/.cache/area-categories`; clear it first to fetch new ones. A refresh that
+finds the same rows leaves the file and the manifest as they are.
 
 Areas match on code and area type. Relationships match on their parent and child areas. Existing ids
 are retained when those keys match. Multiple matching area or relationship versions stop the import

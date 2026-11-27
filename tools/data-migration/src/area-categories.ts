@@ -124,7 +124,7 @@ export function areaCategoryCsv(
 export async function exportAreaCategories(
   dataDirectory: string,
   fetchJson: FetchJson,
-): Promise<GeographyFileEntry> {
+): Promise<GeographyFileEntry & { written: boolean }> {
   const readJson = async (file: string) =>
     JSON.parse(await readFile(join(dataDirectory, file), 'utf8'));
   const types = dimensionTypesSchema.parse(await readJson('dimension-types.json'));

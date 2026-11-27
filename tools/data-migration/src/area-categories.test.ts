@@ -175,31 +175,59 @@ describe('exportAreaCategories', () => {
     return responses;
   }
 
-  it('writes the committed rows from the same memberships and records them in the manifest', async () => {
+  /** A data directory holding the dimension catalogs and copies of the named geography files. */
+  async function geographyCopy(files: readonly string[]): Promise<string> {
     const dataDirectory = await temporaryDirectory();
-    const geography = join(dataDirectory, 'geography');
-    await mkdir(geography);
+    await mkdir(join(dataDirectory, 'geography'));
     for (const file of ['dimension-types.json', 'dimension-values.json']) {
       await copyFile(join(DEFAULT_DATA_DIRECTORY, file), join(dataDirectory, file));
     }
-    for (const file of ['area.csv.gz', 'manifest.json']) {
-      await copyFile(join(GEOGRAPHY, file), join(geography, file));
+    for (const file of files) {
+      await copyFile(join(GEOGRAPHY, file), join(dataDirectory, 'geography', file));
     }
+    return dataDirectory;
+  }
+
+  async function committedFetch(): Promise<FetchJson> {
     const responses = await committedResponses();
-    const fetchJson: FetchJson = async (path) => {
+    expect(Object.keys(responses)).toHaveLength(4);
+    return async (path) => {
       if (!(path in responses)) throw new Error(`Unexpected request: ${path}`);
       return responses[path];
     };
+  }
+
+  it('leaves the committed file and manifest byte-identical when the rows are unchanged', async () => {
+    const dataDirectory = await geographyCopy([
+      'area.csv.gz',
+      'area_category.csv.gz',
+      'manifest.json',
+    ]);
+
+    const entry = await exportAreaCategories(dataDirectory, await committedFetch());
+
+    for (const file of ['area_category.csv.gz', 'manifest.json']) {
+      expect(await readFile(join(dataDirectory, 'geography', file))).toEqual(
+        await readFile(join(GEOGRAPHY, file)),
+      );
+    }
+    expect(entry).toMatchObject({ written: false, rows: 898 });
+  });
+
+  it('writes the committed rows from the same memberships and records them in the manifest', async () => {
+    const dataDirectory = await geographyCopy(['area.csv.gz', 'manifest.json']);
+    const geography = join(dataDirectory, 'geography');
+    const fetchJson = await committedFetch();
 
     const entry = await exportAreaCategories(dataDirectory, fetchJson);
     const written = await readFile(join(geography, 'area_category.csv.gz'));
     const committed = await readFile(join(GEOGRAPHY, 'area_category.csv.gz'));
     const before = JSON.parse(await readFile(join(GEOGRAPHY, 'manifest.json'), 'utf8'));
-    const after = JSON.parse(await readFile(join(geography, 'manifest.json'), 'utf8'));
+    const manifest = await readFile(join(geography, 'manifest.json'));
+    const after = JSON.parse(manifest.toString('utf8'));
 
-    expect(Object.keys(responses)).toHaveLength(4);
     expect(gunzipSync(written).toString()).toBe(gunzipSync(committed).toString());
-    expect(entry.rows).toBe(before.files.area_category.rows);
+    expect(entry).toMatchObject({ written: true, rows: before.files.area_category.rows });
     expect(after.files.area_category).toEqual({
       ...before.files.area_category,
       bytes: written.length,
@@ -210,7 +238,8 @@ describe('exportAreaCategories', () => {
       area_category: undefined,
     });
 
-    await exportAreaCategories(dataDirectory, fetchJson);
+    expect(await exportAreaCategories(dataDirectory, fetchJson)).toMatchObject({ written: false });
     expect(await readFile(join(geography, 'area_category.csv.gz'))).toEqual(written);
+    expect(await readFile(join(geography, 'manifest.json'))).toEqual(manifest);
   });
 });

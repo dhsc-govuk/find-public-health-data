@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { sha256 } from '@fphd/db-operations';
 
@@ -92,10 +92,20 @@ export interface GeographyFileEntry {
   sha256: string;
 }
 
+async function readGzipText(path: string): Promise<string | undefined> {
+  try {
+    return gunzipSync(await readFile(path)).toString('utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
 /**
  * Writes `<table>.csv.gz` into the geography directory and records its row count, size and
- * digest in `manifest.json`. The gzip header carries no timestamp, so the same rows give the
- * same bytes on the same Node version.
+ * digest in `manifest.json`. When the file already holds exactly these rows, it is left as it is,
+ * so a refresh of unchanged data writes nothing whatever zlib build compresses it. The manifest is
+ * written only when the file's entry changes.
  */
 export async function writeGeographyFile(
   geographyDirectory: string,
@@ -103,15 +113,20 @@ export async function writeGeographyFile(
   source: string,
   csv: string,
   rows: number,
-): Promise<GeographyFileEntry> {
+): Promise<GeographyFileEntry & { written: boolean }> {
   const file = `${table}.csv.gz`;
   const path = join(geographyDirectory, file);
-  await writeFile(`${path}.tmp`, gzipSync(csv, { level: 9 }));
-  await rename(`${path}.tmp`, path);
+  const written = (await readGzipText(path)) !== csv;
+  if (written) {
+    await writeFile(`${path}.tmp`, gzipSync(csv, { level: 9 }));
+    await rename(`${path}.tmp`, path);
+  }
   const entry = { file, source, rows, bytes: (await stat(path)).size, sha256: await sha256(path) };
   const manifestPath = join(geographyDirectory, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  const updated = { ...manifest, files: { ...manifest.files, [table]: entry } };
-  await writeFile(manifestPath, `${JSON.stringify(updated, null, 2)}\n`);
-  return entry;
+  if (JSON.stringify(manifest.files?.[table]) !== JSON.stringify(entry)) {
+    const updated = { ...manifest, files: { ...manifest.files, [table]: entry } };
+    await writeFile(manifestPath, `${JSON.stringify(updated, null, 2)}\n`);
+  }
+  return { ...entry, written };
 }

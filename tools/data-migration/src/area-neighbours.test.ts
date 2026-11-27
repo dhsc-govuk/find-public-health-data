@@ -188,24 +188,52 @@ describe('exportAreaNeighbours', () => {
     ]);
   }
 
-  it('writes the committed rows from the same rankings and records them in the manifest', async () => {
+  /** A data directory holding copies of the named committed geography files. */
+  async function geographyCopy(files: readonly string[]): Promise<string> {
     const dataDirectory = await mkdtemp(join(tmpdir(), 'area-neighbours-'));
     directories.push(dataDirectory);
-    const geography = join(dataDirectory, 'geography');
-    await mkdir(geography);
-    for (const file of ['area.csv.gz', 'manifest.json']) {
-      await copyFile(join(GEOGRAPHY, file), join(geography, file));
+    await mkdir(join(dataDirectory, 'geography'));
+    for (const file of files) {
+      await copyFile(join(GEOGRAPHY, file), join(dataDirectory, 'geography', file));
     }
+    return dataDirectory;
+  }
+
+  it('leaves the committed file and manifest byte-identical when the rows are unchanged', async () => {
+    const dataDirectory = await geographyCopy([
+      'area.csv.gz',
+      'area_neighbour.csv.gz',
+      'manifest.json',
+    ]);
+
+    const entry = await exportAreaNeighbours(dataDirectory, respond(await committedResponses()));
+
+    for (const file of ['area_neighbour.csv.gz', 'manifest.json']) {
+      expect(await readFile(join(dataDirectory, 'geography', file))).toEqual(
+        await readFile(join(GEOGRAPHY, file)),
+      );
+    }
+    expect(entry).toMatchObject({ written: false, areas: 151, rows: 2265 });
+  });
+
+  it('writes the committed rows from the same rankings and records them in the manifest', async () => {
+    const dataDirectory = await geographyCopy(['area.csv.gz', 'manifest.json']);
+    const geography = join(dataDirectory, 'geography');
     const fetchJson = respond(await committedResponses());
 
     const entry = await exportAreaNeighbours(dataDirectory, fetchJson);
     const written = await readFile(join(geography, 'area_neighbour.csv.gz'));
     const committed = await readFile(join(GEOGRAPHY, 'area_neighbour.csv.gz'));
     const before = JSON.parse(await readFile(join(GEOGRAPHY, 'manifest.json'), 'utf8'));
-    const after = JSON.parse(await readFile(join(geography, 'manifest.json'), 'utf8'));
+    const manifest = await readFile(join(geography, 'manifest.json'));
+    const after = JSON.parse(manifest.toString('utf8'));
 
     expect(gunzipSync(written).toString()).toBe(gunzipSync(committed).toString());
-    expect(entry).toMatchObject({ areas: 151, rows: before.files.area_neighbour.rows });
+    expect(entry).toMatchObject({
+      written: true,
+      areas: 151,
+      rows: before.files.area_neighbour.rows,
+    });
     expect(after.files.area_neighbour).toEqual({
       ...before.files.area_neighbour,
       bytes: written.length,
@@ -216,7 +244,8 @@ describe('exportAreaNeighbours', () => {
       area_neighbour: undefined,
     });
 
-    await exportAreaNeighbours(dataDirectory, fetchJson);
+    expect(await exportAreaNeighbours(dataDirectory, fetchJson)).toMatchObject({ written: false });
     expect(await readFile(join(geography, 'area_neighbour.csv.gz'))).toEqual(written);
+    expect(await readFile(join(geography, 'manifest.json'))).toEqual(manifest);
   });
 });
