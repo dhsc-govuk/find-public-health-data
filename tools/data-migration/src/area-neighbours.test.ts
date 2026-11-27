@@ -144,6 +144,20 @@ describe('neighbourRows', () => {
     );
   });
 
+  it('stops when Fingertips lists a council more than once', async () => {
+    const responses = {
+      'areas/by_area_type?area_type_id=502': [
+        { Code: 'E06000001' },
+        { Code: 'E06000002' },
+        { Code: 'E06000001' },
+      ],
+    };
+
+    await expect(neighbourRows(respond(responses))).rejects.toThrow(
+      'Fingertips lists these councils more than once: E06000001',
+    );
+  });
+
   it('stops when Fingertips returns no councils', async () => {
     await expect(
       neighbourRows(respond({ 'areas/by_area_type?area_type_id=502': [] })),

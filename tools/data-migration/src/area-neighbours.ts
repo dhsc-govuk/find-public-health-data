@@ -61,6 +61,10 @@ export function areaNeighbourId(code: string, position: number): string {
 export async function neighbourRows(fetchJson: FetchJson): Promise<AreaNeighbour[]> {
   const areas = areasSchema.parse(await fetchJson(`areas/by_area_type?area_type_id=${AREA_TYPE}`));
   const codes = areas.map(({ Code }) => Code).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const repeated = [...new Set(codes.filter((code, index) => codes[index - 1] === code))];
+  if (repeated.length > 0) {
+    throw new Error(`Fingertips lists these councils more than once: ${repeated.join(', ')}`);
+  }
   const rows: AreaNeighbour[] = [];
   for (const code of codes) {
     const detail = neighbourGroupsSchema.parse(
