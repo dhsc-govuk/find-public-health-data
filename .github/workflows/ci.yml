@@ -124,6 +124,52 @@ jobs:
           STORAGE_CONTAINER: uploads
           STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;
 
+  # Temporary, for the Postgres driver comparison only. Never merge this job.
+  driver-benchmark:
+    name: Postgres driver benchmark
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: fphd
+          POSTGRES_PASSWORD: fphd
+          POSTGRES_DB: fphd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fphd -d fphd"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-workspace
+      - name: Print the runner's hardware
+        run: |
+          nproc
+          free -m
+          lscpu | grep -E 'Model name|^CPU\(s\)'
+      - name: Run the driver benchmark
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          POSTGRES_DB: fphd
+          POSTGRES_USER: fphd
+          POSTGRES_PASSWORD: fphd
+        run: pnpm --filter @fphd/perf bench:drivers --out "${RUNNER_TEMP}/driver-bench.json"
+      - name: Upload the benchmark samples
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: driver-bench
+          path: ${{ runner.temp }}/driver-bench.json
+          retention-days: 7
+          if-no-files-found: ignore
+
   # Each matrix entry starts its own stack. The three shards each run their share of the suite; add
   # a shard, and raise every shard's total, as the suite grows. The publishing entry runs the
   # publishing project on a stack of its own, because publishing an indicator changes data the
