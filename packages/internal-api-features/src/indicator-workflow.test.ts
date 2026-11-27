@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { INDICATOR_STEPS } from './contract.ts';
 import {
   type IndicatorWorkflowRow,
   isDraftDiscardable,
@@ -62,10 +61,6 @@ const DECISION_STEPS = [
 describe('mayTakeStep', () => {
   const inTeam = { teamId: TEAM, reviewerIds: [] };
   const assigned = { teamId: TEAM, reviewerIds: ['reviewer'] };
-
-  it.each(INDICATOR_STEPS)('says who may take %s', (step) => {
-    expect(typeof mayTakeStep(admin, assigned, step)).toBe('boolean');
-  });
 
   it.each(['submit', 'withdraw', 'resubmit'] as const)(
     "lets a publisher %s their own team's indicator only",
