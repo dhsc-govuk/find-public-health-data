@@ -8,10 +8,18 @@
 // tests publish indicators, some of them to update one. That project is defined only when
 // `E2E_PUBLISHING=1` is set, which `test:e2e:publishing` does, so neither `test:e2e` nor a bare
 // `playwright test` runs it.
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices, type ReporterDescription } from '@playwright/test';
 
 import { INVITEE_STORAGE_STATE } from './tests/support/private-beta.ts';
 import { INTERNAL_WEB_URL, PUBLIC_WEB_URL } from './tests/support/web-urls.ts';
+
+// In CI the JSON report holds each shard's measured test times, which ci.yml saves so that
+// e2e/shard-timings.json can be refreshed from a CI run.
+const ciReporters: ReporterDescription[] = [
+  ['html', { open: 'never' }],
+  ['json', { outputFile: 'test-timings.json' }],
+];
+const localReporters: ReporterDescription[] = [['list']];
 
 const internalUse = { ...devices['Desktop Chrome'], baseURL: INTERNAL_WEB_URL };
 const publicUse = { ...devices['Desktop Chrome'], baseURL: PUBLIC_WEB_URL };
@@ -39,7 +47,9 @@ export default defineConfig({
   workers: '50%',
   // A stray .only must not quietly shrink the suite where nobody is watching.
   forbidOnly: !!process.env.CI,
-  reporter: process.env.CI ? [['html', { open: 'never' }]] : 'list',
+  // shard-by-time.ts divides the suite when --shard is given. A --reporter on the command line
+  // replaces this list, and Playwright then shards by test count instead.
+  reporter: [...(process.env.CI ? ciReporters : localReporters), ['./shard-by-time.ts']],
   use: {
     trace: 'retain-on-failure',
   },

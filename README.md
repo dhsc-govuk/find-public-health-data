@@ -119,6 +119,7 @@ pnpm dev:internal
 pnpm check
 pnpm check:artefacts     # assert no internal code, secret or database operation reaches an artifact
 pnpm check:e2e-coverage  # assert every page route has an e2e spec and every spec scans with axe
+pnpm check:e2e-shards    # assert the CI e2e shards run every e2e test exactly once
 pnpm check:migrations    # assert the schema holds no change its migrations do not
 pnpm build
 pnpm test                # unit then integration tests (not e2e)
@@ -126,6 +127,7 @@ pnpm test:unit           # unit tests
 pnpm test:integration    # integration tests — need the local database and Azurite running
 pnpm test:e2e            # end-to-end tests — need the stack serving and the database seeded
 pnpm test:e2e:publishing # end-to-end test of scheduled publication — needs the worker running
+pnpm test:e2e:timings    # rewrite e2e/shard-timings.json from Playwright JSON reports
 ```
 
 Each application builds to its own `dist` directory, giving CI and deployment tooling four
@@ -185,11 +187,32 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
   running `--shard=i/n`: every shard runs the four apps and the worker as compose containers from
   the production images the image build job made (see [Container images](#container-images)),
   restores the database a seed job seeded once for the run, with the same commands a developer runs,
-  runs its share of the suite, and uploads its own Playwright report when it fails. Add a shard to
-  the matrix as the suite grows. One more matrix entry runs `pnpm test:e2e:publishing`, the
-  `publishing` project, on a stack of its own. It runs separately because publishing an indicator
-  changes the public search total and a topic's list of indicators, which other specs read, and
-  because it waits up to 2 minutes 20 seconds for the worker to publish.
+  runs its share of the suite, and uploads its own Playwright report when it fails. One more matrix
+  entry runs `pnpm test:e2e:publishing`, the `publishing` project, on a stack of its own. It runs
+  separately because publishing an indicator changes the public search total and a topic's list of
+  indicators, which other specs read, and because it waits up to 2 minutes 20 seconds for the worker
+  to publish.
+- The shards are sized by run time, not test count. `e2e/shard-by-time.ts`, a Playwright reporter,
+  packs whole spec files into the shards by the seconds each file's tests took in
+  `e2e/shard-timings.json`, so that every shard has about the same test time. A spec file with no
+  timing yet counts as the median file. `pnpm check:e2e-shards`, in the route coverage job and in
+  `pnpm check`, lists each shard through the Playwright config and fails unless every test runs in
+  exactly one shard and each shard runs the files the timings give it. Four shards finish about when
+  the publishing entry does, so more would only cost runner time; add one when the shards outgrow
+  it.
+- The timings are relative, so they can come from any machine. The committed ones are from a local
+  run of the whole suite with two workers, as each CI shard has. Refresh them when spec files are
+  added or slow down, from a local run against a running stack, with the URL variables the e2e notes
+  below give:
+
+  ```sh
+  PLAYWRIGHT_JSON_OUTPUT_FILE=$PWD/e2e/test-timings.json pnpm test:e2e --workers=2 --reporter=json
+  pnpm test:e2e:timings e2e/test-timings.json
+  ```
+
+  or from one CI run, by downloading every shard's `test-timings-shard-<n>` artifact (kept for 7
+  days) and passing all four of their `test-timings.json` files to `pnpm test:e2e:timings`. A shard
+  that fails uploads no timings, so use a run in which every shard passed.
 
 Both tiers are one root Vitest run over the projects declared in `vitest.config.ts`, globbed from
 `apps/*`, `packages/*` and `tools/*`. Packages declare no test scripts of their own, so a new

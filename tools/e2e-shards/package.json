@@ -1,0 +1,21 @@
+{
+  "name": "@fphd/e2e-shards",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/pack.ts"
+  },
+  "scripts": {
+    "check:e2e-shards": "tsx src/check-shards.ts",
+    "e2e:shard-timings": "tsx src/refresh-timings.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
