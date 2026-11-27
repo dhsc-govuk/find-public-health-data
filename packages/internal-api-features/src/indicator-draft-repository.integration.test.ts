@@ -39,6 +39,7 @@ import { periodTypeColumns } from './indicator-section-columns.ts';
 import { changesTask } from './indicator-task-audit-fields.ts';
 import { completeDraft } from './indicator-workflow.testing.ts';
 import { submitIndicator } from './indicator-workflow-repository.ts';
+import { periodTypeAnswers } from './period-type.testing.ts';
 
 const { indicator, indicatorVersion } = schema;
 
@@ -1367,13 +1368,7 @@ repositoryTest(
   async ({ db }) => {
     const created = await newDraft(db, 'Editable publication start');
     for (const publishedFrom of ['2020-01-01', '']) {
-      const attributes = periodTypeColumns.toAttributes({
-        periodType: 'years',
-        yearType: 'calendar',
-        yearEndDay: '',
-        yearEndMonth: '',
-        publishedFrom,
-      });
+      const attributes = periodTypeColumns.toAttributes(periodTypeAnswers({ publishedFrom }));
       expect(
         await updateIndicatorDraft(
           db,

@@ -15,7 +15,7 @@ const TASK_GROUPS = {
     'Value types, counts and units',
     'Sex, gender and ethnicity',
     'Ages',
-    'Period type',
+    'Time periods',
     'Polarity',
   ],
   Metadata: [

@@ -6,19 +6,18 @@ import unittest
 from pathlib import Path
 
 from year_type import (
-    PERIOD_TYPE_VALUES,
+    ROLLING_FREQUENCY_VALUES,
+    TIME_PERIOD_VALUES,
+    YEAR_TYPE_COLUMNS,
     YEAR_TYPE_VALUES,
     YEAR_TYPES,
-    year_type_select,
     year_type_values,
 )
 
 transform = runpy.run_path(str(Path(__file__).with_name("transform-uuids.py")))
 reshape = runpy.run_path(str(Path(__file__).with_name("reshape-indicator-versions.py")))
-MIGRATIONS = Path(__file__).parents[3] / "drizzle"
-MIGRATION = MIGRATIONS / "0034_period-type.sql"
-VALUES_MIGRATION = MIGRATIONS / "0036_period-and-year-type-values.sql"
 UTILS = Path(__file__).parents[4] / "utils" / "src" / "period-type.ts"
+TYPESCRIPT = Path(__file__).parents[5] / "tools" / "data-migration" / "src" / "pholio" / "year-type.ts"
 
 
 class YearTypeValuesTest(unittest.TestCase):
@@ -26,45 +25,57 @@ class YearTypeValuesTest(unittest.TestCase):
         self.assertEqual(len(YEAR_TYPES), 17)
         for name in YEAR_TYPES:
             values = year_type_values(name)
-            self.assertIn(values["period_type"], PERIOD_TYPE_VALUES)
-            self.assertIn(values["year_type"], YEAR_TYPE_VALUES)
+            self.assertEqual(list(values), YEAR_TYPE_COLUMNS)
+            for period in values["time_periods"]:
+                self.assertIn(period, TIME_PERIOD_VALUES)
+            self.assertIn(values["year_type"], [*YEAR_TYPE_VALUES, None])
+            self.assertIn(values["rolling_frequency"], [*ROLLING_FREQUENCY_VALUES, None])
 
-    def test_keeps_the_three_in_use_in_the_seed_as_years(self):
+    def test_keeps_the_three_in_use_in_the_seed_as_single_years(self):
         for name, year_type in [
             ("Calendar", "calendar"),
             ("Financial", "financial"),
             ("Academic", "academic"),
         ]:
-            self.assertEqual(
-                year_type_values(name),
-                {
-                    "period_type": "years",
-                    "year_type": year_type,
-                    "year_end_day": None,
-                    "year_end_month": None,
-                },
-            )
+            values = year_type_values(name)
+            self.assertEqual(values["time_periods"], ["single-years"])
+            self.assertEqual(values["year_type"], year_type)
+            self.assertIsNone(values["year_end_day"])
+            self.assertFalse(values["periods_rolling"])
+            self.assertFalse(values["values_cumulative"])
 
     def test_gives_a_month_range_the_date_its_year_ends(self):
+        values = year_type_values("August-July")
+
+        self.assertEqual(values["year_type"], "specified-end-date")
+        self.assertEqual((values["year_end_day"], values["year_end_month"]), (31, 7))
+
+    def test_reads_part_of_a_year_as_a_date_range(self):
+        values = year_type_values("September-January")
+
+        self.assertEqual(values["time_periods"], ["date-range"])
+        self.assertIsNone(values["year_type"])
         self.assertEqual(
-            year_type_values("August-July"),
-            {
-                "period_type": "years",
-                "year_type": "specified-end-date",
-                "year_end_day": 31,
-                "year_end_month": 7,
-            },
+            [
+                values["date_range_start_day"],
+                values["date_range_start_month"],
+                values["date_range_end_day"],
+                values["date_range_end_month"],
+            ],
+            [1, 9, 31, 1],
         )
 
-    def test_gives_a_date_only_to_a_year_ending_on_one(self):
-        for name, (_, year_type, year_end) in YEAR_TYPES.items():
-            self.assertEqual(year_end is not None, year_type == "specified-end-date", name)
+    def test_rolls_a_rolling_year_on_by_its_frequency(self):
+        values = year_type_values("Calendar rolling year - quarterly")
 
-    def test_counts_cumulative_quarters_as_financial_quarters(self):
+        self.assertEqual(values["year_type"], "calendar")
+        self.assertTrue(values["periods_rolling"])
+        self.assertEqual(values["rolling_frequency"], "quarters")
+
+    def test_counts_cumulative_quarters_as_cumulative(self):
         values = year_type_values("Financial multi year cumulative quarters")
 
-        self.assertEqual(values["period_type"], "quarters")
-        self.assertEqual(values["year_type"], "financial")
+        self.assertTrue(values["values_cumulative"])
 
     def test_refuses_a_year_type_it_has_no_value_for(self):
         with self.assertRaises(ValueError) as raised:
@@ -72,44 +83,18 @@ class YearTypeValuesTest(unittest.TestCase):
 
         self.assertIn("Fortnightly", str(raised.exception))
 
-    def test_selects_all_four_columns(self):
-        select = year_type_select("i.year_type_id")
-
-        for column in ["period_type", "year_type", "year_end_day", "year_end_month"]:
-            self.assertIn(f" END AS {column}", select)
-        self.assertIn("WHEN 'August-July' THEN 31", select)
-
-
-def values_by_id():
-    """The value migration 0036 gives each period and year type row migration 0034 inserted."""
-    return dict(re.findall(r"WHEN '([0-9a-f-]{36})' THEN '([a-z-]+)'", VALUES_MIGRATION.read_text()))
-
 
 class SameTranslationTest(unittest.TestCase):
     def test_uses_the_values_the_app_knows(self):
         source = UTILS.read_text()
-        for value in [*PERIOD_TYPE_VALUES, *YEAR_TYPE_VALUES]:
+        for value in [*TIME_PERIOD_VALUES, *YEAR_TYPE_VALUES, *ROLLING_FREQUENCY_VALUES]:
             self.assertIn(f"'{value}'", source)
 
-    def test_translates_as_the_migrations_do(self):
-        values = values_by_id()
-        rows = re.findall(
-            r"\('([^']+)', '([0-9a-f-]{36})'(?:::uuid)?, '([0-9a-f-]{36})'(?:::uuid)?, "
-            r"(NULL|\d+)(?:::smallint)?, (NULL|\d+)(?:::smallint)?\)",
-            MIGRATION.read_text(),
-        )
-        self.assertEqual(len(rows), len(YEAR_TYPES))
-        for name, period_type_id, year_type_id, day, month in rows:
-            self.assertEqual(
-                {
-                    "period_type": values[period_type_id],
-                    "year_type": values[year_type_id],
-                    "year_end_day": None if day == "NULL" else int(day),
-                    "year_end_month": None if month == "NULL" else int(month),
-                },
-                year_type_values(name),
-                name,
-            )
+    def test_names_the_year_types_the_data_migration_does(self):
+        source = TYPESCRIPT.read_text()
+        block = source[source.index("export const YEAR_TYPES") : source.index("export function")]
+        names = re.findall(r"^  (?:'([^']+)'|(\w+)):", block, re.MULTILINE)
+        self.assertEqual({quoted or bare for quoted, bare in names}, set(YEAR_TYPES))
 
 
 class ExportsTest(unittest.TestCase):
@@ -120,8 +105,8 @@ class ExportsTest(unittest.TestCase):
     def test_keeps_the_tags_that_fix_published_ids(self):
         self.assertEqual(transform["TABLE_TAGS"]["ci_method"], 4)
 
-    def test_writes_the_four_columns_on_each_version(self):
-        for column in ["period_type", "year_type", "year_end_day", "year_end_month"]:
+    def test_writes_the_time_periods_columns_on_each_version(self):
+        for column in YEAR_TYPE_COLUMNS:
             self.assertIn(column, reshape["VERSION_COLUMNS"])
 
 

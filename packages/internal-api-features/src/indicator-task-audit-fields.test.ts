@@ -38,6 +38,7 @@ import {
   type IndicatorDraftLists,
   LIST_AUDIT_FIELDS,
 } from './indicator-version-lists-repository.ts';
+import { periodTypeAnswers } from './period-type.testing.ts';
 
 // The version's columns no task's save writes: identity, workflow, the data table and legacy ones.
 const UNSAVED_COLUMNS = [
@@ -152,13 +153,27 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
       ratioFormat: '',
     }),
   'period-type': () =>
-    savedFields(periodTypeColumns, {
-      periodType: 'years',
-      yearType: 'specified-end-date',
-      yearEndDay: '31',
-      yearEndMonth: '3',
-      publishedFrom: '2020-01-01',
-    }),
+    savedFields(
+      periodTypeColumns,
+      periodTypeAnswers({
+        timePeriods: ['multiple-years', 'single-years', 'date-range'],
+        multipleYearsCount: '3',
+        multipleYearsYearType: 'specified-end-date',
+        multipleYearsEndDay: '31',
+        multipleYearsEndMonth: '3',
+        yearType: 'specified-end-date',
+        yearEndDay: '31',
+        yearEndMonth: '3',
+        dateRangeStartDay: '1',
+        dateRangeStartMonth: '10',
+        dateRangeEndDay: '31',
+        dateRangeEndMonth: '3',
+        periodsRolling: 'yes',
+        rollingFrequency: 'years',
+        valuesCumulative: 'yes',
+        publishedFrom: '2020-01-01',
+      }),
+    ),
   'other-notes-and-caveats': () =>
     savedFields(otherNotesAndCaveatsColumns, {
       hasDataQualityIssues: 'yes',

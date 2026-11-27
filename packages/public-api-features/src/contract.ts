@@ -8,7 +8,7 @@ import {
   isObservationPeriodType,
   type ObservationPeriodType,
 } from '@fphd/utils/observation-series';
-import { YEAR_TYPES } from '@fphd/utils/period-type';
+import { PUBLIC_YEAR_TYPES, ROLLING_FREQUENCIES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { GOAL_LOWER_COMPARISONS, GOAL_UPPER_COMPARISONS } from '@fphd/utils/policy-goal';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
@@ -219,8 +219,14 @@ export const indicatorDetailSchema = z.object({
   valueMeasure: z.enum(MEASURES).nullable(),
   /** Null when the values have no unit, so none is shown beside them. */
   unit: z.string().min(1).nullable(),
-  /** Null for an indicator of months, which have no year type. */
-  yearType: z.object({ value: z.enum(YEAR_TYPES), label: z.string().min(1) }).nullable(),
+  /** Null for an indicator of quarters, months or date ranges alone, which have no year type. */
+  yearType: z.object({ value: z.enum(PUBLIC_YEAR_TYPES), label: z.string().min(1) }).nullable(),
+  /** Each kind of time period the indicator has, in words; null until they are answered. */
+  timePeriods: z.string().min(1).nullable(),
+  /** How often its time periods roll; null for periods that do not roll. */
+  rollingFrequency: z.enum(ROLLING_FREQUENCIES).nullable(),
+  /** Whether its values are cumulative across time periods; null until answered. */
+  valuesCumulative: z.boolean().nullable(),
   /** Null for an indicator imported from Fingertips without a frequency the service can name. */
   updateFrequency: z.enum(UPDATE_FREQUENCIES).nullable(),
   /**

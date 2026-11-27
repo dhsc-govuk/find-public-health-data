@@ -310,47 +310,107 @@ describe('indicator_version', () => {
     });
   });
 
+  const singleYears = { timePeriods: ['single-years'] };
+  const multipleYears = { timePeriods: ['multiple-years'], multipleYearsCount: 3 };
+  const dateRange = {
+    timePeriods: ['date-range'],
+    dateRangeStartDay: 1,
+    dateRangeStartMonth: 10,
+    dateRangeEndDay: 31,
+    dateRangeEndMonth: 3,
+  };
+
   it.each([
-    ['months', { periodType: 'months' }],
-    ['quarters of a year type', { periodType: 'quarters', yearType: 'financial' }],
+    ['quarters and months', { timePeriods: ['quarters', 'months'] }],
     [
-      'years ending on 29 February',
-      { periodType: 'years', yearType: 'specified-end-date', yearEndDay: 29, yearEndMonth: 2 },
+      'single years ending on 29 February',
+      { ...singleYears, yearType: 'specified-end-date', yearEndDay: 29, yearEndMonth: 2 },
     ],
-  ] as const)('holds a period type of %s', async (_, values) => {
-    await expect(addVersion(await newIndicatorId(), 'draft', values)).resolves.toHaveLength(1);
+    ['periods of more than 1 year', { ...multipleYears, multipleYearsYearType: 'financial' }],
+    ['a date range crossing the new year', dateRange],
+    [
+      'years rolling on by the month',
+      { ...singleYears, yearType: 'calendar', periodsRolling: true, rollingFrequency: 'months' },
+    ],
+  ] as const)('holds time periods of %s', async (_, values) => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', values as never),
+    ).resolves.toHaveLength(1);
   });
 
   // Each case names the check that refuses it; Postgres tries the checks in name order.
   it.each([
-    ['a period type the service does not know', { periodType: 'weeks' }, 'period_type'],
+    ['a kind of time period the service does not know', { timePeriods: ['weeks'] }, 'time_periods'],
+    ['no kinds of time period', { timePeriods: [] }, 'time_periods'],
+    ['a year type the service does not know', { ...singleYears, yearType: 'survey' }, 'year_type'],
+    ['a rolling year type', { ...singleYears, yearType: 'rolling' }, 'year_type'],
     [
-      'a year type the service does not know',
-      { periodType: 'years', yearType: 'survey' },
-      'year_type',
+      'a year type on months',
+      { timePeriods: ['months'], yearType: 'calendar' },
+      'year_type_period',
     ],
-    ['a year type on months', { periodType: 'months', yearType: 'calendar' }, 'year_type_period'],
-    ['no year type on years', { periodType: 'years' }, 'year_type_period'],
-    ['a year type with no period type', { yearType: 'calendar' }, 'year_type_period'],
+    ['no year type on single years', singleYears, 'year_type_period'],
     [
       'a year end on a calendar year',
-      { periodType: 'years', yearType: 'calendar', yearEndDay: 31, yearEndMonth: 7 },
+      { ...singleYears, yearType: 'calendar', yearEndDay: 31, yearEndMonth: 7 },
       'year_end',
     ],
     [
       'no year end on a year ending on a date',
-      { periodType: 'years', yearType: 'specified-end-date' },
+      { ...singleYears, yearType: 'specified-end-date' },
       'year_end',
     ],
     [
       'half a year end',
-      { periodType: 'years', yearType: 'specified-end-date', yearEndDay: 31 },
+      { ...singleYears, yearType: 'specified-end-date', yearEndDay: 31 },
       'year_end',
     ],
     [
       '31 February',
-      { periodType: 'years', yearType: 'specified-end-date', yearEndDay: 31, yearEndMonth: 2 },
+      { ...singleYears, yearType: 'specified-end-date', yearEndDay: 31, yearEndMonth: 2 },
       'year_end_date',
+    ],
+    [
+      'a number of years beside no periods of more than 1 year',
+      { timePeriods: ['months'], multipleYearsCount: 3 },
+      'multiple_years_count_period',
+    ],
+    [
+      'periods of 1 year as more than 1 year',
+      { ...multipleYears, multipleYearsCount: 1, multipleYearsYearType: 'calendar' },
+      'multiple_years_count',
+    ],
+    [
+      'no year type on periods of more than 1 year',
+      multipleYears,
+      'multiple_years_year_type_period',
+    ],
+    [
+      'no year end on periods of more than 1 year ending on a date',
+      { ...multipleYears, multipleYearsYearType: 'specified-end-date' },
+      'multiple_years_end',
+    ],
+    [
+      'half a date range',
+      { timePeriods: ['date-range'], dateRangeStartDay: 1, dateRangeStartMonth: 9 },
+      'date_range',
+    ],
+    ['a date range beside no date range', { ...dateRange, timePeriods: ['months'] }, 'date_range'],
+    [
+      'a date range ending 30 February',
+      { ...dateRange, dateRangeEndDay: 30, dateRangeEndMonth: 2 },
+      'date_range_end_date',
+    ],
+    [
+      'a rolling frequency beside periods that do not roll',
+      { periodsRolling: false, rollingFrequency: 'years' },
+      'rolling_frequency_rolling',
+    ],
+    ['rolling periods with no frequency', { periodsRolling: true }, 'rolling_frequency_rolling'],
+    [
+      'a rolling frequency the service does not know',
+      { periodsRolling: true, rollingFrequency: 'weeks' },
+      'rolling_frequency',
     ],
   ] as const)('refuses %s', async (_, values, check) => {
     await expect(

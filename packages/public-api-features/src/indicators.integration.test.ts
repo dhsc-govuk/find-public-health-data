@@ -45,9 +45,9 @@ async function insertDraftOnlyIndicator(
       INSERT INTO indicator (short_id, team_id) VALUES (${shortId}, ${schema.IMPORTED_INDICATOR_TEAM_ID}) RETURNING id, short_id
     )
     INSERT INTO indicator_version
-      (indicator_id, status, name, slug, value_type_id, period_type, year_type,
+      (indicator_id, status, name, slug, value_type_id, time_periods, year_type,
        polarity, update_frequency, created_by, updated_by)
-    SELECT i.id, 'draft', ${name}, ${slug}, vt.id, 'years', 'calendar',
+    SELECT i.id, 'draft', ${name}, ${slug}, vt.id, '{single-years}', 'calendar',
            'lower-is-better', 'annually',
            ${schema.SYSTEM_USER_IDS.pholioMigration}::uuid, ${schema.SYSTEM_USER_IDS.pholioMigration}::uuid
     FROM new_indicator i, value_type vt

@@ -8,7 +8,7 @@ import {
   type RatePer,
 } from '@fphd/utils/counts-and-values';
 import type { ObservationPeriodType, SeriesPeriodType } from '@fphd/utils/observation-series';
-import { YEAR_TYPES } from '@fphd/utils/period-type';
+import { ROLLING_FREQUENCIES, TIME_PERIODS, YEAR_TYPES } from '@fphd/utils/period-type';
 import { GOAL_POLARITIES, POLARITIES } from '@fphd/utils/polarity';
 import { GOAL_LOWER_COMPARISONS, GOAL_UPPER_COMPARISONS } from '@fphd/utils/policy-goal';
 import type { TrendSummary } from '@fphd/utils/recent-trend';
@@ -287,9 +287,21 @@ export function createVersionedViews(schema: PgSchema<string>) {
         gapObject: text('gap_object', { enum: GAP_OBJECTS }),
         gapObjectDetail: text('gap_object_detail'),
         ratioFormat: text('ratio_format', { enum: RATIO_FORMATS }),
+        timePeriods: text('time_periods', { enum: TIME_PERIODS }).array(),
+        multipleYearsCount: smallint('multiple_years_count'),
+        multipleYearsYearType: text('multiple_years_year_type', { enum: YEAR_TYPES }),
+        multipleYearsEndDay: smallint('multiple_years_end_day'),
+        multipleYearsEndMonth: smallint('multiple_years_end_month'),
         yearType: text('year_type', { enum: YEAR_TYPES }),
         yearEndDay: smallint('year_end_day'),
         yearEndMonth: smallint('year_end_month'),
+        dateRangeStartDay: smallint('date_range_start_day'),
+        dateRangeStartMonth: smallint('date_range_start_month'),
+        dateRangeEndDay: smallint('date_range_end_day'),
+        dateRangeEndMonth: smallint('date_range_end_month'),
+        periodsRolling: boolean('periods_rolling'),
+        rollingFrequency: text('rolling_frequency', { enum: ROLLING_FREQUENCIES }),
+        valuesCumulative: boolean('values_cumulative'),
         ciMethodId: uuid('ci_method_id'),
         polarity: text('polarity', { enum: POLARITIES }),
         updateFrequency: text('update_frequency', { enum: UPDATE_FREQUENCIES }),
@@ -339,9 +351,21 @@ SELECT
   v.gap_object,
   v.gap_object_detail,
   v.ratio_format,
+  v.time_periods,
+  v.multiple_years_count,
+  v.multiple_years_year_type,
+  v.multiple_years_end_day,
+  v.multiple_years_end_month,
   v.year_type,
   v.year_end_day,
   v.year_end_month,
+  v.date_range_start_day,
+  v.date_range_start_month,
+  v.date_range_end_day,
+  v.date_range_end_month,
+  v.periods_rolling,
+  v.rolling_frequency,
+  v.values_cumulative,
   v.ci_method_id,
   v.polarity,
   v.update_frequency,

@@ -1,4 +1,4 @@
-import type { PeriodType, YearType } from '@fphd/utils/period-type';
+import type { RollingFrequency, TimePeriod, YearType } from '@fphd/utils/period-type';
 import type postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -13,14 +13,16 @@ import {
 import { publishedViews } from './schema/index.ts';
 import { createTestDb, type TestDb } from './testing.ts';
 
-// Seeded indicators given the period types the seed does not carry.
+// Seeded indicators given the time periods the seed does not carry.
 const WINTER_YEARS = 108;
 const SURVEY_YEARS = 241;
 const MONTHLY = 93995;
+// Seeded as financial years, given years that roll on by the quarter.
+const ROLLING_QUARTERLY = 94194;
 const MARCH_YEARS = 40501;
 const LEAP_MARCH_YEARS = 90851;
-// Seeded as financial and academic years.
-const FINANCIAL_YEARS = [93622, 94194];
+// Seeded as financial years, and as academic periods of 5 years that roll on by the year.
+const FINANCIAL_YEARS = [93622];
 const ACADEMIC_YEARS = [92026, 92033];
 // Seeded as calendar years, given the end dates of the named year types.
 const ENDING_31_MARCH = 92443;
@@ -31,16 +33,24 @@ let testDb: TestDb;
 let owner: postgres.Sql;
 let db: Database;
 
-async function setPeriodType(
+/**
+ * Gives a seeded indicator one kind of time period: single years of a year type, or quarters or
+ * months, which have none. Its periods roll on by `rolling` where it is given.
+ */
+async function setTimePeriods(
   shortId: number,
-  periodType: PeriodType,
+  timePeriod: TimePeriod,
   yearType: YearType | null,
   yearEnd: [number, number] | null = null,
+  rolling: RollingFrequency | null = null,
 ): Promise<void> {
   await owner`
     UPDATE indicator_version v
-    SET period_type = ${periodType}, year_type = ${yearType},
-        year_end_day = ${yearEnd?.[0] ?? null}, year_end_month = ${yearEnd?.[1] ?? null}
+    SET time_periods = ${[timePeriod]}, multiple_years_count = NULL,
+        multiple_years_year_type = NULL, multiple_years_end_day = NULL,
+        multiple_years_end_month = NULL, year_type = ${yearType},
+        year_end_day = ${yearEnd?.[0] ?? null}, year_end_month = ${yearEnd?.[1] ?? null},
+        periods_rolling = ${rolling !== null}, rolling_frequency = ${rolling}
     FROM indicator i
     WHERE i.id = v.indicator_id AND i.short_id = ${shortId}
   `;
@@ -74,14 +84,15 @@ beforeAll(async () => {
   owner = testDb.sql;
   db = testDb.db;
 
-  await setPeriodType(WINTER_YEARS, 'years', 'specified-end-date', [31, 7]);
-  await setPeriodType(SURVEY_YEARS, 'quarters', 'specified-end-date', [15, 11]);
-  await setPeriodType(MONTHLY, 'months', null);
-  await setPeriodType(MARCH_YEARS, 'years', 'specified-end-date', [28, 2]);
-  await setPeriodType(LEAP_MARCH_YEARS, 'years', 'specified-end-date', [29, 2]);
-  await setPeriodType(ENDING_31_MARCH, 'years', 'specified-end-date', [31, 3]);
-  await setPeriodType(ENDING_31_DECEMBER, 'years', 'specified-end-date', [31, 12]);
-  await setPeriodType(ENDING_31_AUGUST, 'years', 'specified-end-date', [31, 8]);
+  await setTimePeriods(WINTER_YEARS, 'single-years', 'specified-end-date', [31, 7]);
+  await setTimePeriods(SURVEY_YEARS, 'single-years', 'specified-end-date', [15, 11]);
+  await setTimePeriods(MONTHLY, 'months', null);
+  await setTimePeriods(MARCH_YEARS, 'single-years', 'specified-end-date', [28, 2]);
+  await setTimePeriods(LEAP_MARCH_YEARS, 'single-years', 'specified-end-date', [29, 2]);
+  await setTimePeriods(ENDING_31_MARCH, 'single-years', 'specified-end-date', [31, 3]);
+  await setTimePeriods(ENDING_31_DECEMBER, 'single-years', 'specified-end-date', [31, 12]);
+  await setTimePeriods(ENDING_31_AUGUST, 'single-years', 'specified-end-date', [31, 8]);
+  await setTimePeriods(ROLLING_QUARTERLY, 'single-years', 'financial', null, 'quarters');
 });
 
 afterAll(async () => {
@@ -122,6 +133,26 @@ describe('the public year type', () => {
     },
   );
 
+  it('is rolling for years that roll on by the quarter', async () => {
+    const id = await resolvePublishedIndicatorId(db, publishedViews, ROLLING_QUARTERLY);
+
+    expect((await getIndicatorDetailById(db, publishedViews, id ?? ''))?.yearType).toEqual({
+      value: 'rolling',
+      label: 'Rolling',
+    });
+    expect(await shortIdsFound(['Rolling'])).toEqual([ROLLING_QUARTERLY]);
+  });
+
+  it('is the year type of periods of more than 1 year that roll on by the year', async () => {
+    const [id] = await Promise.all(
+      ACADEMIC_YEARS.map((shortId) => resolvePublishedIndicatorId(db, publishedViews, shortId)),
+    );
+    const indicator = await getIndicatorDetailById(db, publishedViews, id ?? '');
+
+    expect(indicator?.yearType).toEqual({ value: 'academic', label: 'Academic' });
+    expect(indicator?.timePeriods).toBe('5-year Academic years (1 September to 31 August)');
+  });
+
   it('is null for an indicator of months, which is still published', async () => {
     const id = await resolvePublishedIndicatorId(db, publishedViews, MONTHLY);
     const indicator = await getIndicatorDetailById(db, publishedViews, id ?? '');
@@ -137,6 +168,7 @@ describe('the public year type', () => {
       'Calendar',
       'Financial',
       'March to February',
+      'Rolling',
       'Year ending 15 November',
     ]);
   });

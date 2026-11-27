@@ -102,6 +102,11 @@ const sexGenderAndEthnicityUnanswered = {
   ethnicGroups: [],
 };
 
+const periodTypeUnanswered = {
+  ...unanswered(periodTypeSection),
+  timePeriods: [],
+};
+
 const benchmarkingUnanswered = {
   hasGoalBenchmark: '',
   goals: [
@@ -242,13 +247,6 @@ const forms: {
     { valueTypes: [] },
   ),
   sectionForm(
-    'period type',
-    periodType,
-    periodTypeSection,
-    'What is the period type in this indicator?',
-    { periodType: 'Select the period type' },
-  ),
-  sectionForm(
     'quality, caveats and interpretation',
     otherNotesAndCaveats,
     otherNotesAndCaveatsSection,
@@ -316,6 +314,16 @@ const forms: {
     rejected: {
       values: sexGenderAndEthnicityUnanswered,
       fieldErrors: { demographics: 'Select what was collected for this indicator' },
+    },
+  },
+  {
+    name: 'time periods',
+    route: periodType,
+    pageTitle: 'Time periods',
+    loaderData: { id: indicator.id, values: periodTypeUnanswered },
+    rejected: {
+      values: periodTypeUnanswered,
+      fieldErrors: { timePeriods: 'Select the time periods included in this indicator' },
     },
   },
   {

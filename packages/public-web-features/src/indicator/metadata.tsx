@@ -1,5 +1,6 @@
 import { A, formatDate, GridColumn, GridRow, SectionBreak, SummaryList } from '@fphd/ui';
 import { CI_CONFIDENCE_LEVEL_LABELS } from '@fphd/utils/ci-confidence-level';
+import { ROLLING_FREQUENCY_LABELS } from '@fphd/utils/period-type';
 import { POLARITY_LABELS } from '@fphd/utils/polarity';
 import { type PublicUpdateFrequency, publicUpdateFrequency } from '@fphd/utils/update-frequency';
 import { dimensionValues, NO_ENGLAND_TREND, periodCovered, recentTrend } from './data.ts';
@@ -10,7 +11,7 @@ import type {
   IndicatorQuestion,
 } from './loader.ts';
 import { dataValueTitle } from './metadata-data.ts';
-import { dataPlaceholder, isUnanswered, NOT_ENTERED_YET } from './placeholders.ts';
+import { dataPlaceholder, isPreview, isUnanswered, NOT_ENTERED_YET } from './placeholders.ts';
 import { TrendTag } from './trend-tag.tsx';
 
 export function DefinitionBlock({ title, text }: { title: string; text: string | null }) {
@@ -291,6 +292,27 @@ function CalculationPart({
   );
 }
 
+/**
+ * Whether the time periods roll, and whether the values are cumulative across them, each shown
+ * only when it is so. The publisher's preview shows them; the public page does not.
+ */
+function previewTimePeriodRows(indicator: IndicatorPageDetail) {
+  if (!isPreview(indicator)) return [];
+  return [
+    ...(indicator.rollingFrequency === null
+      ? []
+      : [
+          {
+            name: 'Rolling time periods',
+            children: ROLLING_FREQUENCY_LABELS[indicator.rollingFrequency],
+          },
+        ]),
+    ...(indicator.valuesCumulative === true
+      ? [{ name: 'Cumulative values', children: 'Yes' }]
+      : []),
+  ];
+}
+
 /** About tab: Overview, Data attributes, Calculation, Other notes, and History. */
 export function BackgroundInformation({
   indicator,
@@ -339,7 +361,8 @@ export function BackgroundInformation({
               (dimensionValues(observations, 'Sex').join(', ') ||
                 (observations.length ? 'Persons' : null)),
           ),
-          ...attribute('Year type', indicator.yearType?.label ?? null),
+          ...answer('Time periods', 'timePeriods', indicator.timePeriods),
+          ...previewTimePeriodRows(indicator),
           ...updateFrequencyRow('Frequency', indicator),
           ...answer(
             'Polarity',

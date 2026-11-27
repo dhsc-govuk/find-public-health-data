@@ -4,7 +4,6 @@ import type postgres from 'postgres';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 
 import { asOwnerGroup, migrateToLatest } from './migrations.ts';
-import { createPreviewViews } from './preview-views.ts';
 import { migrateBefore } from './testing.ts';
 
 let testDb: TestDb;
@@ -15,7 +14,13 @@ beforeAll(async () => {
   testDb = await createTestDb({ template: 'unmigrated' });
   sql = testDb.sql;
   await migrateBefore(sql, '0108_cumulative-quarter-series');
-  await asOwnerGroup(sql, () => createPreviewViews(sql, { skipUnpublished: true }));
+  // Today's preview views select columns later migrations add, so they can't be built on a
+  // schema this old. A stand-in for the preview views an environment had then shows the
+  // migration replaces them.
+  await asOwnerGroup(
+    sql,
+    () => sql`CREATE VIEW preview.observation AS SELECT o.id FROM public.observation o`,
+  );
   await migrateToLatest(sql);
 
   const [created] = await sql<(typeof fixture)[]>`

@@ -17,6 +17,7 @@ import {
   varianceAndQualityColumns,
 } from './indicator-section-columns.ts';
 import { everyAnswer, METHODS, publishingDate } from './indicator-sections.testing.ts';
+import { periodTypeAnswers } from './period-type.testing.ts';
 import { unansweredDraft } from './testing.ts';
 
 describe('definitionAndRationaleColumns', () => {
@@ -111,79 +112,136 @@ describe('updateFrequencyColumns', () => {
 });
 
 describe('periodTypeColumns', () => {
-  const years = 'years';
   const specified = 'specified-end-date';
+  const nothing = {
+    multipleYearsCount: null,
+    multipleYearsYearType: null,
+    multipleYearsEndDay: null,
+    multipleYearsEndMonth: null,
+    yearType: null,
+    yearEndDay: null,
+    yearEndMonth: null,
+    dateRangeStartDay: null,
+    dateRangeStartMonth: null,
+    dateRangeEndDay: null,
+    dateRangeEndMonth: null,
+    periodsRolling: false,
+    rollingFrequency: null,
+    valuesCumulative: false,
+    publishedFrom: null,
+  };
 
-  it('reads the year end as the form gives it', () => {
+  it('reads no kinds of time period, and every other answer unanswered, from a new draft', () => {
+    expect(periodTypeColumns.fromDraft(unansweredDraft)).toEqual({
+      ...nothing,
+      timePeriods: [],
+      periodsRolling: null,
+      valuesCumulative: null,
+    });
+  });
+
+  it('reads the numbers and yes or no answers as the form gives them', () => {
     expect(
       periodTypeColumns.fromDraft({
         ...unansweredDraft,
-        periodType: years,
-        yearType: specified,
-        yearEndDay: 31,
-        yearEndMonth: 7,
+        timePeriods: ['multiple-years', 'date-range'],
+        multipleYearsCount: 3,
+        multipleYearsYearType: specified,
+        multipleYearsEndDay: 31,
+        multipleYearsEndMonth: 7,
+        dateRangeStartDay: 1,
+        dateRangeStartMonth: 10,
+        dateRangeEndDay: 31,
+        dateRangeEndMonth: 3,
+        periodsRolling: true,
+        rollingFrequency: 'years',
+        valuesCumulative: false,
       }),
     ).toEqual({
-      periodType: years,
-      yearType: specified,
-      yearEndDay: '31',
-      yearEndMonth: '7',
-      publishedFrom: null,
+      ...nothing,
+      timePeriods: ['multiple-years', 'date-range'],
+      multipleYearsCount: '3',
+      multipleYearsYearType: specified,
+      multipleYearsEndDay: '31',
+      multipleYearsEndMonth: '7',
+      dateRangeStartDay: '1',
+      dateRangeStartMonth: '10',
+      dateRangeEndDay: '31',
+      dateRangeEndMonth: '3',
+      periodsRolling: 'yes',
+      rollingFrequency: 'years',
+      valuesCumulative: 'no',
     });
   });
 
-  it('writes the year end of a year ending on a specified date', () => {
+  it('writes the answers each ticked kind of time period asks for', () => {
     expect(
-      periodTypeColumns.toAttributes({
-        periodType: years,
-        yearType: specified,
-        yearEndDay: '31',
-        yearEndMonth: '07',
-        publishedFrom: '',
-      }),
+      periodTypeColumns.toAttributes(
+        periodTypeAnswers({
+          timePeriods: ['multiple-years', 'single-years', 'date-range'],
+          multipleYearsCount: '5',
+          multipleYearsYearType: 'academic',
+          yearType: specified,
+          yearEndDay: '31',
+          yearEndMonth: '07',
+          dateRangeStartDay: '1',
+          dateRangeStartMonth: '10',
+          dateRangeEndDay: '31',
+          dateRangeEndMonth: '3',
+          periodsRolling: 'yes',
+          rollingFrequency: 'years',
+          valuesCumulative: 'yes',
+        }),
+      ),
     ).toEqual({
-      periodType: years,
+      ...nothing,
+      timePeriods: ['multiple-years', 'single-years', 'date-range'],
+      multipleYearsCount: 5,
+      multipleYearsYearType: 'academic',
       yearType: specified,
       yearEndDay: 31,
       yearEndMonth: 7,
-      publishedFrom: null,
+      dateRangeStartDay: 1,
+      dateRangeStartMonth: 10,
+      dateRangeEndDay: 31,
+      dateRangeEndMonth: 3,
+      periodsRolling: true,
+      rollingFrequency: 'years',
+      valuesCumulative: true,
     });
   });
 
-  it('clears a year end the year type does not ask for', () => {
+  it('clears the answers of the kinds of time period not ticked, and a year end not asked for', () => {
     expect(
-      periodTypeColumns.toAttributes({
-        periodType: 'quarters',
-        yearType: 'financial',
-        yearEndDay: '31',
-        yearEndMonth: '7',
-        publishedFrom: '',
-      }),
-    ).toEqual({
-      periodType: 'quarters',
-      yearType: 'financial',
-      yearEndDay: null,
-      yearEndMonth: null,
-      publishedFrom: null,
-    });
+      periodTypeColumns.toAttributes(
+        periodTypeAnswers({
+          timePeriods: ['single-years', 'quarters'],
+          multipleYearsCount: '5',
+          multipleYearsYearType: specified,
+          multipleYearsEndDay: '31',
+          multipleYearsEndMonth: '7',
+          yearType: 'financial',
+          yearEndDay: '31',
+          yearEndMonth: '7',
+          dateRangeStartDay: '1',
+          dateRangeStartMonth: '10',
+          dateRangeEndDay: '31',
+          dateRangeEndMonth: '3',
+        }),
+      ),
+    ).toEqual({ ...nothing, timePeriods: ['single-years', 'quarters'], yearType: 'financial' });
   });
 
-  it('clears the year type and year end of months', () => {
+  it('clears the rolling frequency of periods that do not roll', () => {
     expect(
-      periodTypeColumns.toAttributes({
-        periodType: 'months',
-        yearType: specified,
-        yearEndDay: '31',
-        yearEndMonth: '7',
-        publishedFrom: '',
-      }),
-    ).toEqual({
-      periodType: 'months',
-      yearType: null,
-      yearEndDay: null,
-      yearEndMonth: null,
-      publishedFrom: null,
-    });
+      periodTypeColumns.toAttributes(
+        periodTypeAnswers({
+          timePeriods: ['months'],
+          periodsRolling: 'no',
+          rollingFrequency: 'months',
+        }),
+      ),
+    ).toEqual({ ...nothing, timePeriods: ['months'] });
   });
 });
 
@@ -758,15 +816,9 @@ it.each([
   ['2020-01-01', '2020-01-01'],
   ['', null],
 ] as const)('saves and clears the publication start date %s', (publishedFrom, stored) => {
-  expect(
-    periodTypeColumns.toAttributes({
-      periodType: 'months',
-      yearType: '',
-      yearEndDay: '',
-      yearEndMonth: '',
-      publishedFrom,
-    }),
-  ).toMatchObject({ publishedFrom: stored });
+  expect(periodTypeColumns.toAttributes(periodTypeAnswers({ publishedFrom }))).toMatchObject({
+    publishedFrom: stored,
+  });
   expect(periodTypeColumns.fromDraft({ ...unansweredDraft, publishedFrom: stored })).toMatchObject({
     publishedFrom: stored,
   });

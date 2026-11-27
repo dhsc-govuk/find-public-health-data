@@ -9,7 +9,12 @@ import {
   RATIO_FORMAT_LABELS,
 } from '@fphd/utils/counts-and-values';
 import { INDICATOR_DISCLOSURE_CONTROL_LABELS } from '@fphd/utils/disclosure-control';
-import { monthName, PERIOD_TYPE_LABELS, YEAR_TYPE_LABELS } from '@fphd/utils/period-type';
+import {
+  monthName,
+  ROLLING_FREQUENCY_LABELS,
+  TIME_PERIOD_LABELS,
+  YEAR_TYPE_LABELS,
+} from '@fphd/utils/period-type';
 import { type GoalPolarity, POLARITY_LABELS } from '@fphd/utils/polarity';
 import {
   type GoalLowerComparison,
@@ -127,6 +132,9 @@ const yesNo = option({ yes: 'Yes', no: 'No' });
 /** A value given in full, such as a number, as it was entered. */
 const entered: FieldDisplay = (value) => (isAnswered(value) ? value : null);
 
+/** A month entered as its number, by its name. */
+const month: FieldDisplay = (value) => (isAnswered(value) ? monthName(Number(value)) : null);
+
 /** A choice from the core data, by its name. */
 const named: FieldDisplay = (value, names) =>
   isAnswered(value) ? (names.get(value) ?? value) : null;
@@ -234,11 +242,22 @@ const CHANGED_SECTIONS: Readonly<
     { definition: 'text', rationale: 'text' },
   ),
   'period-type': sectionOf(periodTypeSection, periodTypeColumns, {
-    periodType: option(PERIOD_TYPE_LABELS),
+    timePeriods: options(TIME_PERIOD_LABELS),
+    multipleYearsCount: entered,
+    multipleYearsYearType: option(YEAR_TYPE_LABELS),
+    multipleYearsEndDay: entered,
+    multipleYearsEndMonth: month,
     yearType: option(YEAR_TYPE_LABELS),
-    publishedFrom: entered,
     yearEndDay: entered,
-    yearEndMonth: (value) => (isAnswered(value) ? monthName(Number(value)) : null),
+    yearEndMonth: month,
+    dateRangeStartDay: entered,
+    dateRangeStartMonth: month,
+    dateRangeEndDay: entered,
+    dateRangeEndMonth: month,
+    periodsRolling: yesNo,
+    rollingFrequency: option(ROLLING_FREQUENCY_LABELS),
+    valuesCumulative: yesNo,
+    publishedFrom: entered,
   }),
   polarity: sectionOf(polaritySection, polarityColumns, { polarity: option(POLARITY_LABELS) }),
   'format-and-sources': sectionOf(formatAndSourcesSection, formatAndSourcesColumns, {

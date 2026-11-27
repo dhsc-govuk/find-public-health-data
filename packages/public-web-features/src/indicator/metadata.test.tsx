@@ -17,6 +17,9 @@ const indicator: IndicatorDetail = {
   valueMeasure: null,
   unit: '%',
   yearType: { value: 'calendar', label: 'Calendar' },
+  timePeriods: 'Calendar years (1 January to 31 December)',
+  rollingFrequency: null,
+  valuesCumulative: false,
   updateFrequency: 'annually',
   updateFrequencyReason: null,
   updateFrequencyText: null,
@@ -284,11 +287,19 @@ describe('BackgroundInformation', () => {
     expect(attributeNames()).not.toContain('Unit');
   });
 
-  it('lists the year type', () => {
+  it('lists the time periods in place of the year type', () => {
     renderBackground(indicator);
 
-    expect(attributeNames()).toContain('Year type');
-    expect(screen.getByText('Calendar')).toBeTruthy();
+    expect(attributeNames()).toContain('Time periods');
+    expect(attributeNames()).not.toContain('Year type');
+    expect(screen.getByText('Calendar years (1 January to 31 December)')).toBeTruthy();
+  });
+
+  it('lists neither rolling nor cumulative time periods on the public page', () => {
+    renderBackground({ ...indicator, rollingFrequency: 'months', valuesCumulative: true });
+
+    expect(attributeNames()).not.toContain('Rolling time periods');
+    expect(attributeNames()).not.toContain('Cumulative values');
   });
 
   it('lists the frequency with the reason the publisher gave', () => {
@@ -413,14 +424,17 @@ describe('placeholders', () => {
     unit: null,
     polarity: null,
     updateFrequency: null,
-    unanswered: ['valueType', 'unit', 'polarity', 'updateFrequency'],
+    timePeriods: null,
+    rollingFrequency: null,
+    valuesCumulative: null,
+    unanswered: ['valueType', 'unit', 'polarity', 'updateFrequency', 'timePeriods'],
     dataState: 'ready',
   };
 
   it("reads [Not entered yet] for each data attribute a preview's draft hasn't answered", () => {
     renderBackground(unanswered);
 
-    for (const name of ['Value type', 'Unit', 'Frequency', 'Polarity']) {
+    for (const name of ['Value type', 'Unit', 'Time periods', 'Frequency', 'Polarity']) {
       expect(row(name)).toBe('[Not entered yet]');
     }
   });
@@ -429,6 +443,24 @@ describe('placeholders', () => {
     renderSummary(unanswered);
 
     expect(row('Update frequency')).toBe('[Not entered yet]');
+  });
+
+  it('shows rolling and cumulative time periods in a preview, each only when they are so', () => {
+    renderBackground({
+      ...indicator,
+      rollingFrequency: 'quarters',
+      valuesCumulative: true,
+      unanswered: [],
+    });
+
+    expect(row('Rolling time periods')).toBe('Quarters');
+    expect(row('Cumulative values')).toBe('Yes');
+
+    cleanup();
+    renderBackground({ ...indicator, unanswered: [] });
+
+    expect(attributeNames()).not.toContain('Rolling time periods');
+    expect(attributeNames()).not.toContain('Cumulative values');
   });
 
   it('shows answers the unanswered list does not name as the public page would', () => {

@@ -30,3 +30,11 @@ export function isUnanswered(
 ): boolean {
   return unanswered?.includes(question) ?? false;
 }
+
+/**
+ * Whether the detail is a preview's. Only a preview's detail lists the questions its draft leaves
+ * unanswered, even when it leaves none; the public detail has no list.
+ */
+export function isPreview({ unanswered }: IndicatorPageDetail): boolean {
+  return unanswered !== undefined;
+}

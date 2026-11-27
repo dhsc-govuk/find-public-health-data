@@ -28,7 +28,7 @@ export async function loadIndicatorMetadata({
     ['Rationale', detail.rationale],
     ['Value type', answer('valueType', detail.valueType)],
     ['Unit', answer('unit', detail.unit)],
-    ['Year type', detail.yearType?.label],
+    ['Time periods', answer('timePeriods', detail.timePeriods)],
     ['Update frequency', answer('updateFrequency', updateFrequencyLine(detail))],
     ['Data source', detail.dataSource?.name],
     ['Data source URL', detail.dataSource?.url],

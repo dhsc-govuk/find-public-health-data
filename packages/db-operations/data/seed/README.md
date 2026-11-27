@@ -96,12 +96,14 @@ indicator; the legacy clone has no grouping table, so its seed needs this refres
   indicator, which the service has no columns for. The load gives it to the numerator, or to the
   single data value, and leaves the denominator's unanswered. A "no" becomes "not-applicable", the
   answer the service offers in its place.
-- `indicator_version.period_type` and `year_type` hold the service's values from
-  `@fphd/utils/period-type`, and a year ending on a specified date holds its day and month in
-  `year_end_day` and `year_end_month`. `export/year_type.py` translates each of Pholio's 17 year
-  types to them, and a name it has no translation for stops the export. Neither export carries a
-  `year_type` table; migrations 0034 and 0036 hold the same translation for databases that already
-  had Pholio's rows.
+- `indicator_version.time_periods` and the answers beside it hold the service's values from
+  `@fphd/utils/period-type`. `export/year_type.py` translates each of Pholio's 17 year types to
+  them, as `tools/data-migration/src/pholio/year-type.ts` does for the data migration, and a name it
+  has no translation for stops the export. A year type alone gives its yearly periods: single years
+  of a year type, or a specific date range for September-January and September-February. Rolling
+  year types roll on by the quarter or the month, and the cumulative quarter types answer that
+  values are cumulative. The committed seed also has periods of more than 1 year where its data
+  does, rolling on by the year where they overlap. Neither export carries a `year_type` table.
 - `indicator_version.value_type_id` points at the service's own rows, which are core data in
   `../value-types.json`, so neither export carries a `value_type` table. Fingertips' unit becomes
   the answers about the counts and values (`rate_per`, `rate_object`, `count_measure`,

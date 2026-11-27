@@ -1133,11 +1133,13 @@ test('serves an indicator without an update frequency on its page and in downloa
   expect(metadata.text).toContain(`Indicator: ${name}`);
   expect(metadata.text).toContain('Definition: Crude rate of emergency admissions');
   expect(metadata.text).not.toContain('Update frequency:');
+  expect(metadata.text).toContain('Time periods: Financial years (1 April to 31 March)');
 
   await page.getByRole('tab', { name: 'About this indicator' }).click();
   await expect(page.getByRole('heading', { name: 'Data attributes', exact: true })).toBeVisible();
   await expect(page.getByRole('term').filter({ hasText: /^Frequency$/ })).toHaveCount(0);
   await expect(page.getByRole('term').filter({ hasText: /^Polarity$/ })).toBeVisible();
+  await expect(answerTo(page, 'Time periods')).toHaveText('Financial years (1 April to 31 March)');
 });
 
 // Gastroenteritis is seeded with 0-4 yrs and the bands in it, <1 yr, 1 yr and 2-4 yrs, each with
