@@ -791,6 +791,9 @@ it('uses the same compound dimensions in canonical keys and written bridges', as
   );
 });
 
+/** The queries the indicator export streamed its period shapes with, for a test to read. */
+const periodQueries: string[] = [];
+
 function indicatorQueries(
   unitName = 'No unit',
   indicators = [108, 109].map((IndicatorID) => ({
@@ -815,6 +818,13 @@ function indicatorQueries(
   } = {},
   profileMetadata: Record<string, unknown>[] = [],
 ) {
+  periodQueries.length = 0;
+  vi.mocked(streamPholio).mockImplementation(async (_pool, query, consume) => {
+    periodQueries.push(query);
+    const periods = metadata.periods ?? [];
+    for (const row of periods) await consume(row);
+    return periods.length;
+  });
   vi.mocked(queryPholio)
     .mockResolvedValueOnce(
       metadata.groupings ??
@@ -867,7 +877,6 @@ function indicatorQueries(
       })),
     )
     .mockResolvedValueOnce(metadata.baselines ?? [])
-    .mockResolvedValueOnce(metadata.periods ?? [])
     .mockResolvedValueOnce(uploads)
     .mockResolvedValueOnce([
       {
@@ -1415,6 +1424,19 @@ it('exports the annual years kept beside a cumulative quarter series', async () 
     year_type: 'financial',
     values_cumulative: 't',
   });
+});
+
+it('streams the period shapes of the selected indicators alone', async () => {
+  indicatorQueries();
+  await exportIndicators(options);
+  expect(periodQueries).toHaveLength(1);
+  expect(periodQueries[0]).toContain('WHERE c.IndicatorID IN (108)');
+});
+
+it('streams the period shapes of every indicator for a development snapshot', async () => {
+  indicatorQueries();
+  await exportIndicators({ ...options, indicatorSelection: { kind: 'development-snapshot' } });
+  expect(periodQueries[0]).not.toContain('WHERE c.IndicatorID IN');
 });
 
 it('judges overlap within each sex and age series', async () => {

@@ -304,7 +304,7 @@ async function addIndicators(
       Number(shortId),
     );
     if (countsAndValues === undefined) throw new Error(`Indicator ${shortId}: unit not translated`);
-    const yt = timePeriodColumns(item.YearType.Name, []);
+    const yt = timePeriodColumns(item.YearType.Name);
     await tx`
       INSERT INTO indicator_version
         (id, indicator_id, status, is_locked, published_at, name, slug,

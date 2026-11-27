@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type FingertipsPeriod,
+  periodShapesOf,
   timePeriodColumns,
   YEAR_TYPES,
   yearTypeValues,
@@ -40,7 +41,7 @@ describe('yearTypeValues', () => {
 
 describe('timePeriodColumns', () => {
   it('reads a year type alone as single years of it', () => {
-    expect(timePeriodColumns('Financial', [])).toMatchObject({
+    expect(timePeriodColumns('Financial')).toMatchObject({
       time_periods: '{single-years}',
       year_type: 'financial',
       year_end_day: null,
@@ -52,7 +53,7 @@ describe('timePeriodColumns', () => {
   });
 
   it('gives a year ending on a specified date its day and month', () => {
-    expect(timePeriodColumns('August-July', [])).toMatchObject({
+    expect(timePeriodColumns('August-July')).toMatchObject({
       year_type: 'specified-end-date',
       year_end_day: 31,
       year_end_month: 7,
@@ -60,7 +61,9 @@ describe('timePeriodColumns', () => {
   });
 
   it('reads a year ending at a point as years ending that day', () => {
-    expect(timePeriodColumns('Financial year end point', [yearly(2020)])).toMatchObject({
+    expect(
+      timePeriodColumns('Financial year end point', periodShapesOf([yearly(2020)])),
+    ).toMatchObject({
       time_periods: '{single-years}',
       year_type: 'specified-end-date',
       year_end_day: 31,
@@ -72,7 +75,7 @@ describe('timePeriodColumns', () => {
     ['September-January', 31, 1],
     ['September-February', 28, 2],
   ])('reads %s as a date range from 1 September', (name, endDay, endMonth) => {
-    expect(timePeriodColumns(name, [yearly(2020)])).toMatchObject({
+    expect(timePeriodColumns(name, periodShapesOf([yearly(2020)]))).toMatchObject({
       time_periods: '{date-range}',
       year_type: null,
       date_range_start_day: 1,
@@ -88,7 +91,7 @@ describe('timePeriodColumns', () => {
     ['Financial rolling year - monthly', 'financial', 'months', MONTH],
     ['Financial rolling year - quarterly', 'financial', 'quarters', QUARTER],
   ] as const)('reads %s as single years rolling on', (name, yearType, frequency, row) => {
-    expect(timePeriodColumns(name, [row])).toMatchObject({
+    expect(timePeriodColumns(name, periodShapesOf([row]))).toMatchObject({
       time_periods: '{single-years}',
       year_type: yearType,
       periods_rolling: true,
@@ -100,7 +103,7 @@ describe('timePeriodColumns', () => {
     'Financial single year cumulative quarters',
     'Financial multi year cumulative quarters',
   ])('reads %s as cumulative quarters, beside their financial years', (name) => {
-    expect(timePeriodColumns(name, [QUARTER, yearly(2020)])).toMatchObject({
+    expect(timePeriodColumns(name, periodShapesOf([QUARTER, yearly(2020)]))).toMatchObject({
       time_periods: '{single-years,quarters}',
       year_type: 'financial',
       values_cumulative: true,
@@ -109,14 +112,16 @@ describe('timePeriodColumns', () => {
   });
 
   it('reads quarters and months of the data as quarters and months, with no year type', () => {
-    expect(timePeriodColumns('Calendar', [QUARTER, MONTH])).toMatchObject({
+    expect(timePeriodColumns('Calendar', periodShapesOf([QUARTER, MONTH]))).toMatchObject({
       time_periods: '{quarters,months}',
       year_type: null,
     });
   });
 
   it('reads periods of several years as periods of more than 1 year of their year type', () => {
-    expect(timePeriodColumns('Academic', [yearly(2015, 5), yearly(2020, 5)])).toMatchObject({
+    expect(
+      timePeriodColumns('Academic', periodShapesOf([yearly(2015, 5), yearly(2020, 5)])),
+    ).toMatchObject({
       time_periods: '{multiple-years}',
       multiple_years_count: 5,
       multiple_years_year_type: 'academic',
@@ -127,7 +132,10 @@ describe('timePeriodColumns', () => {
 
   it('rolls periods of more than 1 year on by the year when consecutive ones overlap', () => {
     expect(
-      timePeriodColumns('Calendar', [yearly(2016, 3), yearly(2017, 3), yearly(2018)]),
+      timePeriodColumns(
+        'Calendar',
+        periodShapesOf([yearly(2016, 3), yearly(2017, 3), yearly(2018)]),
+      ),
     ).toMatchObject({
       time_periods: '{multiple-years,single-years}',
       multiple_years_count: 3,
@@ -138,38 +146,44 @@ describe('timePeriodColumns', () => {
   });
 
   it('takes the shortest of several lengths of period of more than 1 year', () => {
-    expect(timePeriodColumns('Calendar', [yearly(2015, 5), yearly(2017, 3)])).toMatchObject({
+    expect(
+      timePeriodColumns('Calendar', periodShapesOf([yearly(2015, 5), yearly(2017, 3)])),
+    ).toMatchObject({
       multiple_years_count: 3,
     });
   });
 
   it('rolls on by the year only where periods of the length taken overlap', () => {
     expect(
-      timePeriodColumns('Calendar', [
-        yearly(2011, 3),
-        yearly(2014, 3),
-        yearly(2010, 5),
-        yearly(2011, 5),
-      ]),
+      timePeriodColumns(
+        'Calendar',
+        periodShapesOf([yearly(2011, 3), yearly(2014, 3), yearly(2010, 5), yearly(2011, 5)]),
+      ),
     ).toMatchObject({ multiple_years_count: 3, periods_rolling: false, rolling_frequency: null });
   });
 
   it('judges overlap within each series, not across them', () => {
     expect(
-      timePeriodColumns('Calendar', [
-        yearly(2011, 3, 'persons'),
-        yearly(2014, 3, 'persons'),
-        yearly(2012, 3, 'males'),
-        yearly(2015, 3, 'males'),
-      ]),
+      timePeriodColumns(
+        'Calendar',
+        periodShapesOf([
+          yearly(2011, 3, 'persons'),
+          yearly(2014, 3, 'persons'),
+          yearly(2012, 3, 'males'),
+          yearly(2015, 3, 'males'),
+        ]),
+      ),
     ).toMatchObject({ periods_rolling: false, rolling_frequency: null });
     expect(
-      timePeriodColumns('Calendar', [
-        yearly(2011, 3, 'persons'),
-        yearly(2014, 3, 'persons'),
-        yearly(2012, 3, 'males'),
-        yearly(2013, 3, 'males'),
-      ]),
+      timePeriodColumns(
+        'Calendar',
+        periodShapesOf([
+          yearly(2011, 3, 'persons'),
+          yearly(2014, 3, 'persons'),
+          yearly(2012, 3, 'males'),
+          yearly(2013, 3, 'males'),
+        ]),
+      ),
     ).toMatchObject({ periods_rolling: true, rolling_frequency: 'years' });
   });
 });

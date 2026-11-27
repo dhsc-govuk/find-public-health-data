@@ -16,7 +16,7 @@ import {
   exclusionReason as observationExclusionReason,
 } from './observations.ts';
 import type { PholioRow } from './source.ts';
-import { queryPholio } from './source.ts';
+import { queryPholio, streamPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
 import {
   countsAndValuesColumns,
@@ -24,12 +24,7 @@ import {
   unreadableUnits,
   valueTypeId,
 } from './value-type-and-unit.ts';
-import {
-  type FingertipsPeriod,
-  NO_TIME_PERIODS,
-  timePeriodColumns,
-  YEAR_TYPES,
-} from './year-type.ts';
+import { NO_TIME_PERIODS, PeriodShapes, timePeriodColumns, YEAR_TYPES } from './year-type.ts';
 
 interface CiLevelRow extends PholioRow {
   IndicatorID: number;
@@ -189,8 +184,14 @@ export async function exportIndicators(context: PholioExportOptions) {
   // The shapes of period each indicator's data has, in each of its sex and age series, among the
   // rows the observation export keeps. The measures are read only as far as its rules read them:
   // whether each is -1, the placeholder an empty row holds. A duplicate it resolves keeps one row
-  // with the same period, so duplicates change no shape.
-  const periodRows = await queryPholio<ObservationExclusionRow>(
+  // with the same period, so duplicates change no shape. CoreDataSet holds tens of millions of
+  // rows, so the distinct shapes stream in and only what judging the time periods needs is kept.
+  const shapesById = new Map<number, PeriodShapes>();
+  const inSelection =
+    context.indicatorSelection.kind === 'approved'
+      ? `WHERE c.IndicatorID IN (${[...selected].map((id) => Number(id)).join(',') || 'NULL'})`
+      : '';
+  await streamPholio<ObservationExclusionRow>(
     pool,
     `SELECT DISTINCT c.IndicatorID, c.SexID, c.AgeID, c.Year, c.YearRange, c.Quarter, c.Month,
        im.YearTypeID, c.ValueNoteId,
@@ -198,28 +199,28 @@ export async function exportIndicators(context: PholioExportOptions) {
        CASE WHEN c.Count = -1 THEN -1 END AS Count,
        CASE WHEN c.Denominator = -1 THEN -1 END AS Denominator
      FROM dbo.CoreDataSet c
-     LEFT JOIN dbo.IndicatorMetadata im ON c.IndicatorID = im.IndicatorID`,
+     LEFT JOIN dbo.IndicatorMetadata im ON c.IndicatorID = im.IndicatorID
+     ${inSelection}`,
+    (row) => {
+      const reason = observationExclusionReason(
+        row,
+        excluded,
+        context.indicatorSelection,
+        selected,
+        groupings,
+      );
+      if (reason !== undefined) return;
+      const shapes = shapesById.get(row.IndicatorID) ?? new PeriodShapes();
+      shapes.add({
+        series: `${row.SexID}|${row.AgeID}`,
+        year: row.Year,
+        yearRange: row.YearRange,
+        quarter: row.Quarter > 0,
+        month: row.Month > 0,
+      });
+      shapesById.set(row.IndicatorID, shapes);
+    },
   );
-  const periodsById = new Map<number, FingertipsPeriod[]>();
-  for (const row of periodRows) {
-    const reason = observationExclusionReason(
-      row,
-      excluded,
-      context.indicatorSelection,
-      selected,
-      groupings,
-    );
-    if (reason !== undefined) continue;
-    const periods = periodsById.get(row.IndicatorID) ?? [];
-    periods.push({
-      series: `${row.SexID}|${row.AgeID}`,
-      year: row.Year,
-      yearRange: row.YearRange,
-      quarter: row.Quarter > 0,
-      month: row.Month > 0,
-    });
-    periodsById.set(row.IndicatorID, periods);
-  }
 
   const uploadRows = await queryPholio<{ IndicatorID: number; LastUploadedAt: Date }>(
     pool,
@@ -352,7 +353,7 @@ export async function exportIndicators(context: PholioExportOptions) {
     const countsAndValues = countsAndValuesColumns(vtName, row.UnitName ?? 'No unit', id);
     if (countsAndValues === undefined) throw new Error(`Indicator ${id}: unit not translated`);
     const timePeriods = row.YearTypeName
-      ? timePeriodColumns(row.YearTypeName, periodsById.get(id) ?? [])
+      ? timePeriodColumns(row.YearTypeName, shapesById.get(id))
       : NO_TIME_PERIODS;
     const ciLevel = ciLevelById.get(id) ?? null;
     const text = textById.get(id) ?? null;

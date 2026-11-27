@@ -240,7 +240,7 @@ async function writeIndicatorSplit(
     const countsAndValues =
       vtName != null ? countsAndValuesColumns(vtName, uName ?? 'No unit', Number(row.id)) : null;
     if (countsAndValues === undefined) throw new Error(`Indicator ${id}: unit not translated`);
-    const timePeriods = ytName != null ? timePeriodColumns(ytName, []) : NO_TIME_PERIODS;
+    const timePeriods = ytName != null ? timePeriodColumns(ytName) : NO_TIME_PERIODS;
     const versionValueTypeId = vtName != null ? valueTypeId(vtName) : null;
     const methodology = meta?.methodology != null ? String(meta.methodology) : null;
     const versionRow: Record<string, unknown> = {
