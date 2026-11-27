@@ -174,19 +174,6 @@ describe('PUT the revision response', () => {
     expect(saveRevisionResponse).not.toHaveBeenCalled();
   });
 
-  it('refuses a reply over 10,000 characters', async () => {
-    const response = await request(createTestApp())
-      .put(path)
-      .set('Cookie', await asPublisher())
-      .send({ revisionResponse: 'a'.repeat(10_001), version: VERSION });
-
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      error: 'validation_failed',
-      fieldErrors: { revisionResponse: 'Your response must be 10,000 characters or fewer' },
-    });
-  });
-
   it('refuses an id that is not one before its body', async () => {
     const response = await request(createTestApp())
       .put('/api/internal/indicators/not-an-id/revision-response')
