@@ -12,7 +12,18 @@ import {
   OBSERVATION_SERIES_VERSION,
   SEX_DIMENSION_NAME,
 } from '@fphd/utils/observation-series';
-import { and, count, countDistinct, eq, not, or, type SQL, sql } from 'drizzle-orm';
+import {
+  and,
+  count,
+  countDistinct,
+  eq,
+  max,
+  not,
+  notInArray,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import { visibleObservations } from './observation-visibility.ts';
@@ -54,6 +65,7 @@ async function insertSeries(
   indicatorId: string,
   uploadBatchId: string,
   publishedFrom: string | null,
+  periodFilter: SQL | undefined,
 ): Promise<void> {
   const sexValues = tx.$with('sex_values').as(
     tx
@@ -76,13 +88,20 @@ async function insertSeries(
         fromDate: observation.fromDate,
         toDate: observation.toDate,
         value: observation.value,
+        sourcePeriodType: observation.periodType,
       })
       .from(observation)
-      .where(visibleObservations(indicatorId, uploadBatchId, publishedFrom)),
+      .where(
+        and(
+          visibleObservations(indicatorId, uploadBatchId, publishedFrom),
+          eq(observation.isCurrentSeries, true),
+          periodFilter,
+        ),
+      ),
   );
 
   const periods = sql`(VALUES (
-    ${observationPeriodSql(source.fromDate, source.toDate)}
+    ${observationPeriodSql(source.fromDate, source.toDate, source.sourcePeriodType)}
   )) AS periods(period_type)`;
   // Dimension keys contain UUIDs, so locale comparisons add cost without changing equality.
   const points = tx.$with('points').as(
@@ -353,28 +372,39 @@ async function insertSeries(
 
 /**
  * The recent values of England's headline series, elected by `headlineOrder` across period types,
- * or null when England has no data.
+ * or null when England has no data. Cumulative endpoints cover different durations, so they
+ * carry no trend inputs.
  */
 async function englandTrend(
   tx: Executor,
   indicatorId: string,
   uploadBatchId: string,
   publishedFrom: string | null,
+  periodFilter: SQL | undefined,
 ): Promise<number[] | null> {
   const [trend] = await tx
-    .select({ values: recentNonNull<number>(observation.value, observation) })
+    .select({
+      values: recentNonNull<number>(observation.value, observation),
+      periodType: observationPeriodSql(
+        observation.fromDate,
+        observation.toDate,
+        observation.periodType,
+      ),
+    })
     .from(observation)
     .innerJoin(area, eq(area.id, observation.areaId))
     .where(
       and(
         visibleObservations(indicatorId, uploadBatchId, publishedFrom),
+        eq(observation.isCurrentSeries, true),
         eq(area.code, ENGLAND_AREA_CODE),
+        periodFilter,
       ),
     )
     .groupBy(
       observation.areaId,
       observation.dimensionKey,
-      observationPeriodSql(observation.fromDate, observation.toDate),
+      observationPeriodSql(observation.fromDate, observation.toDate, observation.periodType),
     )
     .orderBy(
       ...headlineOrder({
@@ -382,14 +412,14 @@ async function englandTrend(
         latestPeriod: sql`max(${observation.toDate})`,
         length: count(),
         periodLength: periodLengthSql(
-          observationPeriodSql(observation.fromDate, observation.toDate),
+          observationPeriodSql(observation.fromDate, observation.toDate, observation.periodType),
         ),
         firstPoint: sql`min(${observation.fromDate}::text || ':' || ${observation.toDate}::text)`,
       }),
       dimensionKeyOrder(observation.dimensionKey, headlineDimensions),
     )
     .limit(1);
-  return trend?.values ?? null;
+  return trend?.periodType.startsWith('cumulative-quarter-') ? [] : (trend?.values ?? null);
 }
 
 export async function replaceObservationSeries(
@@ -404,11 +434,39 @@ export async function replaceObservationSeries(
     .where(eq(observationSeriesBatch.indicatorId, indicatorId));
   if (!uploadBatchId) return;
 
-  await insertSeries(tx, indicatorId, uploadBatchId, publishedFrom);
+  // Resolving these populations once keeps series-election row estimates accurate, including
+  // batches with no cumulative data.
+  const periods = await tx
+    .select({ dimensionKey: observation.dimensionKey, periodType: max(observation.periodType) })
+    .from(observation)
+    .where(
+      and(
+        eq(observation.indicatorId, indicatorId),
+        eq(observation.uploadBatchId, uploadBatchId),
+        eq(observation.isCurrentSeries, true),
+        sql`${observation.periodType} like 'cumulative-quarter-%'`,
+      ),
+    )
+    .groupBy(observation.dimensionKey);
+  const selected = periods.flatMap(({ dimensionKey, periodType }) =>
+    periodType ? [{ dimensionKey, periodType }] : [],
+  );
+  const periodFilter = selected.length
+    ? or(
+        notInArray(
+          observation.dimensionKey,
+          selected.map(({ dimensionKey }) => dimensionKey),
+        ),
+        ...selected.map(({ dimensionKey, periodType }) =>
+          and(eq(observation.dimensionKey, dimensionKey), eq(observation.periodType, periodType)),
+        ),
+      )
+    : undefined;
+  await insertSeries(tx, indicatorId, uploadBatchId, publishedFrom, periodFilter);
   await tx.insert(observationSeriesBatch).values({
     uploadBatchId,
     indicatorId,
-    trendValues: await englandTrend(tx, indicatorId, uploadBatchId, publishedFrom),
+    trendValues: await englandTrend(tx, indicatorId, uploadBatchId, publishedFrom, periodFilter),
     version: OBSERVATION_SERIES_VERSION,
   });
 }

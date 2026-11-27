@@ -19,7 +19,7 @@ import {
   correctObservationInterval,
   type ObservationCorrection,
 } from './observation-corrections.ts';
-import { computeDates } from './period.ts';
+import { computeDates, sourcePeriodType } from './period.ts';
 import { queryPholio, streamPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
 
@@ -98,8 +98,9 @@ export function dedupKey(
   toDate: string,
   batchId: number,
   sortedDimValueIds: readonly number[],
+  periodType: string | null = null,
 ): string {
-  return `${indicatorId}|${areaId}|${fromDate}|${toDate}|${batchId}|${sortedDimValueIds.join(',')}`;
+  return `${indicatorId}|${areaId}|${fromDate}|${toDate}|${batchId}|${periodType ? `${periodType}|` : ''}${sortedDimValueIds.join(',')}`;
 }
 
 // ─── CoreDataSet row type ──────────────────────────────────────────────────────
@@ -270,7 +271,10 @@ function exclusionReason(
     return 'empty_observation';
   if (c.Year < 1900) return 'year_before_1900';
   if (excluded.has(c.IndicatorID)) return 'excluded_indicator';
-  return groupings.exclusionReason(c);
+  // Annual observations can share dates with cumulative endpoints and must survive independently.
+  return c.YearTypeID === 10 && groupings.retainsCumulativeHistory(c)
+    ? undefined
+    : groupings.exclusionReason(c);
 }
 
 const observationQuery = `
@@ -364,6 +368,7 @@ async function assertDistinctObservations(
         toDate,
         c.IndicatorID,
         dimensions.map((d) => d.valueId),
+        sourcePeriodType(c.Year, c.Quarter, c.YearTypeID ?? 1),
       );
       const previous = seen.get(key);
       const id = observationId(c.uid, split as 0 | 1);
@@ -463,6 +468,7 @@ export async function exportObservations(context: ObservationExportOptions) {
     const ci95 = computeCi95(c, diagnostic);
     const ci998 = computeCiPair(c.Value, c.LowerCI99_8, c.UpperCI99_8, `${diagnostic}, 99.8%`);
     const halves = observationDimensions(c);
+    const periodType = sourcePeriodType(c.Year, c.Quarter, c.YearTypeID ?? 1);
     for (const [split, dimensions] of halves.entries()) {
       const obsId = observationId(c.uid, split as 0 | 1);
       if (dropped.has(obsId)) continue;
@@ -471,6 +477,11 @@ export async function exportObservations(context: ObservationExportOptions) {
         indicator_id: c.IndicatorID,
         area_id: areaId,
         from_date: fromDate,
+        period_type: periodType,
+        is_current_series:
+          periodType === null ||
+          !groupings.hasCumulativeSeries(c.IndicatorID) ||
+          groupings.hasCumulativeBaseline(c),
         to_date: toDate,
         value,
         ...countAndNumerator(

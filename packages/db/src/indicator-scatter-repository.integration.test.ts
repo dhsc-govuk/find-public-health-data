@@ -8,8 +8,10 @@ import {
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { replaceObservationSeries } from '../../internal-read-models/src/observation-series.ts';
+import { refreshIndicatorReadModels } from '../../internal-read-models/src/read-models.ts';
 import type { Database } from './client.ts';
 import { getIndicatorObservationData } from './indicator-observation-repository.ts';
+import { getObservationRangeByTier } from './indicator-repository.ts';
 import {
   getCachedScatterAreas,
   getIndicatorScatterData,
@@ -19,6 +21,7 @@ import { getIndicatorSeriesData } from './indicator-series-repository.ts';
 import {
   area,
   observation,
+  observationRange,
   observationSeries,
   observationSeriesBatch,
   publishedViews,
@@ -413,3 +416,125 @@ it('keeps sex variants while older cache versions use canonical histories', asyn
   expect(actual?.variants).toEqual(expected?.variants);
   expect(actual?.variants.map(({ sex }) => sex)).toEqual(['Female', 'Male']);
 });
+
+it('keeps retained annual values out of cumulative scatter points and benchmark spreads', async () => {
+  const places = await database.db.select().from(area).where(inArray(area.code, codes));
+  for (const id of ids) {
+    const [batch] = await database.db
+      .select({ id: observationSeriesBatch.uploadBatchId })
+      .from(observationSeriesBatch)
+      .where(eq(observationSeriesBatch.indicatorId, id));
+    if (!batch) throw new Error('Missing seeded batch');
+    await database.db.delete(observation).where(eq(observation.indicatorId, id));
+    await database.db.insert(observation).values(
+      places.flatMap((place) => {
+        const common = {
+          indicatorId: id,
+          uploadBatchId: batch.id,
+          areaId: place.id,
+          dimensionKey: '',
+        };
+        return [
+          ...[1, 4].map((quarter) => ({
+            ...common,
+            fromDate: '2022-04-01',
+            toDate: new Date(Date.UTC(2022, 3 + quarter * 3, 0)).toISOString().slice(0, 10),
+            periodType: 'cumulative-quarter-2022-04-01' as const,
+            value: quarter,
+          })),
+          { ...common, fromDate: '2022-04-01', toDate: '2023-03-31', value: 99 },
+          { ...common, fromDate: '2023-04-01', toDate: '2024-03-31', value: 99 },
+        ];
+      }),
+    );
+    await database.db.transaction((tx) => refreshIndicatorReadModels(tx, id));
+    const ranges = await getObservationRangeByTier(db, publishedViews, id, 'upper');
+    expect(ranges.map(({ min, max }) => ({ min, max }))).toEqual([
+      { min: 1, max: 1 },
+      { min: 4, max: 4 },
+    ]);
+    const cachedRanges = await database.db
+      .select()
+      .from(observationRange)
+      .where(eq(observationRange.indicatorId, id));
+    expect(cachedRanges.length).toBeGreaterThan(0);
+    expect(cachedRanges.every(({ max }) => max !== null && max <= 4)).toBe(true);
+  }
+  const expected = await canonical();
+  expect(expected).toHaveLength(2);
+  expect(
+    expected.every(
+      ({ x, y, xPeriod, yPeriod }) =>
+        x === 4 &&
+        y === 4 &&
+        xPeriod.periodType === 'cumulative-quarter-2022-04-01' &&
+        yPeriod.periodType === 'cumulative-quarter-2022-04-01',
+    ),
+  ).toBe(true);
+  expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
+});
+
+it.each([false, true])(
+  'elects cumulative scatter before an annual-only area in cached and fallback reads (reverse twins: %s)',
+  async (reverse) => {
+    const places = await database.db.select().from(area).where(inArray(area.code, codes));
+    for (const id of ids) {
+      const [batch] = await database.db
+        .select({ id: observationSeriesBatch.uploadBatchId })
+        .from(observationSeriesBatch)
+        .where(eq(observationSeriesBatch.indicatorId, id));
+      if (!batch) throw new Error('Missing seeded batch');
+      await database.db.delete(observation).where(eq(observation.indicatorId, id));
+      await database.db.insert(observation).values(
+        places.flatMap((place) => {
+          const annual = {
+            indicatorId: id,
+            uploadBatchId: batch.id,
+            areaId: place.id,
+            dimensionKey: '',
+            fromDate: '2022-04-01',
+            toDate: '2023-03-31',
+            value: 99,
+          };
+          if (place.code !== 'E92000001') return [annual];
+          const cumulative = {
+            ...annual,
+            periodType: 'cumulative-quarter-2022-04-01' as const,
+            value: 4,
+          };
+          return reverse ? [annual, cumulative] : [cumulative, annual];
+        }),
+      );
+      await database.db.transaction((tx) => replaceObservationSeries(tx, id, batch.id, null));
+    }
+    const selected = await database.db
+      .selectDistinct({ periodType: observation.periodType })
+      .from(observationSeries)
+      .innerJoin(observation, eq(observation.id, observationSeries.latestObservationId))
+      .where(inArray(observationSeries.indicatorId, ids));
+    expect(selected).toEqual([{ periodType: 'cumulative-quarter-2022-04-01' }]);
+    const cached = await getCachedScatterAreas(db, publishedViews, ids, codes);
+    expect(cached).toBeDefined();
+    for (const id of ids) {
+      expect(cached?.get(id)?.[0]?.observations).toEqual([]);
+      expect(cached?.get(id)?.[1]?.observations).toEqual([
+        {
+          fromDate: '2022-04-01',
+          toDate: '2023-03-31',
+          periodType: 'cumulative-quarter-2022-04-01',
+          dimensions: [],
+          value: 4,
+        },
+      ]);
+    }
+    const expected = pairedAreaValues(cached?.get(ids[0]) ?? [], cached?.get(ids[1]) ?? []);
+    expect(expected).toHaveLength(1);
+    expect(expected[0]).toMatchObject({ code: 'E92000001', x: 4, y: 4 });
+    expect(await canonical()).toEqual(expected);
+    await database.db
+      .update(observationSeriesBatch)
+      .set({ version: OBSERVATION_SERIES_VERSION - 1 })
+      .where(inArray(observationSeriesBatch.indicatorId, ids));
+    expect(await getIndicatorScatterData(db, publishedViews, ids, codes)).toEqual(expected);
+  },
+);

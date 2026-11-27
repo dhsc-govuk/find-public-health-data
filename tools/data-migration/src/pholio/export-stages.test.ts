@@ -1377,3 +1377,180 @@ it('aligns a null source year type baseline with observation dates', async () =>
   expect(publishedFrom).toBe('2021-01-01');
   expect((await rows('observation'))[0]?.from_date).toBe(publishedFrom);
 });
+
+it.each([
+  {
+    name: 'a quarterly format on an annual-only indicator',
+    grouping: { YearRange: 1, BaselineQuarter: -1 },
+    row: { YearRange: 1, Quarter: 1 },
+    reason: 'periodicity_not_in_grouping',
+  },
+  {
+    name: 'a retired annual range on an annual-only indicator',
+    grouping: { YearRange: 1, BaselineQuarter: -1 },
+    row: { YearRange: 5 },
+    reason: 'year_range_not_in_grouping',
+  },
+  {
+    name: 'annual history for another sex',
+    grouping: { SexID: 1 },
+    row: { YearRange: 1 },
+    reason: 'year_range_not_in_grouping',
+  },
+  {
+    name: 'annual history for another age',
+    grouping: { AgeID: 28 },
+    row: { YearRange: 1 },
+    reason: 'year_range_not_in_grouping',
+  },
+  {
+    name: 'a quarterly range outside the cumulative series',
+    grouping: {},
+    row: { YearRange: 3, Quarter: 1 },
+    reason: 'year_range_not_in_grouping',
+  },
+  {
+    name: 'a multi-year annual range outside the cumulative series',
+    grouping: {},
+    row: { YearRange: 3 },
+    reason: 'year_range_not_in_grouping',
+  },
+  {
+    name: 'a monthly format outside the cumulative series',
+    grouping: {},
+    row: { YearRange: 5, Month: 1 },
+    reason: 'periodicity_not_in_grouping',
+  },
+] as const)('excludes $name', async ({ grouping, row, reason }) => {
+  sourceObservations(
+    [observation({ YearTypeID: 10, ...row })],
+    [
+      {
+        IndicatorID: 108,
+        SexID: 4,
+        AgeID: 1,
+        YearRange: 5,
+        BaselineYear: 2022,
+        BaselineQuarter: 1,
+        BaselineMonth: -1,
+        ...grouping,
+      },
+    ],
+  );
+  const result = await exportObservations(observationOptions());
+  expect(result.observationExclusions[reason]).toBe(1);
+  expect(await rows('observation')).toEqual([]);
+});
+
+it('exports cumulative endpoints as one baseline series and retains its annual source rows', async () => {
+  sourceObservations(
+    [
+      ...[1, 2, 4, 6, 17].map((quarter) =>
+        observation({
+          uid: quarter,
+          Year: 2022,
+          Quarter: quarter,
+          YearRange: 5,
+          YearTypeID: 10,
+        }),
+      ),
+      observation({ uid: 30, Year: 2022, YearRange: 1, YearTypeID: 10 }),
+      observation({ uid: 31, Year: 2023, Quarter: 1, YearRange: 5, YearTypeID: 10 }),
+      observation({ uid: 32, Year: 2017, Quarter: 20, YearRange: 5, YearTypeID: 10 }),
+      observation({ uid: 33, Year: 2022, YearRange: 5, YearTypeID: 10 }),
+    ],
+    [
+      {
+        IndicatorID: 108,
+        SexID: 4,
+        AgeID: 1,
+        YearRange: 5,
+        BaselineYear: 2022,
+        BaselineQuarter: 1,
+        BaselineMonth: -1,
+      },
+    ],
+  );
+  const result = await exportObservations(observationOptions());
+  const exported = await rows('observation');
+  expect(result.tables.observation.rows).toBe(9);
+  expect(exported.slice(0, 5).map((row) => row.period_type)).toEqual(
+    Array(5).fill('cumulative-quarter-2022-04-01'),
+  );
+  expect(exported.map((row) => row.to_date)).toEqual([
+    '2022-06-30',
+    '2022-09-30',
+    '2023-03-31',
+    '2023-09-30',
+    '2026-06-30',
+    '2023-03-31',
+    '2023-06-30',
+    '2022-03-31',
+    '2027-03-31',
+  ]);
+  expect(exported.slice(5).map((row) => row.period_type)).toEqual([
+    DATA_MIGRATION_NULL,
+    'cumulative-quarter-2023-04-01',
+    'cumulative-quarter-2017-04-01',
+    DATA_MIGRATION_NULL,
+  ]);
+  expect(exported.map((row) => row.is_current_series)).toEqual([
+    't',
+    't',
+    't',
+    't',
+    't',
+    't',
+    'f',
+    'f',
+    't',
+  ]);
+});
+
+it.each([
+  { year: 2021, annualGrouping: false },
+  { year: 2021, annualGrouping: true },
+  { year: 2023, annualGrouping: false },
+  { year: 2023, annualGrouping: true },
+])(
+  'retains cumulative and annual twins outside the published baseline ($year, annual grouping: $annualGrouping)',
+  async ({ year, annualGrouping }) => {
+    const grouping = {
+      IndicatorID: 108,
+      SexID: 4,
+      AgeID: 1,
+      YearRange: 5,
+      BaselineYear: 2022,
+      BaselineQuarter: 1,
+      BaselineMonth: -1,
+    };
+    sourceObservations(
+      [
+        observation({ uid: 1, Year: 2022, Quarter: 1, YearRange: 5, YearTypeID: 10 }),
+        observation({ uid: 2, Year: year, Quarter: 4, YearRange: 5, YearTypeID: 10, Value: 7 }),
+        observation({ uid: 3, Year: year, YearRange: 1, YearTypeID: 10, Value: 99 }),
+      ],
+      [grouping, ...(annualGrouping ? [{ ...grouping, YearRange: 1, BaselineQuarter: -1 }] : [])],
+    );
+    const result = await exportObservations(observationOptions());
+    expect(result.tables.observation.rows).toBe(3);
+    expect(result.excludedObservations).toBe(0);
+    expect(await rows('observation')).toMatchObject([
+      { period_type: 'cumulative-quarter-2022-04-01', is_current_series: 't' },
+      {
+        from_date: `${year}-04-01`,
+        to_date: `${year + 1}-03-31`,
+        period_type: `cumulative-quarter-${year}-04-01`,
+        is_current_series: 'f',
+        value: '7',
+      },
+      {
+        from_date: `${year}-04-01`,
+        to_date: `${year + 1}-03-31`,
+        period_type: DATA_MIGRATION_NULL,
+        is_current_series: 't',
+        value: '99',
+      },
+    ]);
+  },
+);

@@ -8,8 +8,10 @@ import {
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { replaceObservationSeries } from '../../internal-read-models/src/observation-series.ts';
 import type { Database } from './client.ts';
 import { dimensionKey } from './dimension-key.ts';
+import { searchIndicators } from './indicator-repository.ts';
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import { observationPeriodSql, periodLengthSql } from './observation-series-sql.ts';
 import {
@@ -126,7 +128,7 @@ async function publishedIndicator(
     .update(indicatorVersion)
     .set({ uploadBatchId: batch.id })
     .where(eq(indicatorVersion.id, version.id));
-  return { id: identity.id, versionId: version.id, batchId: batch.id };
+  return { id: identity.id, versionId: version.id, batchId: batch.id, slug: version.slug };
 }
 
 /** Adds a series of yearly values ending in 2019, so series of any length end together. */
@@ -292,6 +294,107 @@ describe('getTopicTrendSummary', () => {
       await getTopicTrendSummary(publicDb, publishedViews, 'trend-summary-topic', CORNWALL),
     ).toEqual({ ...empty, total: 0, unavailable: 0 });
   });
+});
+
+it('keeps cumulative trends unavailable in topic counts and search with missing, current and version 8 caches', async () => {
+  const [record] = await database.db
+    .insert(topic)
+    .values({
+      slug: 'cumulative-trend-eligibility',
+      title: 'Cumulative trend eligibility',
+      description: 'Cumulative trend eligibility fixture.',
+      createdBy: SYSTEM_USER_IDS.testSeed,
+      updatedBy: SYSTEM_USER_IDS.testSeed,
+    })
+    .returning();
+  if (!record) throw new Error('Topic fixture missing');
+  const cumulative = await publishedIndicator('Cumulative eligibility A cumulative');
+  const improving = await publishedIndicator('Cumulative eligibility B improving');
+  const worsening = await publishedIndicator('Cumulative eligibility C worsening');
+  const fixtures = [cumulative, improving, worsening];
+  await database.db.insert(indicatorVersionTopic).values(
+    fixtures.map(({ versionId }) => ({
+      topicId: record.id,
+      indicatorVersionId: versionId,
+    })),
+  );
+  for (const areaId of [englandId, westSussexId]) {
+    await addSeries(cumulative, areaId, [5, 4, 3, 2, 1]);
+    await addSeries(improving, areaId, [1, 2, 3, 4, 5]);
+    await addSeries(worsening, areaId, [5, 4, 3, 2, 1]);
+  }
+  await database.db.insert(observation).values(
+    [englandId, westSussexId, cornwallId].flatMap((areaId) =>
+      Array.from({ length: 5 }, (_, index) => ({
+        indicatorId: cumulative.id,
+        uploadBatchId: cumulative.batchId,
+        areaId,
+        dimensionKey: '',
+        fromDate: '2022-04-01',
+        toDate: new Date(Date.UTC(2022, 6 + index * 3, 0)).toISOString().slice(0, 10),
+        periodType: 'cumulative-quarter-2022-04-01' as const,
+        value: areaId === cornwallId ? null : index + 1,
+      })),
+    ),
+  );
+
+  for (const cache of ['missing', 'current', 'version-8']) {
+    if (cache === 'current') {
+      for (const fixture of fixtures)
+        await replaceObservationSeries(database.db, fixture.id, fixture.batchId, null);
+      const [batch] = await database.db
+        .select()
+        .from(observationSeriesBatch)
+        .where(eq(observationSeriesBatch.indicatorId, cumulative.id));
+      expect.soft(batch?.trendValues).toEqual([]);
+    }
+    if (cache === 'version-8')
+      await database.db
+        .update(observationSeriesBatch)
+        .set({ version: 8, trendValues: [5, 4, 3, 2, 1] })
+        .where(eq(observationSeriesBatch.indicatorId, cumulative.id));
+
+    for (const code of ['E92000001', WEST_SUSSEX]) {
+      expect
+        .soft(await indicatorTrendDirections(publicDb, publishedViews, [cumulative.id], code))
+        .toEqual(new Map([[cumulative.id, null]]));
+      expect.soft(await getTopicTrendSummary(publicDb, publishedViews, record.slug, code)).toEqual({
+        total: 3,
+        better: 1,
+        worse: 1,
+        unchanged: 0,
+        increasing: 0,
+        decreasing: 0,
+        unavailable: 1,
+      });
+    }
+    expect
+      .soft(await indicatorTrendDirections(publicDb, publishedViews, [cumulative.id], CORNWALL))
+      .toEqual(new Map());
+    for (const sort of ['trend-better', 'trend-worse', 'trend-desc', 'trend-asc'] as const) {
+      const result = await searchIndicators(publicDb, publishedViews, {
+        query: '',
+        topics: [record.slug],
+        indicatorTypes: [],
+        lifeStages: [],
+        frameworks: [],
+        populations: [],
+        inequalities: [],
+        displayGroups: [],
+        areaCodes: [],
+        sources: [],
+        valueTypes: [],
+        yearTypes: [],
+        limit: 3,
+        sort,
+      });
+      const first = sort === 'trend-better' || sort === 'trend-desc' ? improving : worsening;
+      const second = first === improving ? worsening : improving;
+      expect
+        .soft(result.indicators.map(({ slug }) => slug))
+        .toEqual([first.slug, second.slug, cumulative.slug]);
+    }
+  }
 });
 
 it('counts suppressed points before period length for England and local trends', async () => {

@@ -101,6 +101,7 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
         area_id: 2,
         from_date: '2025-01-01',
         to_date: '2025-12-31',
+        is_current_series: true,
         value: 10,
         upload_batch_id: 108,
         dimension_key: '1',

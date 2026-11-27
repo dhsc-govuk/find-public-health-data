@@ -65,3 +65,15 @@ it('preserves scatter values, independent periods and sex variants through hydra
   expect(expandScatterComparison(JSON.parse(JSON.stringify(compact)))).toEqual(source);
   expect(expandScatterComparison(compactScatterComparison({ points: [] }))).toEqual({ points: [] });
 });
+
+it('preserves cumulative identity across hydration even when an annual row has identical dates', () => {
+  const source = selected();
+  const annual = { ...observation(10), fromDate: '2022-04-01', toDate: '2023-03-31' };
+  const cumulative = { ...annual, periodType: 'cumulative-quarter-2022-04-01' as const, value: 20 };
+  source.areaData = [
+    { areaCode: 'E92000001', areaName: 'England', observations: [annual, cumulative] },
+  ];
+  const compact = compactIndicator(source);
+  expect(compact.catalogue.periods).toHaveLength(2);
+  expect(expandIndicator(JSON.parse(JSON.stringify(compact)))).toEqual(source);
+});

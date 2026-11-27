@@ -8,7 +8,7 @@ import {
   tableAreaSeries,
   tableSummary,
 } from '@fphd/utils/observation-series';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { replaceObservationSeries } from '../../internal-read-models/src/observation-series.ts';
 import type { Database } from './client.ts';
@@ -22,6 +22,7 @@ import { getIndicatorRankingData, getIndicatorTableData } from './indicator-tabl
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import {
   area,
+  currentPublishedVersion,
   dimensionType,
   dimensionValue,
   indicatorVersion,
@@ -585,4 +586,88 @@ it('uses canonical comparisons and trends for caches written by an older series 
       .set(batch)
       .where(eq(observationSeriesBatch.indicatorId, id));
   }
+});
+
+it('keeps imported annual and historical rows while cached and full reads select all current cumulative quarters', async () => {
+  class RolledBack extends Error {}
+  await expect(
+    database.db.transaction(async (tx) => {
+      const [model] = await tx
+        .select({
+          indicatorId: currentPublishedVersion.indicatorId,
+          uploadBatchId: indicatorVersion.uploadBatchId,
+        })
+        .from(currentPublishedVersion)
+        .innerJoin(indicatorVersion, eq(indicatorVersion.id, currentPublishedVersion.id))
+        .where(isNotNull(indicatorVersion.uploadBatchId))
+        .limit(1);
+      const [england] = await tx.select().from(area).where(eq(area.code, 'E92000001'));
+      if (!model?.uploadBatchId || !england) throw new Error('Missing seeded series fixtures');
+      const common = {
+        indicatorId: model.indicatorId,
+        uploadBatchId: model.uploadBatchId,
+        areaId: england.id,
+        dimensionKey: '',
+      };
+      const cumulative = Array.from({ length: 17 }, (_, index) => ({
+        ...common,
+        fromDate: '2090-04-01',
+        toDate: new Date(Date.UTC(2090, 6 + index * 3, 0)).toISOString().slice(0, 10),
+        periodType: 'cumulative-quarter-2090-04-01' as const,
+        value: index + 1,
+      }));
+      await tx.insert(observation).values([
+        ...cumulative,
+        { ...common, fromDate: '2090-04-01', toDate: '2091-03-31', value: 99 },
+        {
+          ...common,
+          fromDate: '2089-04-01',
+          toDate: '2094-03-31',
+          periodType: 'cumulative-quarter-2089-04-01',
+          value: 80,
+        },
+      ]);
+      await replaceObservationSeries(tx, model.indicatorId, model.uploadBatchId, null);
+      const full = await getIndicatorObservationData(
+        tx,
+        publishedViews,
+        [model.indicatorId],
+        ['E92000001'],
+      );
+      const points = full.get(model.indicatorId)?.areaData[0]?.observations ?? [];
+      expect(
+        points.filter(({ fromDate }) => fromDate === '2089-04-01' || fromDate === '2090-04-01'),
+      ).toHaveLength(19);
+      expect(headlineSeries(points).map(({ value }) => value)).toEqual(
+        cumulative.map(({ value }) => value),
+      );
+      expect(await indicatorTrendDirections(tx, publishedViews, [model.indicatorId])).toEqual(
+        new Map([[model.indicatorId, null]]),
+      );
+      const cached = await getIndicatorSeriesData(
+        tx,
+        publishedViews,
+        [model.indicatorId],
+        ['E92000001'],
+        'recent',
+      );
+      const result = cached?.get(model.indicatorId);
+      expect(result?.areaData[0]?.observations.map(({ value }) => value)).toEqual([
+        13, 14, 15, 16, 17,
+      ]);
+      expect(
+        result?.areaData[0]?.observations.every(
+          ({ periodType }) => periodType === 'cumulative-quarter-2090-04-01',
+        ),
+      ).toBe(true);
+      expect(result?.tableSeries?.map(({ periodType }) => periodType)).toEqual(['all']);
+      await tx
+        .delete(observationSeriesBatch)
+        .where(eq(observationSeriesBatch.indicatorId, model.indicatorId));
+      expect(await indicatorTrendDirections(tx, publishedViews, [model.indicatorId])).toEqual(
+        new Map([[model.indicatorId, null]]),
+      );
+      throw new RolledBack();
+    }),
+  ).rejects.toBeInstanceOf(RolledBack);
 });

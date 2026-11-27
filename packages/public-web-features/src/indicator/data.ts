@@ -10,6 +10,7 @@ import {
   filterSeries,
   headlineSeries,
   isRollingPeriod,
+  observationPeriodType,
   observationSegmentKey,
   observationSeriesKey,
   periodTypeLength,
@@ -141,7 +142,11 @@ export function alignedTrendSeries(
   }
   const key = segmentKey(reference);
   const matching = observations
-    .filter((observation) => segmentKey(observation) === key)
+    .filter(
+      (observation) =>
+        segmentKey(observation) === key &&
+        observationPeriodType(observation) === observationPeriodType(reference),
+    )
     .sort((a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate));
   return matching.length > 0 ? matching : trendSeries(observations);
 }
@@ -439,6 +444,7 @@ export type PeriodType = SeriesPeriodType;
 
 export function periodTypeLabel(periodType: PeriodType): string {
   if (periodType === 'all') return 'All';
+  if (periodType.startsWith('cumulative-quarter-')) return 'Cumulative quarters';
   const length = Number.parseInt(periodType, 10);
   const unit = periodType.endsWith('-day')
     ? 'day'
@@ -465,7 +471,11 @@ export interface PeriodTypeChoice {
 }
 
 function periodNoticePhrases(periodType: Exclude<PeriodType, 'all'>) {
-  if (periodType.endsWith('-day') || periodType.endsWith('-month'))
+  if (
+    periodType.startsWith('cumulative-quarter-') ||
+    periodType.endsWith('-day') ||
+    periodType.endsWith('-month')
+  )
     return {
       showing: `${periodTypeLabel(periodType)} data`,
       missing: `${periodTypeLabel(periodType)} data`,
@@ -491,6 +501,10 @@ export function periodTypeChoice(
   requested: PeriodType,
   { defaultAreas = false }: { defaultAreas?: boolean } = {},
 ): PeriodTypeChoice {
+  const publishedTypes = availablePeriodTypes(areaData.flatMap(({ observations }) => observations));
+  const cumulative = publishedTypes.find((type) => type.startsWith('cumulative-quarter-'));
+  if (cumulative && publishedTypes.length === 1)
+    return { offered: false, options: [cumulative], periodType: cumulative, notice: null };
   const withData = areaData.filter(({ observations }) => observations.length > 0);
   const picked = withData.filter(({ areaCode }) => areaCode !== ENGLAND_AREA_CODE);
   const typesByArea = (picked.length ? picked : withData).map((data) => ({
@@ -500,7 +514,6 @@ export function periodTypeChoice(
   const anyType = availablePeriodTypes(typesByArea.flatMap(({ data }) => data.observations));
   const common = anyType.filter((type) => typesByArea.every(({ types }) => types.includes(type)));
   const options = common.length ? common : anyType;
-  const publishedTypes = availablePeriodTypes(areaData.flatMap(({ observations }) => observations));
   const wanted = requested !== 'all' && publishedTypes.includes(requested) ? requested : '1-year';
   const periodType = options.includes(wanted) ? wanted : (options[0] ?? 'all');
   const offered = publishedTypes.length > 1;
@@ -731,7 +744,7 @@ export function inequalityPeriods(
 ): { value: string; label: string }[] {
   const reference = trendSeries(observations)[0];
   const periods = new Map<string, string>();
-  for (const observation of observations) {
+  for (const observation of filterSeries(observations, {})) {
     if (isPureCategory(observation, category, reference)) {
       periods.set(
         `${observation.fromDate}/${observation.toDate}`,
@@ -751,7 +764,7 @@ export function inequalityBreakdown(
   period: string,
 ): IndicatorObservation[] {
   const reference = trendSeries(observations)[0];
-  return observations
+  return filterSeries(observations, {})
     .filter(
       (observation) =>
         `${observation.fromDate}/${observation.toDate}` === period &&
@@ -773,7 +786,7 @@ export function periodCovered(
   observations: IndicatorObservation[],
   yearType?: PublicYearType | null,
 ): string {
-  const [first, ...rest] = observations;
+  const [first, ...rest] = filterSeries(observations, {});
   if (first === undefined) {
     return '';
   }
@@ -786,7 +799,10 @@ export function periodCovered(
     }),
     { fromDate: first.fromDate, toDate: first.toDate },
   );
-  return periodLabel(span, yearType);
+  return periodLabel(
+    { ...span, ...(first.periodType ? { periodType: first.periodType } : {}) },
+    yearType,
+  );
 }
 
 export type RecentTrend =
@@ -796,7 +812,11 @@ export type RecentTrend =
       direction: null;
       label: string;
       tone: 'grey';
-      reason: 'multi-year periods' | 'not enough data points' | 'no England figure';
+      reason:
+        | 'cumulative periods'
+        | 'multi-year periods'
+        | 'not enough data points'
+        | 'no England figure';
     };
 
 /** The summary's trend for an indicator with no England value. */
@@ -818,12 +838,15 @@ export function recentTrend(
   precomputed?: TrendDirection,
 ): RecentTrend {
   const series = trendSeries(observations);
-  if (series.some(isRollingPeriod))
+  const cumulative = series.some((point) =>
+    observationPeriodType(point).startsWith('cumulative-quarter-'),
+  );
+  if (cumulative || series.some(isRollingPeriod))
     return {
       direction: null,
       label: 'Trend unavailable',
       tone: 'grey',
-      reason: 'multi-year periods',
+      reason: cumulative ? 'cumulative periods' : 'multi-year periods',
     };
   const direction =
     precomputed === undefined

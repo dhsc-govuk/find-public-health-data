@@ -175,7 +175,10 @@ function TrendPlot({
   const ticks = new Map(
     periods.map(({ key }) => {
       const [fromDate = '', toDate = ''] = key.split('|');
-      return [key, shortPeriodLabel({ fromDate, toDate }, indicator.yearType)];
+      return [
+        key,
+        shortPeriodLabel({ fromDate, toDate, periodType: segment?.periodType }, indicator.yearType),
+      ];
     }),
   );
   const lastTickLength = ticks.get(periods.at(-1)?.key ?? '')?.length ?? 0;

@@ -1,5 +1,7 @@
+import type { ObservationPeriodType } from '@fphd/utils/observation-series';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   date,
   doublePrecision,
@@ -56,6 +58,9 @@ export const observation = pgTable(
       .references(() => area.id),
     fromDate: date().notNull(),
     toDate: date().notNull(),
+    periodType: text().$type<ObservationPeriodType>(),
+    // A retained cycle needs its own identity even when Fingertips selects another baseline.
+    isCurrentSeries: boolean().notNull().default(true),
     value: doublePrecision(),
     count: doublePrecision(),
     numerator: doublePrecision(),
@@ -78,6 +83,10 @@ export const observation = pgTable(
       foreignColumns: [uploadBatch.id, uploadBatch.indicatorId],
       name: 'observation_upload_batch_indicator_fk',
     }),
+    check(
+      'observation_period_type_check',
+      sql`${t.periodType} IS NULL OR ${t.periodType} = 'cumulative-quarter-' || to_char(${t.fromDate}, 'YYYY-MM-DD')`,
+    ),
     check('observation_date_order_check', sql`${t.fromDate} <= ${t.toDate}`),
     // The natural key: one row per area, period and dimension values within a batch. Leading with
     // the batch, it also serves lookups by batch.
@@ -87,6 +96,7 @@ export const observation = pgTable(
       t.fromDate,
       t.toDate,
       t.dimensionKey,
+      sql`coalesce(${t.periodType}, '')`,
     ),
     index('idx_observation_indicator_dates').on(t.indicatorId, t.fromDate, t.toDate),
     index('idx_observation_indicator_area_from').on(t.indicatorId, t.areaId, t.fromDate),

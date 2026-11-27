@@ -134,6 +134,16 @@ moves to this service. The operations image applies the packages with `db migrat
   stops and names the count.
 - Financial cumulative-quarter data retains its cumulative date ranges. Repeated canonical
   observation keys stop the export with source-row diagnostics.
+- Cumulative financial quarters retain a baseline-specific `observation.period_type`, such as
+  `cumulative-quarter-2022-04-01`. This keeps a 12-month cumulative endpoint distinct from an annual
+  observation on identical dates, and keeps longer endpoints in the same series. All exported
+  observations remain stored with their source period identity. `observation.is_current_series`
+  separates the baseline named by the published Fingertips Groupings from retained older and
+  unpublished newer cycles; published and preview reads exclude those other cycles. Grouping-format
+  exceptions retain only the matching indicator, sex, age and year range, plus its single-year
+  annual observations. Display selection uses that series even if the source retains newer,
+  unpublished baselines. Existing environments need a fresh Pholio export and import after migration
+  0108; the old date-only export has lost this identity.
 - Financial and academic monthly periods count Month 1 from April, matching Fingertips.
   November-to-November annual periods run from 16 November to 15 November. Financial year-end
   snapshots retain their 31 March point date. Academic quarters and multi-year rolling periods
@@ -215,7 +225,7 @@ package's indicator list:
 `indicators` must exactly match the indicators in the package. Each needs a topic assignment or an
 explicit entry in `areaContextIndicators`; an area-context indicator cannot also carry topics or
 classifications. `indicatorSubtopics` contains `{ fingertipsId, topicId, subtopicId }` rows.
-Packages use format version 12 and `canonical-v12`, including explicit area status and nullable area
+Packages use format version 13 and `canonical-v13`, including explicit area status and nullable area
 validity dates. Every area file requires `is_current`; missing status is rejected rather than filled
 from the database default. Every `indicator_version` file requires `is_locked` in the same way, and
 a version whose `is_locked` is false is refused, so a published version never arrives unlocked.

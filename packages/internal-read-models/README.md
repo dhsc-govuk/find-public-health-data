@@ -39,6 +39,14 @@ series algorithm version. Readers use canonical histories for older versions unt
 `pnpm db:rebuild-read-models` refreshes them. Deployment needs no manual rebuild. The cache period
 column remains PostgreSQL `text`; widening its TypeScript type needs no migration.
 
+Cumulative financial quarters carry `cumulative-quarter-YYYY-MM-DD`, where the date is the baseline.
+Every endpoint shares that identity, including endpoints covering whole years. The newest published
+baseline is displayed as one series; earlier baselines and ordinary annual rows remain stored. The
+Pholio exporter writes this identity to `observation.period_type` for every retained cycle and uses
+`observation.is_current_series` to keep unpublished and historical cycles out of reads and caches.
+After deploying migration 0108, re-export and import the data to populate it; an old export cannot
+recover the source quarter identity. The import rebuilds the series caches.
+
 ## Tests
 
 The tests are in the integration tier, against a copy of the seeded template database, so they need

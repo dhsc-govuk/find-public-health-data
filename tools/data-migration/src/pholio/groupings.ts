@@ -100,6 +100,34 @@ export function createObservationGroupings(rows: readonly Grouping[]) {
         return 'periodicity_not_in_grouping';
       return undefined;
     },
+    hasCumulativeSeries(indicatorId: number): boolean {
+      return (byIndicator.get(indicatorId) ?? []).some(
+        (grouping) => grouping.BaselineYear != null && grouping.BaselineQuarter > 0,
+      );
+    },
+    hasCumulativeBaseline(row: ObservationSeries & { Year: number }): boolean {
+      return (byIndicator.get(row.IndicatorID) ?? []).some(
+        (grouping) =>
+          grouping.BaselineYear === row.Year &&
+          grouping.YearRange === row.YearRange &&
+          samePeriodicity(grouping, row) &&
+          grouping.SexID === row.SexID &&
+          grouping.AgeID === row.AgeID,
+      );
+    },
+    retainsCumulativeHistory(row: ObservationSeries): boolean {
+      return (byIndicator.get(row.IndicatorID) ?? []).some(
+        (grouping) =>
+          grouping.BaselineYear != null &&
+          grouping.BaselineQuarter > 0 &&
+          grouping.SexID === row.SexID &&
+          grouping.AgeID === row.AgeID &&
+          ((grouping.YearRange === row.YearRange && samePeriodicity(grouping, row)) ||
+            (row.Quarter === -1 &&
+              row.Month === -1 &&
+              (row.YearRange === 1 || row.YearRange === grouping.YearRange))),
+      );
+    },
     hasSeries(row: ObservationSeries): boolean {
       return (byIndicator.get(row.IndicatorID) ?? []).some(
         (grouping) =>

@@ -10,6 +10,7 @@ import {
   version,
   versionWithBatch,
 } from './data-migration-db.testing.ts';
+import { rebuildReadModels } from './read-models.ts';
 
 const { IMPORTED_INDICATOR_TEAM_ID } = schema;
 
@@ -624,4 +625,104 @@ describe('applyDataMigration', () => {
     `;
     expect(row).toEqual({ indicators: 0, topics: 0 });
   });
+});
+
+it('imports all cumulative and annual twins while displaying only the published cumulative baseline', async () => {
+  const batchId = '22222222-2222-7222-8222-222222222222';
+  const areaId = '44444444-4444-7444-8444-444444444444';
+  await baseline({
+    upserts: {
+      indicator_version: versionWithBatch(batchId, '2026-01-01T00:00:00Z'),
+      upload_batch: batch(batchId),
+      area_type: {
+        columns: ['id', 'name', 'hierarchy_type'],
+        rows: [[areaId, 'England', 'Administrative']],
+      },
+      area: {
+        columns: ['id', 'area_type_id', 'code', 'name', 'valid_from', 'is_current'],
+        rows: [[areaId, areaId, 'E92000001', 'England', '2010-01-01', 't']],
+      },
+      observation: {
+        columns: [
+          'id',
+          'indicator_id',
+          'area_id',
+          'upload_batch_id',
+          'from_date',
+          'to_date',
+          'period_type',
+          'is_current_series',
+          'value',
+          'dimension_key',
+        ],
+        rows: [
+          [
+            '55555555-5555-7555-8555-555555555555',
+            INDICATOR_ID,
+            areaId,
+            batchId,
+            '2022-04-01',
+            '2023-03-31',
+            'cumulative-quarter-2022-04-01',
+            't',
+            10,
+            '',
+          ],
+          [
+            '66666666-6666-7666-8666-666666666666',
+            INDICATOR_ID,
+            areaId,
+            batchId,
+            '2022-04-01',
+            '2023-03-31',
+            null,
+            't',
+            20,
+            '',
+          ],
+          ...[2021, 2023].flatMap((year, index) =>
+            [false, true].map((annual, twin) => [
+              `00000000-0000-7000-8000-${String(7 + index * 2 + twin).padStart(12, '0')}`,
+              INDICATOR_ID,
+              areaId,
+              batchId,
+              `${year}-04-01`,
+              `${year + 1}-03-31`,
+              annual ? null : `cumulative-quarter-${year}-04-01`,
+              annual ? 't' : 'f',
+              30 + index * 20 + twin * 10,
+              '',
+            ]),
+          ),
+        ],
+      },
+    },
+  });
+  expect(await db.sql`SELECT period_type, value FROM published.observation ORDER BY value`).toEqual(
+    [
+      { period_type: 'cumulative-quarter-2022-04-01', value: 10 },
+      { period_type: null, value: 20 },
+      { period_type: null, value: 40 },
+      { period_type: null, value: 60 },
+    ],
+  );
+  expect(await db.sql`SELECT count(*)::int AS count FROM observation`).toEqual([{ count: 6 }]);
+  expect(
+    await db.sql`SELECT period_type, value FROM observation WHERE NOT is_current_series ORDER BY value`,
+  ).toEqual([
+    { period_type: 'cumulative-quarter-2021-04-01', value: 30 },
+    { period_type: 'cumulative-quarter-2023-04-01', value: 50 },
+  ]);
+  await rebuildReadModels(db.sql);
+  expect(
+    await db.sql`SELECT DISTINCT o.period_type FROM observation_series s
+      JOIN observation o ON o.id = s.latest_observation_id
+      WHERE s.indicator_id = ${INDICATOR_ID}`,
+  ).toEqual([{ period_type: 'cumulative-quarter-2022-04-01' }]);
+  expect(await db.sql`SELECT value FROM preview.observation ORDER BY value`).toEqual([
+    { value: 10 },
+    { value: 20 },
+    { value: 40 },
+    { value: 60 },
+  ]);
 });

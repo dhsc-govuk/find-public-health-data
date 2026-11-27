@@ -7,6 +7,7 @@ import {
   isObservationPeriodType,
   isRollingPeriod,
   observationPeriodType,
+  pairedAreaValues,
   periodMonths,
   periodTypeLength,
   periodYears,
@@ -160,6 +161,7 @@ it.each([
   '1-day',
   '500-day',
   '550-day',
+  'cumulative-quarter-2022-04-01',
 ])('accepts period type %s', (type) => {
   expect(isObservationPeriodType(type)).toBe(true);
 });
@@ -459,4 +461,135 @@ it('doubts a headline age beside a total or an age outside it', () => {
   expect(
     uncertainHeadlineAge([point('School age'), point('Primary school age')], point('School age')),
   ).toBe(true);
+});
+
+it('keeps all cumulative quarters together, replaces the old baseline and separates annual data', () => {
+  const cumulative = Array.from({ length: 17 }, (_, index) => ({
+    fromDate: '2022-04-01',
+    toDate: new Date(Date.UTC(2022, 6 + index * 3, 0)).toISOString().slice(0, 10),
+    periodType: 'cumulative-quarter-2022-04-01' as const,
+    dimensions: [],
+    value: index + 1,
+  }));
+  const old = cumulative.map((point) => ({
+    ...point,
+    fromDate: '2021-04-01',
+    periodType: 'cumulative-quarter-2021-04-01' as const,
+  }));
+  const annual = { fromDate: '2022-04-01', toDate: '2023-03-31', dimensions: [], value: 99 };
+  const observations = [...old, annual, ...cumulative];
+  expect(headlineSeries(observations)).toEqual(cumulative);
+  expect(seriesPeriodTypes(observations)).toEqual(['cumulative-quarter-2022-04-01']);
+  expect(filterSeries(observations, {})).toEqual(cumulative);
+  expect(filterSeries(observations, { periodType: '1-year' })).toEqual([]);
+  expect(observationPeriodType(annual)).toBe('1-year');
+  const fourth = cumulative[3];
+  if (!fourth) throw new Error('Missing fourth quarter');
+  expect(observationPeriodType(fourth)).toBe('cumulative-quarter-2022-04-01');
+  const summary = tableSummary([{ areaCode: 'E92000001', observations }]);
+  expect(summary.areaData[0]?.observations).toEqual(cumulative.slice(-5));
+  expect(summary.tableSeries.map(({ periodType }) => periodType)).toEqual([
+    'all',
+    'cumulative-quarter-2022-04-01',
+  ]);
+});
+
+it('keeps annual twins out of year-end benchmarks and scatter values', () => {
+  const cumulative = [1, 4].map((quarter) => ({
+    fromDate: '2022-04-01',
+    toDate: new Date(Date.UTC(2022, 3 + quarter * 3, 0)).toISOString().slice(0, 10),
+    periodType: 'cumulative-quarter-2022-04-01' as const,
+    dimensions: [],
+    value: quarter,
+  }));
+  const annual = { fromDate: '2022-04-01', toDate: '2023-03-31', dimensions: [], value: 99 };
+  const areas = ['E06000052', 'E92000001'].map((areaCode) => ({
+    areaCode,
+    areaName: areaCode,
+    observations: [...cumulative, annual],
+  }));
+  expect(tableAreaSeries(areas).map(({ observations }) => observations)).toEqual([
+    cumulative,
+    cumulative,
+  ]);
+  expect(tableSummary(areas).areaData.map(({ observations }) => observations)).toEqual([
+    cumulative,
+    cumulative,
+  ]);
+  expect(pairedAreaValues(areas, areas).map(({ x, y, xPeriod }) => ({ x, y, xPeriod }))).toEqual(
+    areas.map(() => ({
+      x: 4,
+      y: 4,
+      xPeriod: {
+        fromDate: '2022-04-01',
+        toDate: '2023-03-31',
+        periodType: 'cumulative-quarter-2022-04-01',
+      },
+    })),
+  );
+});
+
+it.each([false, true])(
+  'uses the published cumulative scatter series when the first area has only annual data (reverse twins: %s)',
+  (reverse) => {
+    const annual = {
+      fromDate: '2022-04-01',
+      toDate: '2023-03-31',
+      dimensions: [],
+      value: 99,
+    };
+    const cumulative = {
+      ...annual,
+      periodType: 'cumulative-quarter-2022-04-01' as const,
+      value: 4,
+    };
+    const areas = [
+      { areaCode: 'annual-only', areaName: 'Annual only', observations: [annual] },
+      {
+        areaCode: 'cumulative',
+        areaName: 'Cumulative',
+        observations: reverse ? [annual, cumulative] : [cumulative, annual],
+      },
+    ];
+    expect(pairedAreaValues(areas, areas)).toEqual([
+      {
+        code: 'cumulative',
+        name: 'Cumulative',
+        x: 4,
+        y: 4,
+        xPeriod: {
+          fromDate: cumulative.fromDate,
+          toDate: cumulative.toDate,
+          periodType: cumulative.periodType,
+        },
+        yPeriod: {
+          fromDate: cumulative.fromDate,
+          toDate: cumulative.toDate,
+          periodType: cumulative.periodType,
+        },
+      },
+    ]);
+  },
+);
+
+it('elects cumulative baselines per population while retaining other populations and their annual periods', () => {
+  const point = {
+    fromDate: '2022-04-01',
+    toDate: '2023-03-31',
+    value: 99,
+    dimensions: [{ type: 'Sex', value: 'Female', sortOrder: 1 }],
+  };
+  const female = { ...point, periodType: 'cumulative-quarter-2022-04-01' as const, value: 4 };
+  const male = { ...point, dimensions: [{ type: 'Sex', value: 'Male', sortOrder: 2 }], value: 7 };
+  const oldMale = {
+    ...male,
+    fromDate: '2021-04-01',
+    periodType: 'cumulative-quarter-2021-04-01' as const,
+    value: 3,
+  };
+  const observations = [point, female, male];
+  expect(filterSeries(observations, {})).toEqual([female, male]);
+  expect(filterSeries(observations, { sex: 'Male' })).toEqual([male]);
+  expect(seriesPeriodTypes(observations)).toEqual([female.periodType, '1-year']);
+  expect(filterSeries([point, female, oldMale], {})).toEqual([female, oldMale]);
 });

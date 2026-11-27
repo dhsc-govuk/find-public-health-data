@@ -312,6 +312,7 @@ const isoAgeDuration = z.string().regex(ISO_AGE_DURATION);
 export const indicatorObservationSchema = z.object({
   fromDate: z.string().min(1),
   toDate: z.string().min(1),
+  periodType: z.custom<ObservationPeriodType>(isObservationPeriodType).nullable().optional(),
   value: z.number().nullable(),
   lowerCi95: z.number().nullable(),
   upperCi95: z.number().nullable(),
@@ -496,8 +497,16 @@ const scatterPointsSchema = z.array(
   z.object({
     code: z.string(),
     name: z.string(),
-    xPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
-    yPeriod: z.object({ fromDate: z.iso.date(), toDate: z.iso.date() }),
+    xPeriod: z.object({
+      fromDate: z.iso.date(),
+      toDate: z.iso.date(),
+      periodType: z.custom<ObservationPeriodType>(isObservationPeriodType).nullable().optional(),
+    }),
+    yPeriod: z.object({
+      fromDate: z.iso.date(),
+      toDate: z.iso.date(),
+      periodType: z.custom<ObservationPeriodType>(isObservationPeriodType).nullable().optional(),
+    }),
     x: z.number(),
     y: z.number(),
   }),

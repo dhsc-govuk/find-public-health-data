@@ -166,3 +166,48 @@ describe('expandedPeriodLabel', () => {
     );
   });
 });
+
+it('matches Fingertips cumulative quarter labels, including whole financial years', () => {
+  for (const label of [periodLabel, shortPeriodLabel, expandedPeriodLabel]) {
+    expect(
+      label(
+        {
+          fromDate: '2022-04-01',
+          toDate: '2022-06-30',
+          periodType: 'cumulative-quarter-2022-04-01',
+        },
+        financial,
+      ),
+    ).toBe('2022/23 Q1');
+    expect(
+      label(
+        {
+          fromDate: '2022-04-01',
+          toDate: '2026-06-30',
+          periodType: 'cumulative-quarter-2022-04-01',
+        },
+        financial,
+      ),
+    ).toBe('2022/23 Q1 - 2026/27 Q1');
+    expect(
+      label(
+        {
+          fromDate: '2022-04-01',
+          toDate: '2023-03-31',
+          periodType: 'cumulative-quarter-2022-04-01',
+        },
+        financial,
+      ),
+    ).toBe('2022/23 Q1 - 2022/23 Q4');
+    expect(
+      label(
+        {
+          fromDate: '2022-04-01',
+          toDate: '2023-09-30',
+          periodType: 'cumulative-quarter-2022-04-01',
+        },
+        financial,
+      ),
+    ).toBe('2022/23 Q1 - 2023/24 Q2');
+  }
+});

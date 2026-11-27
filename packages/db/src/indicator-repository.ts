@@ -45,6 +45,7 @@ import {
 import { indicatorTrendDirections } from './indicator-trends.ts';
 import { escapeLike } from './like-pattern.ts';
 import { observationRangeSql, observationSegmentSql } from './observation-range-sql.ts';
+import { cumulativePeriodsFor } from './observation-series-sql.ts';
 import type { ViewSet } from './schema/index.ts';
 
 export interface IndicatorSearchFilters {
@@ -637,6 +638,11 @@ export async function getObservationRangeByCategory(
   dimensionValueId: string,
 ): Promise<ObservationRangePeriod[]> {
   const { areaCategory, dimensionType, dimensionValue, observation, observationDimension } = views;
+  const cumulativePeriods = cumulativePeriodsFor(
+    db,
+    observation,
+    eq(observation.indicatorId, indicatorId),
+  );
   const points = db.$with('category_range_observations').as(
     db
       .select({
@@ -646,6 +652,13 @@ export async function getObservationRangeByCategory(
         segment: observationSegmentSql(dimensionValue.name, dimensionType.name).as('segment'),
       })
       .from(observation)
+      .leftJoin(
+        cumulativePeriods,
+        and(
+          eq(cumulativePeriods.indicatorId, observation.indicatorId),
+          eq(cumulativePeriods.dimensionKey, observation.dimensionKey),
+        ),
+      )
       .innerJoin(
         areaCategory,
         and(
@@ -656,11 +669,20 @@ export async function getObservationRangeByCategory(
       .leftJoin(observationDimension, eq(observationDimension.observationId, observation.id))
       .leftJoin(dimensionValue, eq(dimensionValue.id, observationDimension.dimensionValueId))
       .leftJoin(dimensionType, eq(dimensionType.id, observationDimension.dimensionTypeId))
-      .where(and(eq(observation.indicatorId, indicatorId), isNotNull(observation.value)))
+      .where(
+        and(
+          eq(observation.indicatorId, indicatorId),
+          isNotNull(observation.value),
+          or(
+            isNull(cumulativePeriods.periodType),
+            eq(observation.periodType, cumulativePeriods.periodType),
+          ),
+        ),
+      )
       .groupBy(observation.id, observation.fromDate, observation.toDate, observation.value),
   );
   return db
-    .with(points)
+    .with(cumulativePeriods, points)
     .select({
       fromDate: points.fromDate,
       toDate: points.toDate,
@@ -713,6 +735,11 @@ export async function getObservationRangeByTier(
             ),
       ),
     );
+  const cumulativePeriods = cumulativePeriodsFor(
+    db,
+    observation,
+    eq(observation.indicatorId, indicatorId),
+  );
   const points = db.$with('tier_range_observations').as(
     db
       .select({
@@ -722,6 +749,13 @@ export async function getObservationRangeByTier(
         segment: observationSegmentSql(dimensionValue.name, dimensionType.name).as('segment'),
       })
       .from(observation)
+      .leftJoin(
+        cumulativePeriods,
+        and(
+          eq(cumulativePeriods.indicatorId, observation.indicatorId),
+          eq(cumulativePeriods.dimensionKey, observation.dimensionKey),
+        ),
+      )
       .leftJoin(observationDimension, eq(observationDimension.observationId, observation.id))
       .leftJoin(dimensionValue, eq(dimensionValue.id, observationDimension.dimensionValueId))
       .leftJoin(dimensionType, eq(dimensionType.id, observationDimension.dimensionTypeId))
@@ -729,13 +763,17 @@ export async function getObservationRangeByTier(
         and(
           eq(observation.indicatorId, indicatorId),
           inArray(observation.areaId, councils),
+          or(
+            isNull(cumulativePeriods.periodType),
+            eq(observation.periodType, cumulativePeriods.periodType),
+          ),
           isNotNull(observation.value),
         ),
       )
       .groupBy(observation.id, observation.fromDate, observation.toDate, observation.value),
   );
   return db
-    .with(points)
+    .with(cumulativePeriods, points)
     .select({
       fromDate: points.fromDate,
       toDate: points.toDate,

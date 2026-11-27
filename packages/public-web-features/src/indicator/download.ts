@@ -35,6 +35,7 @@ export function trendCsv(
   const {
     hasCounts: availableCounts,
     inPeriod,
+    inRangePeriod,
     periods,
     referenceSegment,
     seriesByArea,
@@ -97,7 +98,7 @@ export function trendCsv(
       if (benchmark.goal)
         return [goalVerdict(benchmark.series.find(inPeriod(period))?.value, benchmark.goal)];
       const range = benchmark.rangePeriods?.find(
-        (candidate) => inPeriod(period)(candidate) && candidate.segment === referenceSegment,
+        (candidate) => inRangePeriod(period)(candidate) && candidate.segment === referenceSegment,
       );
       return [
         benchmark.series.find(inPeriod(period))?.value ?? null,

@@ -1,3 +1,5 @@
+import type { CumulativePeriodType } from '@fphd/utils/observation-series';
+
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
@@ -140,4 +142,12 @@ export function computeDates(
   const fromDate = yearTypeOnlyFromDate(year, yearTypeId);
   const toDate = yearTypeOnlyToDate(year, yearRange, yearTypeId);
   return { fromDate, toDate };
+}
+
+export function sourcePeriodType(
+  year: number,
+  quarter: number,
+  yearTypeId: number,
+): CumulativePeriodType | null {
+  return yearTypeId === 10 && quarter > 0 ? `cumulative-quarter-${dateParts(year, 4, 1)}` : null;
 }

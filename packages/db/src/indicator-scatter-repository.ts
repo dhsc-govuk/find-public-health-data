@@ -1,6 +1,7 @@
 import {
   ENGLAND_AREA_CODE,
   OBSERVATION_SERIES_VERSION,
+  type ObservationPeriodType,
   observationSegmentKey,
   pairedAreaSexValues,
   pairedAreaValues,
@@ -112,6 +113,7 @@ async function getCachedScatterVariants(
         dimensionKey: source.dimensionKey,
         fromDate: source.fromDate,
         toDate: source.toDate,
+        periodType: source.periodType,
       })
       .from(selected)
       .innerJoin(source, eq(source.id, selected.latestId)),
@@ -138,6 +140,7 @@ async function getCachedScatterVariants(
             eq(observation.dimensionKey, periods.dimensionKey),
             eq(observation.fromDate, periods.fromDate),
             eq(observation.toDate, periods.toDate),
+            sql`${observation.periodType} is not distinct from ${periods.periodType}`,
           ),
         ),
     ),
@@ -151,6 +154,7 @@ async function getCachedScatterVariants(
         areaId: observation.areaId,
         fromDate: observation.fromDate,
         toDate: observation.toDate,
+        sourcePeriodType: observation.periodType,
         value: observation.value,
         dimensionKey: observation.dimensionKey,
       })
@@ -192,7 +196,14 @@ async function getCachedScatterVariants(
         toDate: candidates.toDate,
         value: candidates.value,
         dimensionKey: candidates.dimensionKey,
-        periodType: observationPeriodSql(candidates.fromDate, candidates.toDate).as('period_type'),
+        sourcePeriodType: sql<ObservationPeriodType | null>`${candidates.sourcePeriodType}`.as(
+          'source_period_type',
+        ),
+        periodType: observationPeriodSql(
+          candidates.fromDate,
+          candidates.toDate,
+          candidates.sourcePeriodType,
+        ).as('period_type'),
         sex: variants.sex,
       })
       .from(candidates)
@@ -264,6 +275,7 @@ async function getCachedScatterVariants(
         indicatorId: segments.indicatorId,
         sex: sql<string>`${segments.sex}`.as('reference_sex'),
         dimensionKey: segments.dimensionKey,
+        periodType: sql<ObservationPeriodType>`${segments.periodType}`.as('reference_period_type'),
         length: sql<number>`${segments.length}`.as('reference_length'),
         firstPoint: sql<string>`${segments.firstPoint}`.as('reference_first_point'),
       })
@@ -292,6 +304,7 @@ async function getCachedScatterVariants(
         toDate: points.toDate,
         dimensionKey: points.dimensionKey,
         value: points.value,
+        periodType: points.sourcePeriodType,
       })
       .from(points)
       .innerJoin(
@@ -300,6 +313,10 @@ async function getCachedScatterVariants(
           eq(references.indicatorId, points.indicatorId),
           eq(references.sex, points.sex),
           eq(references.dimensionKey, points.dimensionKey),
+          or(
+            sql`${references.periodType} not like 'cumulative-quarter-%'`,
+            eq(references.periodType, points.periodType),
+          ),
         ),
       )
       .where(isNotNull(points.value))
@@ -342,6 +359,7 @@ async function getCachedScatterVariants(
       fromDate: chosen.fromDate,
       toDate: chosen.toDate,
       value: chosen.value,
+      periodType: chosen.periodType,
       dimensions: dimensions.data,
     })
     .from(batches)
@@ -390,6 +408,7 @@ async function getCachedScatterVariants(
                   fromDate: row.fromDate,
                   toDate: row.toDate,
                   value: row.value,
+                  ...(row.periodType ? { periodType: row.periodType } : {}),
                   dimensions: row.dimensions ?? [],
                 },
               ]

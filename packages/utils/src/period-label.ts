@@ -1,9 +1,11 @@
+import type { ObservationPeriodType } from './observation-series.ts';
 import { monthName, type PublicYearType } from './period-type.ts';
 
 /** A period as observations store it: ISO dates, both inclusive. */
 export interface Period {
   fromDate: string;
   toDate: string;
+  periodType?: ObservationPeriodType | null | undefined;
 }
 
 interface Day {
@@ -58,11 +60,22 @@ function monthsLabel(from: Day, to: Day): string {
  * rolling years starting in 2022 would all be labelled 2022/23.
  */
 export function periodLabel(
-  { fromDate, toDate }: Period,
+  { fromDate, toDate, periodType }: Period,
   yearType?: PublicYearType | null,
 ): string {
   const from = dayOf(fromDate);
   const to = dayOf(toDate);
+
+  if (periodType?.startsWith('cumulative-quarter-')) {
+    const quarterLabel = ({ year, month }: Day) => {
+      const financialYear = month < 4 ? year - 1 : year;
+      const quarter = Math.floor(((month + 8) % 12) / 3) + 1;
+      return `${financialYear}/${String(financialYear + 1).slice(-2)} Q${quarter}`;
+    };
+    const baseline = quarterLabel(from);
+    const endpoint = quarterLabel(to);
+    return baseline === endpoint ? baseline : `${baseline} - ${endpoint}`;
+  }
 
   if (fromDate === toDate) return dayLabel(from);
 
@@ -90,6 +103,7 @@ export function shortPeriodLabel(period: Period, yearType?: PublicYearType | nul
  * "2024/25", and anything else is labelled as `periodLabel` labels it.
  */
 export function expandedPeriodLabel(period: Period, yearType?: PublicYearType | null): string {
+  if (period.periodType?.startsWith('cumulative-quarter-')) return periodLabel(period, yearType);
   const from = dayOf(period.fromDate);
   const to = dayOf(period.toDate);
   if (

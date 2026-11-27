@@ -1,3 +1,4 @@
+import { type ObservationPeriod, observationPeriodType } from '@fphd/utils/observation-series';
 import {
   benchmarkRange,
   canonicalBenchmarks,
@@ -100,6 +101,10 @@ export function trendColumnsParam(columns: TrendColumns): string {
   );
 }
 
+function periodKey(observation: ObservationPeriod): string {
+  return `${observation.fromDate}/${observation.toDate}/${observationPeriodType(observation)}`;
+}
+
 export function trendTableModel({
   areaData,
   benchmarks = [],
@@ -184,8 +189,7 @@ export function trendTableModel({
         series: area.series.flatMap((observation) => {
           const match = deciles.find(
             (candidate) =>
-              candidate.fromDate === observation.fromDate &&
-              candidate.toDate === observation.toDate &&
+              periodKey(candidate) === periodKey(observation) &&
               sameSegment(observation, {
                 ...candidate,
                 dimensions: candidate.dimensions.filter((dimension) => dimension.type !== type),
@@ -213,8 +217,7 @@ export function trendTableModel({
               .find((data) => data.areaCode === code)
               ?.observations.find(
                 (candidate) =>
-                  candidate.fromDate === observation.fromDate &&
-                  candidate.toDate === observation.toDate &&
+                  periodKey(candidate) === periodKey(observation) &&
                   sameSegment(candidate, observation),
               );
             return match?.value == null ? [] : [match.value];
@@ -251,8 +254,7 @@ export function trendTableModel({
         series: area.series.flatMap((observation) => {
           const match = observations.find(
             (candidate) =>
-              candidate.fromDate === observation.fromDate &&
-              candidate.toDate === observation.toDate &&
+              periodKey(candidate) === periodKey(observation) &&
               sameSegment(candidate, observation),
           );
           return match ? [match] : [];
@@ -287,7 +289,7 @@ export function trendTableModel({
                 series: [
                   ...new Map(
                     [...existing.series, ...benchmark.series].map((observation) => [
-                      `${observation.fromDate}/${observation.toDate}`,
+                      periodKey(observation),
                       observation,
                     ]),
                   ).values(),
@@ -329,14 +331,19 @@ export function trendTableModel({
         .flatMap(({ observations }) => seriesFor(observations))
         .sort((a, b) => a.fromDate.localeCompare(b.fromDate) || a.toDate.localeCompare(b.toDate))
         .map((observation) => [
-          `${observation.fromDate}|${observation.toDate}`,
-          { fromDate: observation.fromDate, toDate: observation.toDate },
+          periodKey(observation),
+          {
+            fromDate: observation.fromDate,
+            toDate: observation.toDate,
+            ...(observation.periodType ? { periodType: observation.periodType } : {}),
+          },
         ]),
     ).values(),
   ];
-  const inPeriod =
-    (period: (typeof periods)[number]) => (row: { fromDate: string; toDate: string }) =>
-      row.fromDate === period.fromDate && row.toDate === period.toDate;
+  const inPeriod = (period: (typeof periods)[number]) => (row: ObservationPeriod) =>
+    periodKey(row) === periodKey(period);
+  const inRangePeriod = (period: (typeof periods)[number]) => (row: IndicatorRangePeriod) =>
+    row.fromDate === period.fromDate && row.toDate === period.toDate;
   const hasCounts = seriesByArea.some(({ series }) => series.some(({ count }) => count != null));
   const lowerOf = (observation: IndicatorObservation) =>
     confidence === '99.8' ? observation.lowerCi998 : observation.lowerCi95;
@@ -349,6 +356,7 @@ export function trendTableModel({
     firstObservation: seriesByArea[0]?.series[0],
     hasCounts,
     inPeriod,
+    inRangePeriod,
     lowerOf,
     periods,
     policyGoal,
