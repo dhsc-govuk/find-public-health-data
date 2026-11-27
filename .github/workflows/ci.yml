@@ -209,6 +209,9 @@ jobs:
       # database at start-up as its own login, which bootstrap creates, and a failed check retries a
       # minute later, in the middle of whatever runs then. The login roles come before the dump: it
       # grants to them, but they belong to the server, not the database, so it cannot carry them.
+      # Azurite's image downloads in the background while the database starts and the dump
+      # restores, so internal-api, which waits for Azurite, doesn't also wait for the download.
+      # compose.e2e.yaml has every healthcheck probe once a second while its service starts.
       - name: Start the stack
         env:
           APP_ENV: test
@@ -233,11 +236,14 @@ jobs:
           # through it 10 at a time, as .env.example sets for local runs.
           SEARCH_PAGE_SIZE: 10
         run: |
+          docker compose -f compose.yaml -f compose.e2e.yaml pull --quiet azurite &
+          azurite_pull=$!
           docker compose -f compose.yaml -f compose.e2e.yaml up --detach --wait db
           pnpm db:bootstrap
           docker exec --interactive fphd-postgres \
             pg_restore --username=fphd --dbname=fphd --exit-on-error --single-transaction \
             < "${RUNNER_TEMP}/seeded-database.dump"
+          wait "${azurite_pull}"
           docker compose -f compose.yaml -f compose.e2e.yaml \
             --profile public-web --profile internal-web \
             --profile public-api --profile internal-api \
@@ -329,6 +335,9 @@ jobs:
       # database at start-up as its own login, which bootstrap creates, and a failed check retries a
       # minute later, in the middle of whatever runs then. The login roles come before the dump: it
       # grants to them, but they belong to the server, not the database, so it cannot carry them.
+      # Azurite's image downloads in the background while the database starts and the dump
+      # restores, so internal-api, which waits for Azurite, doesn't also wait for the download.
+      # compose.e2e.yaml has every healthcheck probe once a second while its service starts.
       - name: Start the stack
         env:
           APP_ENV: test
@@ -345,11 +354,15 @@ jobs:
           WEB_SESSION_SECRET: ci-only-web-session-secret-at-least-32-bytes
         run: |
           docker compose -f compose.yaml -f compose.e2e.yaml -f compose.perf.yaml \
+            pull --quiet azurite &
+          azurite_pull=$!
+          docker compose -f compose.yaml -f compose.e2e.yaml -f compose.perf.yaml \
             up --detach --wait db
           pnpm db:bootstrap
           docker exec --interactive fphd-postgres \
             pg_restore --username=fphd --dbname=fphd --exit-on-error --single-transaction \
             < "${RUNNER_TEMP}/seeded-database.dump"
+          wait "${azurite_pull}"
           docker compose -f compose.yaml -f compose.e2e.yaml -f compose.perf.yaml \
             --profile public-web --profile internal-web \
             --profile public-api --profile internal-api \

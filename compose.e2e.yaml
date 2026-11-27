@@ -6,33 +6,58 @@
 #
 # `pull_policy: never` so a missing image fails the command instead of reaching for a registry.
 # `init: false` because the images' entrypoint is tini already.
+#
+# Every healthcheck probes once a second until its service first passes, instead of waiting its
+# full compose.yaml interval, so `up --wait` returns within a second of each service being ready.
+# After the start period, or once a probe passes, the compose.yaml interval applies again.
+x-start-quickly: &start-quickly
+  start_period: 30s
+  start_interval: 1s
+
 services:
+  # The database's probe goes over TCP. On a fresh data directory the image first runs a
+  # temporary server that listens only on its Unix socket, and a socket probe, polling every
+  # second, can pass against it just before it stops.
+  db:
+    healthcheck:
+      <<: *start-quickly
+      test:
+        ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-fphd} -d ${POSTGRES_DB:-fphd}"]
+
+  azurite:
+    healthcheck: *start-quickly
+
   public-web:
     image: fphd-ci/public-web:ci
     build: !reset null
     pull_policy: never
     init: false
+    healthcheck: *start-quickly
 
   internal-web:
     image: fphd-ci/internal-web:ci
     build: !reset null
     pull_policy: never
     init: false
+    healthcheck: *start-quickly
 
   public-api:
     image: fphd-ci/public-api:ci
     build: !reset null
     pull_policy: never
     init: false
+    healthcheck: *start-quickly
 
   internal-api:
     image: fphd-ci/internal-api:ci
     build: !reset null
     pull_policy: never
     init: false
+    healthcheck: *start-quickly
 
   internal-worker:
     image: fphd-ci/internal-worker:ci
     build: !reset null
     pull_policy: never
     init: false
+    healthcheck: *start-quickly
