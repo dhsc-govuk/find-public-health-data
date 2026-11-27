@@ -442,7 +442,9 @@ pnpm --filter @fphd/data-migration data-migration export-dev-snapshot \
   --out-dir /secure/fphd-dev-snapshot
 ```
 
-The output directory must not exist yet, as for `export-pholio`.
+The output directory must not exist yet, as for `export-pholio`. The later steps tidy, rekey and
+archive the export inside it, so if one of them fails the directory holds a partial snapshot; delete
+it before running the command again.
 
 Four source indicators (90366, 90776, 92774, 93280) are excluded because they share a name with a
 newer indicator; the importer refuses an archive built with a different list. The snapshot is not
