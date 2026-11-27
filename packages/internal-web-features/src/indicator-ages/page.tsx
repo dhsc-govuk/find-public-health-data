@@ -19,7 +19,7 @@ import {
   QUESTION_HEADING_SIZE,
   type SectionPageProps,
 } from '../indicator-section-form.tsx';
-import { ADD_INTENT, removeIntent } from '../list-form.ts';
+import { ADD_INTENT, focusesItem, type ListFocus, removeIntent } from '../list-form.ts';
 
 type FieldErrors = Partial<Record<AgesPageField, string>>;
 
@@ -54,11 +54,13 @@ function periodsLabel(of: string): ReactNode {
 }
 
 function AgeLimit({
+  autoFocus = false,
   bound,
   index,
   range,
   fieldErrors,
 }: {
+  autoFocus?: boolean;
   bound: AgeLimitBound;
   index: number;
   range: AgeRangeFormValues;
@@ -76,6 +78,7 @@ function AgeLimit({
     <div className="fphd-field-row">
       <TextInput
         autoComplete="off"
+        autoFocus={autoFocus}
         className="govuk-input--width-5"
         defaultValue={range[valueField]}
         error={fieldErrors[valueName]}
@@ -99,13 +102,18 @@ function AgeLimit({
   );
 }
 
-/** The ranges as typed, each under its heading and removable while there is another. */
+/**
+ * The ranges as typed, each under its heading and removable while there is another. After an Add
+ * or a Remove, the lower limit of the range `focus` names takes focus.
+ */
 function AgeRanges({
   ranges,
   fieldErrors,
+  focus,
 }: {
   ranges: readonly AgeRangeFormValues[];
   fieldErrors: FieldErrors;
+  focus: ListFocus<string> | undefined;
 }) {
   return (
     <>
@@ -113,7 +121,13 @@ function AgeRanges({
       {ranges.map((range, index) => (
         <div key={index}>
           <h2 className="govuk-heading-m">Age range {index + 1}</h2>
-          <AgeLimit bound="lower" fieldErrors={fieldErrors} index={index} range={range} />
+          <AgeLimit
+            autoFocus={focusesItem(focus, index)}
+            bound="lower"
+            fieldErrors={fieldErrors}
+            index={index}
+            range={range}
+          />
           <AgeLimit bound="upper" fieldErrors={fieldErrors} index={index} range={range} />
           {ranges.length > 1 ? (
             <Button classModifiers="secondary" name="intent" value={removeIntent(index)}>
@@ -137,7 +151,7 @@ function AgeRanges({
 }
 
 export function AgesPage(form: SectionPageProps<AgesPageField, AgesFormValues>) {
-  const { fieldErrors, values } = form;
+  const { fieldErrors, focus, values } = form;
 
   return (
     <IndicatorSectionForm
@@ -172,6 +186,7 @@ export function AgesPage(form: SectionPageProps<AgesPageField, AgesFormValues>) 
                   [ageRangeFieldName(0, 'lowerLimit')]:
                     fieldErrors[ageRangeFieldName(0, 'lowerLimit')] ?? fieldErrors.ageRanges,
                 }}
+                focus={focus}
                 ranges={values.ageRanges}
               />
             ),

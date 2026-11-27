@@ -257,11 +257,26 @@ describe('ColumnFilters', () => {
     ).toEqual(['×2019/20 (Period)', '×2020/21 (Period)', '×Female (Sex)']);
     expect(
       screen.getByRole('link', { name: 'Remove 2020/21 (Period) filter' }).getAttribute('href'),
-    ).toBe(`${CHECK}?rowsPerPage=50&f=period.0123456789&f=sex.2123456789`);
+    ).toBe(`${CHECK}?rowsPerPage=50&f=period.0123456789&f=sex.2123456789#column-filters-selected`);
     expect(screen.getByRole('link', { name: 'Clear filters' }).getAttribute('href')).toBe(
       `${CHECK}?rowsPerPage=50`,
     );
     expect(screen.queryByText(/You can select up to/)).toBeNull();
+  });
+
+  // The remove link is removed along with its chip, so its fragment names the heading that takes
+  // focus instead.
+  it('moves focus to the selected values after a removal, or to the filters once none are left', () => {
+    renderPanel({ dataTable: { ...DATA_TABLE, filters: FILTERS.slice(0, 1) } });
+
+    const remove = screen.getByRole('link', { name: 'Remove 2019/20 (Period) filter' });
+    expect(remove.getAttribute('href')).toBe(`${CHECK}#column-filters-heading`);
+    const heading = screen.getByRole('heading', { name: 'Column filters' });
+    expect(heading.id).toBe('column-filters-heading');
+    expect(heading.getAttribute('tabindex')).toBe('-1');
+    expect(screen.getByRole('heading', { name: 'Selected values' }).id).toBe(
+      'column-filters-selected',
+    );
   });
 
   it('says when some filters were left out', () => {

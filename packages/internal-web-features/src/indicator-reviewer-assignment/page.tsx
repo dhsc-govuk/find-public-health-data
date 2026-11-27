@@ -2,7 +2,7 @@ import type { DraftReviewer, ReviewerOption } from '@fphd/internal-api-features/
 import { Button, DocumentTitle, GridColumn, GridRow, Select } from '@fphd/ui';
 
 import { IndicatorSectionForm, type SectionPageProps } from '../indicator-section-form.tsx';
-import { ADD_INTENT, removeIntent } from '../list-form.ts';
+import { ADD_INTENT, focusesPicker, removeIntent } from '../list-form.ts';
 import type { ReviewerAssignmentField, ReviewerAssignmentValues } from './form.ts';
 
 const FIELDS: readonly ReviewerAssignmentField[] = ['addReviewer'];
@@ -23,14 +23,16 @@ interface ReviewerAssignmentPageProps
 /**
  * A select and its Add button, then the reviewers listed so far, each carried in a hidden field
  * until Continue saves them. A listed reviewer leaves the select, so nobody is listed twice, and
- * once everyone is listed the select goes too.
+ * once everyone is listed the select goes too. After an Add or a Remove, the select takes focus,
+ * or the list does once the select has gone.
  */
 export function ReviewerAssignmentPage({
   currentReviewers,
   options,
   ...form
 }: ReviewerAssignmentPageProps) {
-  const { fieldErrors, values } = form;
+  const { fieldErrors, focus, values } = form;
+  const focused = focusesPicker(focus);
   const known: readonly DraftReviewer[] = [...options, ...currentReviewers];
   const listed = values.reviewerIds.flatMap(
     (id) => known.find((reviewer) => reviewer.id === id) ?? [],
@@ -66,6 +68,7 @@ export function ReviewerAssignmentPage({
         {allListed ? null : (
           <>
             <Select
+              autoFocus={focused}
               defaultValue={values.addReviewer}
               error={fieldErrors.addReviewer}
               label="Reviewer"
@@ -87,7 +90,13 @@ export function ReviewerAssignmentPage({
           </>
         )}
         {listed.length === 0 ? null : (
-          <ul className="fphd-added-list">
+          <ul
+            aria-label="Reviewers"
+            // biome-ignore lint/a11y/noAutofocus: the user's Add removed the select that had focus.
+            autoFocus={focused && allListed}
+            className="fphd-added-list"
+            tabIndex={focused && allListed ? -1 : undefined}
+          >
             {listed.map(({ id, name }, index) => (
               <li className="fphd-added-list__item" key={id}>
                 <input name="reviewerIds" type="hidden" value={id} />

@@ -1,4 +1,6 @@
 import { isOneOf } from '@fphd/utils/is-one-of';
+
+import type { FormRefusal } from './form-refusal.ts';
 import { type ControlNames, type FormValues, readFormValues } from './form-values.ts';
 
 /**
@@ -41,6 +43,71 @@ export function readListIntent<List extends string = never>(
     return { to: 'remove', index: Number(index), ...named };
 
   return { to: 'continue' };
+}
+
+/**
+ * How a list is built: from items whose fields are typed in place, such as age ranges, or by
+ * choosing each value in a select and pressing Add, such as tags.
+ */
+export type ListKind = 'items' | 'picker';
+
+/**
+ * Where focus goes when the page comes back after an Add or a Remove, so that a keyboard or
+ * screen reader user carries on from the list they changed rather than from the top of the page:
+ * the first field of the item at `index`, or the select that adds to the list.
+ */
+export type ListFocus<List extends string = never> =
+  | { on: 'item'; index: number; list?: List }
+  | { on: 'picker'; list?: List };
+
+/**
+ * Where focus goes after the button `intent` names changed a list that now holds `count` items.
+ * On a list of items, Add moves to the item added, and Remove to the item before the one removed,
+ * or to the first item if the first was removed. On a list built from a select, both go back to
+ * that select. Continue moves nothing.
+ */
+export function listFocus<List extends string = never>(
+  intent: ListIntent<List>,
+  kind: ListKind,
+  count: number,
+): ListFocus<List> | undefined {
+  if (intent.to === 'continue') return undefined;
+
+  const named = intent.list === undefined ? {} : { list: intent.list };
+  if (kind === 'picker') return { on: 'picker', ...named };
+
+  const index = intent.to === 'add' ? count - 1 : intent.index - 1;
+  return { on: 'item', index: Math.max(0, Math.min(index, count - 1)), ...named };
+}
+
+/**
+ * The page as the button `intent` names re-renders it, with where focus goes in a list that now
+ * holds `count` items. A refused Add moves nothing, so the error summary keeps focus.
+ */
+export function withListFocus<State extends FormRefusal<string>, List extends string = never>(
+  state: State,
+  intent: ListIntent<List>,
+  kind: ListKind,
+  count: number,
+): State & { focus?: ListFocus<List> } {
+  const refused = Object.keys(state.fieldErrors).length > 0 || state.formError !== undefined;
+  const focus = refused ? undefined : listFocus(intent, kind, count);
+
+  return focus === undefined ? state : { ...state, focus };
+}
+
+/** Whether `focus` is on the first field of the item at `index` of `list`. */
+export function focusesItem(
+  focus: ListFocus<string> | undefined,
+  index: number,
+  list?: string,
+): boolean {
+  return focus?.on === 'item' && focus.index === index && focus.list === list;
+}
+
+/** Whether `focus` is on the select that adds to `list`. */
+export function focusesPicker(focus: ListFocus<string> | undefined, list?: string): boolean {
+  return focus?.on === 'picker' && focus.list === list;
 }
 
 /**

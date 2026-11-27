@@ -38,8 +38,9 @@ export function AppDocument({ children }: AppDocumentProps) {
         />
         {children}
         <RouteAnnouncer />
-        {/* Default keying: filter navigations pass preventScrollReset and carry no
-            hash, so anchors still scroll while nothing else moves the page. */}
+        {/* Default keying: filter navigations pass preventScrollReset, so the page stays
+            put unless a link names a fragment. A chip's remove link does, and the part of
+            the page it names scrolls into view and takes focus. */}
         <ScrollRestoration />
         <Scripts />
       </body>

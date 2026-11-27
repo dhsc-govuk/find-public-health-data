@@ -338,4 +338,15 @@ describe('BenchmarkingPage', () => {
     ).toContain('You cannot add more than 10 policy goals');
     expect(lower.className).toContain('govuk-input--error');
   });
+
+  it('moves focus to the lower comparison of the goal an Add or a Remove names', () => {
+    renderPage({
+      values: { hasGoalBenchmark: 'yes', goals: [target, blank] },
+      focus: { on: 'item', index: 1 },
+    });
+
+    expect(document.activeElement?.getAttribute('name')).toBe(
+      policyGoalFieldName(1, 'lowerComparison'),
+    );
+  });
 });

@@ -305,3 +305,31 @@ test.describe('without JavaScript', () => {
     await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
   });
 });
+
+// The page comes back from the server after each Add or Remove, with or without JavaScript, and
+// focus goes to the goal changed rather than to the top of the page.
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(javaScriptEnabled ? 'focus with JavaScript' : 'focus without JavaScript', () => {
+    test.use({ javaScriptEnabled });
+
+    test('moves focus to the goal added, and to the goal before one removed', async ({ page }) => {
+      await openSectionPage(page, SECTION);
+      await hasGoal(page, 'Yes').check();
+      const comparison = (goal: number) => label(page, 'Comparison for the lower goal value', goal);
+
+      await page.getByRole('button', { name: 'Add another policy goal' }).click();
+      await expect(comparison(2)).toBeFocused();
+      if (javaScriptEnabled) {
+        await expectHydrated(page);
+        await expect(comparison(2)).toBeFocused();
+      }
+      await page.getByRole('button', { name: 'Add another policy goal' }).click();
+      await expect(comparison(3)).toBeFocused();
+
+      await page.getByRole('button', { name: 'Remove policy goal 3' }).click();
+      await expect(comparison(2)).toBeFocused();
+      await page.getByRole('button', { name: 'Remove policy goal 1' }).click();
+      await expect(comparison(1)).toBeFocused();
+    });
+  });
+}

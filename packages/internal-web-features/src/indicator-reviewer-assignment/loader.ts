@@ -15,6 +15,7 @@ import { formRefusal } from '../form-refusal.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { type OverviewFlash, setOverviewFlash } from '../indicator-overview/notifications.ts';
 import { indicatorOverviewPath } from '../indicator-overview/paths.ts';
+import { withListFocus } from '../list-form.ts';
 import {
   type ReviewerAssignmentState,
   type ReviewerAssignmentValues,
@@ -91,8 +92,11 @@ export async function assignReviewers({
 
   const { intent, values } = readReviewerAssignmentForm(await request.formData());
 
-  if (intent.to === 'add') return withReviewerAdded(values);
-  if (intent.to === 'remove') return withReviewerRemoved(values, intent.index);
+  if (intent.to !== 'continue') {
+    const changed =
+      intent.to === 'add' ? withReviewerAdded(values) : withReviewerRemoved(values, intent.index);
+    return withListFocus(changed, intent, 'picker', changed.values.reviewerIds.length);
+  }
 
   const taken = withChosenReviewerTakenIn(values);
 

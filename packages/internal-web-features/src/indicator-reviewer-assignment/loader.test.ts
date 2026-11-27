@@ -154,6 +154,7 @@ describe('assignReviewers', () => {
         addReviewer: '',
       },
       fieldErrors: {},
+      focus: { on: 'picker' },
     });
   });
 
@@ -164,7 +165,22 @@ describe('assignReviewers', () => {
       post([...sent, ['addReviewer', ''], ['intent', removeIntent(0)]]),
     );
 
-    expect(outcome).toMatchObject({ values: { reviewerIds: [] }, fieldErrors: {} });
+    expect(outcome).toMatchObject({
+      values: { reviewerIds: [] },
+      fieldErrors: {},
+      focus: { on: 'picker' },
+    });
+  });
+
+  it('refuses an Add with nobody chosen, moving focus nowhere so the summary keeps it', async () => {
+    const { outcome } = await respond(
+      assignReviewers,
+      createFakeApiClient(),
+      post([...sent, ['addReviewer', ''], ['intent', ADD_INTENT]]),
+    );
+
+    expect(outcome).toMatchObject({ fieldErrors: { addReviewer: 'Select a reviewer' } });
+    expect(outcome).not.toHaveProperty('focus');
   });
 
   it('asks for a reviewer when Continue is pressed with none', async () => {

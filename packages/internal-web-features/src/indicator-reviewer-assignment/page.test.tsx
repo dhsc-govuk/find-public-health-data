@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { serviceName } from '@fphd/ui';
 import { cleanup, render, screen, within } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { ADD_INTENT, removeIntent } from '../list-form.ts';
+import { ADD_INTENT, type ListFocus, removeIntent } from '../list-form.ts';
 import { noRefusal } from '../testing.ts';
 import type { ReviewerAssignmentValues } from './form.ts';
 import { ReviewerAssignmentPage } from './page.tsx';
@@ -33,10 +34,12 @@ function renderPage(
   {
     currentReviewers = [],
     fieldErrors = {},
+    focus,
     offered = options,
   }: {
     currentReviewers?: { id: string; name: string }[];
     fieldErrors?: { addReviewer?: string };
+    focus?: ListFocus<string>;
     offered?: typeof options;
   } = {},
 ) {
@@ -46,6 +49,7 @@ function renderPage(
         {...noRefusal}
         currentReviewers={currentReviewers}
         fieldErrors={fieldErrors}
+        focus={focus}
         options={offered}
         values={{ ...empty, ...values }}
       />
@@ -166,5 +170,33 @@ describe('ReviewerAssignmentPage', () => {
         .getByRole('link', { name: 'Select a reviewer' })
         .getAttribute('href'),
     ).toBe('#addReviewer-input');
+  });
+
+  it('moves focus to the select after an Add or a Remove', () => {
+    renderPage({ reviewerIds: [morgan.id] }, { focus: { on: 'picker' } });
+
+    expect(document.activeElement).toBe(screen.getByLabelText('Reviewer'));
+  });
+
+  // React focuses only form controls itself, so the list's focus comes from the server's
+  // autofocus attribute, which the browser applies as the page loads.
+  it('marks the list to take focus once everyone is listed and the select has gone', () => {
+    const html = renderToString(
+      <MemoryRouter>
+        <ReviewerAssignmentPage
+          {...noRefusal}
+          currentReviewers={[]}
+          focus={{ on: 'picker' }}
+          options={options}
+          values={{ ...empty, reviewerIds: [alex.id, jamie.id, morgan.id] }}
+        />
+      </MemoryRouter>,
+    );
+    const list = new DOMParser()
+      .parseFromString(html, 'text/html')
+      .querySelector('ul[aria-label="Reviewers"]');
+
+    expect(list?.hasAttribute('autofocus')).toBe(true);
+    expect(list?.getAttribute('tabindex')).toBe('-1');
   });
 });

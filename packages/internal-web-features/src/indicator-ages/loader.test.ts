@@ -106,7 +106,7 @@ describe('loadAges', () => {
 });
 
 describe('submitAges', () => {
-  it('adds a range without saving anything', async () => {
+  it('adds a range without saving anything, moving focus to it', async () => {
     const api = createFakeApiClient();
 
     const outcome = await submit([['intent', 'add']], [sixteenPlus], api);
@@ -114,16 +114,21 @@ describe('submitAges', () => {
     expect(outcome).toMatchObject({
       values: { ageType: 'range', ageRanges: [sixteenPlus, blank] },
       fieldErrors: {},
+      focus: { on: 'item', index: 1 },
     });
     expect(api.calls).toEqual([]);
   });
 
-  it('removes a range without saving anything', async () => {
+  it('removes a range without saving anything, moving focus to the range before it', async () => {
     const api = createFakeApiClient();
 
     const outcome = await submit([['intent', 'remove-1']], [sixteenPlus, blank], api);
 
-    expect(outcome).toMatchObject({ values: { ageRanges: [sixteenPlus] }, fieldErrors: {} });
+    expect(outcome).toMatchObject({
+      values: { ageRanges: [sixteenPlus] },
+      fieldErrors: {},
+      focus: { on: 'item', index: 0 },
+    });
     expect(api.calls).toEqual([]);
   });
 

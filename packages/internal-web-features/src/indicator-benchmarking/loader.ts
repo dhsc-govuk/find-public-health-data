@@ -8,6 +8,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { versionedAction } from '../edit-version.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { loadIndicatorSectionAnswers, saveIndicatorSectionValues } from '../indicator-section.ts';
+import { withListFocus } from '../list-form.ts';
 import {
   type BenchmarkingPageState,
   readBenchmarkingForm,
@@ -39,8 +40,13 @@ export const submitBenchmarking = versionedAction(
     const id = requireIndicatorId(args.params);
     const { intent, values } = readBenchmarkingForm(formData);
 
-    if (intent.to === 'add') return withPolicyGoalAdded(values);
-    if (intent.to === 'remove') return withPolicyGoalRemoved(values, intent.index);
+    if (intent.to !== 'continue') {
+      const changed =
+        intent.to === 'add'
+          ? withPolicyGoalAdded(values)
+          : withPolicyGoalRemoved(values, intent.index);
+      return withListFocus(changed, intent, 'items', changed.values.goals.length);
+    }
 
     return saveIndicatorSectionValues(args.context, id, benchmarkingSection, values, {
       answersSchema: benchmarkingAnswersSchema,

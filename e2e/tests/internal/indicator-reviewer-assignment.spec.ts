@@ -4,7 +4,7 @@ import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { addReviewer, chooseReviewer } from '../support/assign-reviewers.ts';
 import { submitNewIndicator } from '../support/complete-draft.ts';
 import { uniqueIndicatorName } from '../support/create-indicator.ts';
-import { expectErrorSummaryReady } from '../support/govuk-frontend.ts';
+import { expectErrorSummaryReady, expectHydrated } from '../support/govuk-frontend.ts';
 import { IMRG_MANAGER, PUBLISHER } from '../support/sign-in.ts';
 
 const ASSIGNED = 'Reviewers successfully assigned to indicator.';
@@ -151,3 +151,39 @@ test.describe('without JavaScript', () => {
     await expect(page.getByText(ASSIGNED)).toBeVisible();
   });
 });
+
+// The page comes back from the server after each Add or Remove, with or without JavaScript, and
+// focus goes back to the select rather than to the top of the page.
+for (const javaScriptEnabled of [true, false]) {
+  test.describe(javaScriptEnabled ? 'focus with JavaScript' : 'focus without JavaScript', () => {
+    test.use({ javaScriptEnabled });
+
+    test('moves focus back to the select, or to the list once everyone is listed', async ({
+      browser,
+      page,
+    }) => {
+      const id = await submitNewIndicator(browser, uniqueIndicatorName('reviewer focus'));
+      await page.goto(assignPath(id));
+      const select = page.getByLabel('Reviewer', { exact: true });
+
+      await addReviewer(page, 'Morgan Hughes');
+      await expect(select).toBeFocused();
+      if (javaScriptEnabled) {
+        await expectHydrated(page);
+        await expect(select).toBeFocused();
+      }
+      await page.getByRole('button', { name: 'Remove reviewer Morgan Hughes' }).click();
+      await expect(removeButtons(page)).toHaveCount(0);
+      await expect(select).toBeFocused();
+
+      // Adding everyone takes the select away, so focus goes to the list.
+      while ((await select.count()) > 0) {
+        const listed = await removeButtons(page).count();
+        await select.selectOption({ index: 1 });
+        await page.getByRole('button', { name: /^Add (another )?reviewer$/ }).click();
+        await expect(removeButtons(page)).toHaveCount(listed + 1);
+      }
+      await expect(page.getByRole('list', { name: 'Reviewers' })).toBeFocused();
+    });
+  });
+}

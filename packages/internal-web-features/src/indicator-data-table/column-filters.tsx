@@ -59,6 +59,12 @@ interface ColumnFiltersProps
   state?: ColumnFilterState | undefined;
 }
 
+/** The heading of the column filters, which takes focus when the last selected value is removed. */
+const FILTERS_HEADING_ID = 'column-filters-heading';
+
+/** The heading of the selected values, which takes focus when one of them is removed. */
+const SELECTED_HEADING_ID = 'column-filters-selected';
+
 /**
  * Chooses the values that the check page's table is filtered by. Ticked values apply when they are
  * added. Without JavaScript the form's buttons search, list a column's values and add the ticked
@@ -78,6 +84,12 @@ export function ColumnFilters({ id, dataTable, filtersLimited, state }: ColumnFi
   const filterIds = filters.map((filter) => filter.id);
   const pathWith = (ids: readonly string[]) =>
     indicatorDataTableCheckPath(id, { rowsPerPage, filterIds: ids });
+  // A chip's remove link is removed along with its chip, so the link names the heading that takes
+  // focus once the page shows the values left, with or without JavaScript.
+  const pathWithout = (filterId: string) => {
+    const kept = filterIds.filter((other) => other !== filterId);
+    return `${pathWith(kept)}#${kept.length > 0 ? SELECTED_HEADING_ID : FILTERS_HEADING_ID}`;
+  };
 
   // The Add values button goes once its values are added, so focus moves to where they are.
   useEffect(() => {
@@ -113,7 +125,13 @@ export function ColumnFilters({ id, dataTable, filtersLimited, state }: ColumnFi
   return (
     <div className="fphd-column-filters">
       <div className="fphd-column-filters__header">
-        <h2 className="govuk-heading-s govuk-!-margin-bottom-0">Column filters</h2>
+        <h2
+          className="govuk-heading-s govuk-!-margin-bottom-0"
+          id={FILTERS_HEADING_ID}
+          tabIndex={-1}
+        >
+          Column filters
+        </h2>
       </div>
       <div className="fphd-column-filters__selected">
         <p className="govuk-body-s govuk-!-margin-bottom-3">
@@ -125,6 +143,7 @@ export function ColumnFilters({ id, dataTable, filtersLimited, state }: ColumnFi
           <>
             <h3
               className="govuk-heading-s govuk-!-margin-bottom-2"
+              id={SELECTED_HEADING_ID}
               ref={selectedHeading}
               tabIndex={-1}
             >
@@ -140,7 +159,7 @@ export function ColumnFilters({ id, dataTable, filtersLimited, state }: ColumnFi
               {filters.map((filter) => (
                 <FilterChip
                   key={filter.id}
-                  onRemove={pathWith(filterIds.filter((filterId) => filterId !== filter.id))}
+                  onRemove={pathWithout(filter.id)}
                   removeLabel={filterLabel(filter)}
                   value={filter.id}
                 >

@@ -4,6 +4,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { versionedAction } from '../edit-version.ts';
 import { requireIndicatorId } from '../indicator-id.ts';
 import { loadIndicatorSectionAnswers, saveIndicatorSectionValues } from '../indicator-section.ts';
+import { withListFocus } from '../list-form.ts';
 import {
   type AgesPageState,
   readAgesForm,
@@ -32,8 +33,11 @@ export const submitAges = versionedAction(
     const id = requireIndicatorId(args.params);
     const { intent, values } = readAgesForm(formData);
 
-    if (intent.to === 'add') return withAgeRangeAdded(values);
-    if (intent.to === 'remove') return withAgeRangeRemoved(values, intent.index);
+    if (intent.to !== 'continue') {
+      const changed =
+        intent.to === 'add' ? withAgeRangeAdded(values) : withAgeRangeRemoved(values, intent.index);
+      return withListFocus(changed, intent, 'items', changed.values.ageRanges.length);
+    }
 
     return saveIndicatorSectionValues(args.context, id, agesSection, values, {
       answersSchema: agesAnswersSchema,

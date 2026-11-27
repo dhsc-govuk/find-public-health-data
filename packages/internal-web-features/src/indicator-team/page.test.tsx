@@ -47,7 +47,7 @@ describe('IndicatorTeamPage', () => {
     expect(radios.map((radio) => radio.value)).toEqual([TEAM_IDS.teamA, TEAM_IDS.teamB]);
     expect(radios.some((radio) => radio.checked)).toBe(false);
     expect(container.querySelector('form')?.getAttribute('method')).toBe('post');
-    expect(container.querySelector('form')?.hasAttribute('action')).toBe(false);
+    expect(container.querySelector('form')?.getAttribute('action')).toBe('/');
     expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
   });
 
