@@ -295,11 +295,20 @@ describe('BackgroundInformation', () => {
     expect(screen.getByText('Calendar years (1 January to 31 December)')).toBeTruthy();
   });
 
-  it('lists neither rolling nor cumulative time periods on the public page', () => {
-    renderBackground({ ...indicator, rollingFrequency: 'months', valuesCumulative: true });
+  it('lists time periods that roll with their frequency, and no cumulative values', () => {
+    renderBackground({ ...indicator, rollingFrequency: 'quarters', valuesCumulative: true });
+
+    const rolling = screen
+      .getAllByRole('term')
+      .find((term) => term.textContent === 'Rolling time periods');
+    expect(rolling?.nextElementSibling?.textContent).toBe('Yes - Quarters');
+    expect(attributeNames()).not.toContain('Cumulative values');
+  });
+
+  it('lists no rolling row for time periods that do not roll', () => {
+    renderBackground(indicator);
 
     expect(attributeNames()).not.toContain('Rolling time periods');
-    expect(attributeNames()).not.toContain('Cumulative values');
   });
 
   it('lists the frequency with the reason the publisher gave', () => {
@@ -445,7 +454,7 @@ describe('placeholders', () => {
     expect(row('Update frequency')).toBe('[Not entered yet]');
   });
 
-  it('shows rolling and cumulative time periods in a preview, each only when they are so', () => {
+  it('shows rolling time periods and cumulative values in a preview, each only when they are so', () => {
     renderBackground({
       ...indicator,
       rollingFrequency: 'quarters',
@@ -453,7 +462,7 @@ describe('placeholders', () => {
       unanswered: [],
     });
 
-    expect(row('Rolling time periods')).toBe('Quarters');
+    expect(row('Rolling time periods')).toBe('Yes - Quarters');
     expect(row('Cumulative values')).toBe('Yes');
 
     cleanup();

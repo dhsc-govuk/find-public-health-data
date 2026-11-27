@@ -53,6 +53,19 @@ it('gives the time periods in place of the year type', async () => {
 
   expect(text).toContain('Time periods: Calendar years (1 January to 31 December)');
   expect(text).not.toContain('Year type');
+  expect(text).not.toContain('Rolling time periods');
+});
+
+it('gives time periods that roll, with their frequency, after the time periods', async () => {
+  const api = createFakeApiClient({
+    'GET /api/indicators/indicator-108': { ...indicatorDetail(108), rollingFrequency: 'months' },
+  });
+
+  const text = await (await loader(args(api, false))).text();
+
+  expect(text).toContain(
+    'Time periods: Calendar years (1 January to 31 December)\n\nRolling time periods: Yes - Months',
+  );
 });
 
 it('never gives a placeholder on the public side, whose schema drops the unanswered list', async () => {

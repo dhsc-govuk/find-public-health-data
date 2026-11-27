@@ -1,3 +1,4 @@
+import { ROLLING_FREQUENCY_LABELS } from '@fphd/utils/period-type';
 import { publicUpdateFrequency } from '@fphd/utils/update-frequency';
 import type { IndicatorPageDetail, IndicatorProviderSource } from './loader.ts';
 
@@ -43,4 +44,14 @@ export function updateFrequencyLine({
   if (updateFrequency === null) return null;
   const { text, reason } = publicUpdateFrequency({ updateFrequency, ...details });
   return reason ? `${text}\n${reason}` : text;
+}
+
+/**
+ * That the indicator's time periods roll, and how often, such as "Yes - Months", or null for
+ * periods that do not roll or are unanswered, which show no row.
+ */
+export function rollingTimePeriodsText({
+  rollingFrequency,
+}: Pick<IndicatorPageDetail, 'rollingFrequency'>): string | null {
+  return rollingFrequency === null ? null : `Yes - ${ROLLING_FREQUENCY_LABELS[rollingFrequency]}`;
 }

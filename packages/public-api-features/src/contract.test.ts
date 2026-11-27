@@ -77,6 +77,12 @@ describe('indicatorDetailSchema', () => {
     expect(parsed).not.toHaveProperty('unanswered');
     expect(parsed).not.toHaveProperty('dataState');
   });
+
+  it('keeps how often the time periods roll, which the public page shows', () => {
+    expect(indicatorDetailSchema.parse({ ...detail, rollingFrequency: 'months' })).toMatchObject({
+      rollingFrequency: 'months',
+    });
+  });
 });
 
 describe('indicatorPageDetailSchema', () => {

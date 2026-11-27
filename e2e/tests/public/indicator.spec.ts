@@ -1140,6 +1140,28 @@ test('serves an indicator without an update frequency on its page and in downloa
   await expect(page.getByRole('term').filter({ hasText: /^Frequency$/ })).toHaveCount(0);
   await expect(page.getByRole('term').filter({ hasText: /^Polarity$/ })).toBeVisible();
   await expect(answerTo(page, 'Time periods')).toHaveText('Financial years (1 April to 31 March)');
+  await expect(page.getByRole('term').filter({ hasText: /^Rolling time periods$/ })).toHaveCount(0);
+  expect(metadata.text).not.toContain('Rolling time periods:');
+});
+
+// Under 75 mortality is seeded with 3-year periods that start a year apart, beside its single years.
+test('says when the time periods roll, on the page and in the metadata download', async ({
+  page,
+}) => {
+  await openIndicatorPage(page, MORTALITY_PATH);
+  await page
+    .getByRole('tabpanel', { name: 'Indicator', exact: true })
+    .getByText('Download or share data', { exact: true })
+    .click();
+  const metadata = await downloadFrom(page, 'Download metadata about this indicator (TXT)', 'link');
+  expect(metadata.text).toContain('Rolling time periods: Yes - Years');
+
+  await page.getByRole('tab', { name: 'About this indicator' }).click();
+  await expect(answerTo(page, 'Time periods')).toHaveText(
+    '3-year Calendar years (1 January to 31 December), Calendar years (1 January to 31 December)',
+  );
+  await expect(answerTo(page, 'Rolling time periods')).toHaveText('Yes - Years');
+  await expect(page.getByRole('term').filter({ hasText: /^Cumulative values$/ })).toHaveCount(0);
 });
 
 // Gastroenteritis is seeded with 0-4 yrs and the bands in it, <1 yr, 1 yr and 2-4 yrs, each with
