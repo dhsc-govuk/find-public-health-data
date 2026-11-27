@@ -69,6 +69,20 @@ describe('timingsFromReports', () => {
     expect(timings).toEqual({ 'internal/b.spec.ts': 0.5, 'public/a.spec.ts': 2 });
   });
 
+  it('leaves out setup files, which every shard runs in full', () => {
+    const timings = timingsFromReports([
+      report(
+        fileSuite('internal/sign-in.setup.ts', [spec('1', 'internal/sign-in.setup.ts', [4000])]),
+        fileSuite('internal/a.spec.ts', [spec('2', 'internal/a.spec.ts', [1000])]),
+      ),
+      report(
+        fileSuite('internal/sign-in.setup.ts', [spec('1', 'internal/sign-in.setup.ts', [4000])]),
+      ),
+    ]);
+
+    expect(timings).toEqual({ 'internal/a.spec.ts': 1 });
+  });
+
   it('leaves out files whose tests were only listed, not run', () => {
     const timings = timingsFromReports([
       report(fileSuite('public/listed.spec.ts', [spec('1', 'public/listed.spec.ts', [])])),
