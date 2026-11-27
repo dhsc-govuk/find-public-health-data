@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -150,6 +150,9 @@ describe('cachedFetchJson', () => {
     expect(await cached('area_categories?profile_id=19')).toEqual({ E10000032: 9 });
     expect(await cached('area_categories?profile_id=19')).toEqual({ E10000032: 9 });
     expect(fetchJson).toHaveBeenCalledTimes(1);
+    expect(await readdir(join(directory, 'new'))).toEqual([
+      `${createHash('sha256').update('area_categories?profile_id=19').digest('hex')}.json`,
+    ]);
   });
 });
 

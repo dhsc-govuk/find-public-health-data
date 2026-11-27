@@ -32,6 +32,15 @@ export const fetchFingertipsJson: FetchJson = async (path) => {
 };
 
 /**
+ * Writes the file through a temporary file beside it and renames it into place, so an interrupted
+ * run leaves the previous file or none, never part of one.
+ */
+async function replaceFile(path: string, data: string | Uint8Array): Promise<void> {
+  await writeFile(`${path}.tmp`, data);
+  await rename(`${path}.tmp`, path);
+}
+
+/**
  * Answers each path from a JSON file in the cache directory, named by the path's SHA-256, and
  * fetches and stores only the paths it has no file for.
  */
@@ -45,7 +54,7 @@ export function cachedFetchJson(directory: string, fetchJson: FetchJson): FetchJ
     }
     const data = await fetchJson(path);
     await mkdir(directory, { recursive: true });
-    await writeFile(file, JSON.stringify(data));
+    await replaceFile(file, JSON.stringify(data));
     return data;
   };
 }
@@ -118,15 +127,14 @@ export async function writeGeographyFile(
   const path = join(geographyDirectory, file);
   const written = (await readGzipText(path)) !== csv;
   if (written) {
-    await writeFile(`${path}.tmp`, gzipSync(csv, { level: 9 }));
-    await rename(`${path}.tmp`, path);
+    await replaceFile(path, gzipSync(csv, { level: 9 }));
   }
   const entry = { file, source, rows, bytes: (await stat(path)).size, sha256: await sha256(path) };
   const manifestPath = join(geographyDirectory, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   if (JSON.stringify(manifest.files?.[table]) !== JSON.stringify(entry)) {
     const updated = { ...manifest, files: { ...manifest.files, [table]: entry } };
-    await writeFile(manifestPath, `${JSON.stringify(updated, null, 2)}\n`);
+    await replaceFile(manifestPath, `${JSON.stringify(updated, null, 2)}\n`);
   }
   return { ...entry, written };
 }
