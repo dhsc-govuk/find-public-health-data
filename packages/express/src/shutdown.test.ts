@@ -58,7 +58,24 @@ function deferred<T = void>() {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Runs the stop on a fake clock, so the time it takes is the budget arithmetic in
+ * `shutdown.ts` and not how busy the machine is. Requests already in flight keep their real
+ * sockets. */
+async function stopOnFakeClock(shutdown: (signal: NodeJS.Signals) => Promise<number>) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  const started = Date.now();
+  const stopped = shutdown('SIGTERM').then((exitCode) => ({
+    exitCode,
+    elapsedMs: Date.now() - started,
+  }));
+  await vi.advanceTimersByTimeAsync(1_000);
+  const outcome = await stopped;
+  vi.useRealTimers();
+  return outcome;
+}
+
 afterEach(async () => {
+  vi.useRealTimers();
   if (running?.listening === true) {
     running.closeAllConnections();
     await new Promise((resolve) => running?.close(resolve));
@@ -175,20 +192,27 @@ describe('the close phase', () => {
       response.end('finished');
     });
     const agent = new Agent({ keepAlive: true });
-    const stop = shutdownHandler(server);
+    // Long budgets, so a stop that waits for the idle connection takes over 18 seconds: the
+    // library's timeout here is 18.4 seconds, and the server keeps an idle connection open for a
+    // minute. Such a stop fails on Vitest's 5-second test timeout. The ceiling below catches a
+    // slower stop that still ends within that timeout.
+    server.keepAliveTimeout = 60_000;
+    const stop = shutdownHandler(server, { gracePeriodMs: 25_000 });
 
-    // Busy when the shutdown starts and idle a moment later, so `close`'s single sweep misses it
-    // and this waits out Node's five-second keep-alive timeout instead.
     const inFlight = keepAliveRequest(`${url}/slow`, agent);
     await reachedHandler.promise;
 
-    const started = Date.now();
+    // The one test here on the real clock, because what it measures is real sockets closing.
+    const started = performance.now();
     const shutdown = stop('SIGTERM');
+    // Released only once the server has stopped listening, so the connection is still busy when
+    // `close` sweeps the idle ones, and falls idle after it.
+    await vi.waitFor(() => expect(server.listening).toBe(false));
     releaseHandler.resolve();
     await inFlight;
     await shutdown;
 
-    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(performance.now() - started).toBeLessThan(3_000);
     agent.destroy();
   });
 
@@ -404,14 +428,14 @@ describe('createShutdownHandler', () => {
       },
     });
 
-    const started = Date.now();
+    const { exitCode, elapsedMs } = await stopOnFakeClock(shutdown);
 
     // Zero, not one: a loaded process reaches here on a stop that did nothing wrong, and a
     // non-zero exit on every busy stop reads as a crash.
-    expect(await shutdown('SIGTERM')).toBe(0);
+    expect(exitCode).toBe(0);
     expect(onForcedClose).toHaveBeenCalled();
 
-    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(elapsedMs).toBeLessThanOrEqual(400);
     // Cleanup keeps its reserve even though the close spent the whole budget.
     expect(cleanedUp).toHaveBeenCalled();
     expect(await abandoned).toBeInstanceOf(Error);
@@ -438,11 +462,11 @@ describe('createShutdownHandler', () => {
 
     const abandoned = fetch(`${url}/never`).catch((error: unknown) => error);
     await reachedHandler.promise;
-    const started = Date.now();
 
-    expect(await shutdown('SIGTERM')).toBe(1);
+    const { exitCode, elapsedMs } = await stopOnFakeClock(shutdown);
 
-    expect(Date.now() - started).toBeLessThan(900);
+    expect(exitCode).toBe(1);
+    expect(elapsedMs).toBeLessThanOrEqual(400);
     expect(await abandoned).toBeInstanceOf(Error);
     stuck.resolve();
   });
