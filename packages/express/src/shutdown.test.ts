@@ -60,15 +60,19 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Runs the stop on a fake clock, so the time it takes is the budget arithmetic in
  * `shutdown.ts` and not how busy the machine is. Requests already in flight keep their real
- * sockets. */
-async function stopOnFakeClock(shutdown: (signal: NodeJS.Signals) => Promise<number>) {
+ * sockets. The clock runs for twice the grace period, so a stop that overruns it still ends and
+ * fails the test's assertion rather than its timeout. */
+async function stopOnFakeClock(
+  shutdown: (signal: NodeJS.Signals) => Promise<number>,
+  gracePeriodMs: number,
+) {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   const started = Date.now();
   const stopped = shutdown('SIGTERM').then((exitCode) => ({
     exitCode,
     elapsedMs: Date.now() - started,
   }));
-  await vi.advanceTimersByTimeAsync(1_000);
+  await vi.advanceTimersByTimeAsync(gracePeriodMs * 2);
   const outcome = await stopped;
   vi.useRealTimers();
   return outcome;
@@ -419,8 +423,9 @@ describe('createShutdownHandler', () => {
     // on a connection that never ends. Only the backstop ends this stop.
     const cleanedUp = vi.fn();
     const onForcedClose = vi.fn();
+    const gracePeriodMs = 400;
     const shutdown = shutdownHandler(server, {
-      gracePeriodMs: 400,
+      gracePeriodMs,
       onForcedClose,
       onShutdown: async () => {
         await delay(50);
@@ -428,14 +433,14 @@ describe('createShutdownHandler', () => {
       },
     });
 
-    const { exitCode, elapsedMs } = await stopOnFakeClock(shutdown);
+    const { exitCode, elapsedMs } = await stopOnFakeClock(shutdown, gracePeriodMs);
 
     // Zero, not one: a loaded process reaches here on a stop that did nothing wrong, and a
     // non-zero exit on every busy stop reads as a crash.
     expect(exitCode).toBe(0);
     expect(onForcedClose).toHaveBeenCalled();
 
-    expect(elapsedMs).toBeLessThanOrEqual(400);
+    expect(elapsedMs).toBeLessThanOrEqual(gracePeriodMs);
     // Cleanup keeps its reserve even though the close spent the whole budget.
     expect(cleanedUp).toHaveBeenCalled();
     expect(await abandoned).toBeInstanceOf(Error);
@@ -454,8 +459,9 @@ describe('createShutdownHandler', () => {
     const { server, url } = await startServer(() => reachedHandler.resolve());
     const stuck = deferred();
     // Every phase overruns: a request that never finishes and cleanup that never settles.
+    const gracePeriodMs = 400;
     const shutdown = shutdownHandler(server, {
-      gracePeriodMs: 400,
+      gracePeriodMs,
       drainDelayMs: 100,
       onShutdown: () => stuck.promise,
     });
@@ -463,10 +469,10 @@ describe('createShutdownHandler', () => {
     const abandoned = fetch(`${url}/never`).catch((error: unknown) => error);
     await reachedHandler.promise;
 
-    const { exitCode, elapsedMs } = await stopOnFakeClock(shutdown);
+    const { exitCode, elapsedMs } = await stopOnFakeClock(shutdown, gracePeriodMs);
 
     expect(exitCode).toBe(1);
-    expect(elapsedMs).toBeLessThanOrEqual(400);
+    expect(elapsedMs).toBeLessThanOrEqual(gracePeriodMs);
     expect(await abandoned).toBeInstanceOf(Error);
     stuck.resolve();
   });
