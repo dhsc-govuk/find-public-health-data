@@ -258,8 +258,29 @@ export function resolveDuplicateGroup(
   return undefined;
 }
 
-function exclusionReason(
-  c: CdsRow,
+/** The parts of a CoreDataSet row that decide whether the observation export keeps it. */
+export type ObservationExclusionRow = Pick<
+  CdsRow,
+  | 'IndicatorID'
+  | 'Year'
+  | 'Month'
+  | 'Quarter'
+  | 'YearRange'
+  | 'YearTypeID'
+  | 'SexID'
+  | 'AgeID'
+  | 'Value'
+  | 'Count'
+  | 'Denominator'
+  | 'ValueNoteId'
+>;
+
+/**
+ * Why the observation export leaves a CoreDataSet row out, or undefined for a row it keeps
+ * (unless the row is a duplicate another row with the same period replaces).
+ */
+export function exclusionReason(
+  c: ObservationExclusionRow,
   excluded: ReadonlySet<number>,
   selection: ObservationExportOptions['indicatorSelection'],
   selected: ReadonlySet<number>,

@@ -73,10 +73,12 @@ export function yearTypeValues(name: string): FingertipsYearType {
 }
 
 /**
- * One shape of period in an indicator's data, as Fingertips holds it: the year it starts in, the
- * number of years it spans, and whether it is a quarter or a month of that year.
+ * One shape of period in an indicator's data, as Fingertips holds it: the series it belongs to,
+ * such as one sex and age, the year it starts in, the number of years it spans, and whether it is
+ * a quarter or a month of that year.
  */
 export interface FingertipsPeriod {
+  series: string;
   year: number;
   yearRange: number;
   quarter: boolean;
@@ -130,18 +132,21 @@ function kindOf(period: FingertipsPeriod, yearType: FingertipsYearType): TimePer
   return period.yearRange > 1 ? 'multiple-years' : 'single-years';
 }
 
-/** Whether consecutive periods of `yearRange` years start less than that many years apart. */
+/**
+ * Whether consecutive periods of `yearRange` years in any one series start less than that many
+ * years apart. Periods of different series, such as two sexes, are not compared.
+ */
 function overlaps(periods: readonly FingertipsPeriod[], yearRange: number): boolean {
-  const starts = [
-    ...new Set(
-      periods
-        .filter((period) => period.yearRange === yearRange && !period.quarter && !period.month)
-        .map((period) => period.year),
-    ),
-  ].sort((a, b) => a - b);
-  return starts.some(
-    (start, index) => index > 0 && start - (starts[index - 1] ?? start) < yearRange,
+  const startsBySeries = Map.groupBy(
+    periods.filter((period) => period.yearRange === yearRange && !period.quarter && !period.month),
+    (period) => period.series,
   );
+  return [...startsBySeries.values()].some((series) => {
+    const starts = [...new Set(series.map((period) => period.year))].sort((a, b) => a - b);
+    return starts.some(
+      (start, index) => index > 0 && start - (starts[index - 1] ?? start) < yearRange,
+    );
+  });
 }
 
 /** A postgres array literal of the kinds of time period, in the order the page asks them. */
@@ -153,7 +158,7 @@ function arrayLiteral(kinds: ReadonlySet<TimePeriod>): string {
  * The time periods answers of an indicator, from its Fingertips year type and the shapes of
  * period its data has. Periods of more than one year are "Periods of more than 1 year" of that
  * many years; where they have several lengths, the shortest is taken. They roll on by the year
- * where consecutive ones overlap. With no data, the year type's yearly periods are taken alone.
+ * where consecutive periods of that length in one series overlap. With no data, the year type's yearly periods are taken alone.
  */
 export function timePeriodColumns(
   name: string,
@@ -161,13 +166,15 @@ export function timePeriodColumns(
 ): TimePeriodColumns {
   const yearType = yearTypeValues(name);
   const shapes: readonly FingertipsPeriod[] =
-    periods.length > 0 ? periods : [{ year: 0, yearRange: 1, quarter: false, month: false }];
+    periods.length > 0
+      ? periods
+      : [{ series: '', year: 0, yearRange: 1, quarter: false, month: false }];
   const kinds = new Set(shapes.map((period) => kindOf(period, yearType)));
   const multipleYearRanges = shapes
     .filter((period) => kindOf(period, yearType) === 'multiple-years')
     .map((period) => period.yearRange);
   const multipleYearsCount = multipleYearRanges.length > 0 ? Math.min(...multipleYearRanges) : null;
-  const rollsByYear = [...new Set(multipleYearRanges)].some((range) => overlaps(shapes, range));
+  const rollsByYear = multipleYearsCount !== null && overlaps(shapes, multipleYearsCount);
   const { yearly } = yearType;
   const ofYears = yearly.kind === 'years' ? yearly : null;
   const dateRange = yearly.kind === 'date-range' && kinds.has('date-range') ? yearly : null;

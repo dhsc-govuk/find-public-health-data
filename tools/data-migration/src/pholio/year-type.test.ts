@@ -10,12 +10,18 @@ import {
 
 const migrationDir = new URL('../../../../packages/db-operations/drizzle/', import.meta.url);
 
-function yearly(year: number, yearRange = 1): FingertipsPeriod {
-  return { year, yearRange, quarter: false, month: false };
+function yearly(year: number, yearRange = 1, series = 'persons'): FingertipsPeriod {
+  return { series, year, yearRange, quarter: false, month: false };
 }
 
-const QUARTER: FingertipsPeriod = { year: 2020, yearRange: 1, quarter: true, month: false };
-const MONTH: FingertipsPeriod = { year: 2020, yearRange: 1, quarter: false, month: true };
+const QUARTER: FingertipsPeriod = {
+  series: 'persons',
+  year: 2020,
+  yearRange: 1,
+  quarter: true,
+  month: false,
+};
+const MONTH: FingertipsPeriod = { ...QUARTER, quarter: false, month: true };
 
 describe('yearTypeValues', () => {
   it('has the 17 Fingertips year types', () => {
@@ -135,5 +141,35 @@ describe('timePeriodColumns', () => {
     expect(timePeriodColumns('Calendar', [yearly(2015, 5), yearly(2017, 3)])).toMatchObject({
       multiple_years_count: 3,
     });
+  });
+
+  it('rolls on by the year only where periods of the length taken overlap', () => {
+    expect(
+      timePeriodColumns('Calendar', [
+        yearly(2011, 3),
+        yearly(2014, 3),
+        yearly(2010, 5),
+        yearly(2011, 5),
+      ]),
+    ).toMatchObject({ multiple_years_count: 3, periods_rolling: false, rolling_frequency: null });
+  });
+
+  it('judges overlap within each series, not across them', () => {
+    expect(
+      timePeriodColumns('Calendar', [
+        yearly(2011, 3, 'persons'),
+        yearly(2014, 3, 'persons'),
+        yearly(2012, 3, 'males'),
+        yearly(2015, 3, 'males'),
+      ]),
+    ).toMatchObject({ periods_rolling: false, rolling_frequency: null });
+    expect(
+      timePeriodColumns('Calendar', [
+        yearly(2011, 3, 'persons'),
+        yearly(2014, 3, 'persons'),
+        yearly(2012, 3, 'males'),
+        yearly(2013, 3, 'males'),
+      ]),
+    ).toMatchObject({ periods_rolling: true, rolling_frequency: 'years' });
   });
 });

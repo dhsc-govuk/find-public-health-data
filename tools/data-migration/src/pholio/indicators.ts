@@ -11,6 +11,10 @@ import { sourceUpdateFrequency } from './frequency.ts';
 import { type GroupingBaselineExclusion, loadObservationGroupings } from './groupings.ts';
 import { uploadBatchId } from './ids.ts';
 import { INDICATOR_NAME_MAPPINGS, reviewedIndicatorName } from './indicator-names.ts';
+import {
+  type ObservationExclusionRow,
+  exclusionReason as observationExclusionReason,
+} from './observations.ts';
 import type { PholioRow } from './source.ts';
 import { queryPholio } from './source.ts';
 import { TableWriter } from './table-writer.ts';
@@ -182,33 +186,33 @@ export async function exportIndicators(context: PholioExportOptions) {
   if (unmappableYearTypes.length)
     throw new Error(`Cannot translate year types: ${unmappableYearTypes.join(', ')}`);
 
-  // The shapes of period each indicator's data has, among the rows the observation export keeps:
-  // those its groupings publish, and the annual rows beside a cumulative quarter series.
-  const yearTypeIdById = new Map(metaRows.map((row) => [row.IndicatorID, row.YearTypeID]));
-  const periodRows = await queryPholio<{
-    IndicatorID: number;
-    SexID: number;
-    AgeID: number;
-    Year: number;
-    YearRange: number;
-    Quarter: number;
-    Month: number;
-  }>(
+  // The shapes of period each indicator's data has, in each of its sex and age series, among the
+  // rows the observation export keeps. The measures are read only as far as its rules read them:
+  // whether each is -1, the placeholder an empty row holds. A duplicate it resolves keeps one row
+  // with the same period, so duplicates change no shape.
+  const periodRows = await queryPholio<ObservationExclusionRow>(
     pool,
-    `SELECT DISTINCT IndicatorID, SexID, AgeID, Year, YearRange,
-       CASE WHEN Quarter > 0 THEN 1 ELSE -1 END AS Quarter,
-       CASE WHEN Month > 0 THEN 1 ELSE -1 END AS Month
-     FROM dbo.CoreDataSet
-     WHERE Year >= 1900`,
+    `SELECT DISTINCT c.IndicatorID, c.SexID, c.AgeID, c.Year, c.YearRange, c.Quarter, c.Month,
+       im.YearTypeID, c.ValueNoteId,
+       CASE WHEN c.Value = -1 THEN -1 END AS Value,
+       CASE WHEN c.Count = -1 THEN -1 END AS Count,
+       CASE WHEN c.Denominator = -1 THEN -1 END AS Denominator
+     FROM dbo.CoreDataSet c
+     LEFT JOIN dbo.IndicatorMetadata im ON c.IndicatorID = im.IndicatorID`,
   );
   const periodsById = new Map<number, FingertipsPeriod[]>();
   for (const row of periodRows) {
-    const kept =
-      (yearTypeIdById.get(row.IndicatorID) === 10 && groupings.retainsCumulativeHistory(row)) ||
-      groupings.exclusionReason(row) === undefined;
-    if (!kept) continue;
+    const reason = observationExclusionReason(
+      row,
+      excluded,
+      context.indicatorSelection,
+      selected,
+      groupings,
+    );
+    if (reason !== undefined) continue;
     const periods = periodsById.get(row.IndicatorID) ?? [];
     periods.push({
+      series: `${row.SexID}|${row.AgeID}`,
       year: row.Year,
       yearRange: row.YearRange,
       quarter: row.Quarter > 0,

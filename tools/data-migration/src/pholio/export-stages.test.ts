@@ -1314,8 +1314,28 @@ it('exports the earliest grouping baseline as version metadata and keeps observa
   expect((await rows('indicator_version'))[0]?.published_from).toBe('2022-04-01');
 });
 
-function period(Year: number, YearRange: number, Quarter = -1, Month = -1) {
-  return { IndicatorID: 108, SexID: 4, AgeID: 1, Year, YearRange, Quarter, Month };
+function period(
+  Year: number,
+  YearRange: number,
+  Quarter = -1,
+  Month = -1,
+  row: Record<string, unknown> = {},
+) {
+  return {
+    IndicatorID: 108,
+    SexID: 4,
+    AgeID: 1,
+    Year,
+    YearRange,
+    Quarter,
+    Month,
+    YearTypeID: 1,
+    ValueNoteId: 0,
+    Value: null,
+    Count: null,
+    Denominator: null,
+    ...row,
+  };
 }
 
 it('exports the time periods its data has, rolling on by the year where they overlap', async () => {
@@ -1382,13 +1402,53 @@ it('exports the annual years kept beside a cumulative quarter series', async () 
         YearRange: 5,
       },
     ],
-    periods: [period(2022, 5, 1), period(2022, 5, 2), period(2021, 1), period(2022, 1)],
+    periods: [
+      period(2022, 5, 1, -1, { YearTypeID: 10 }),
+      period(2022, 5, 2, -1, { YearTypeID: 10 }),
+      period(2021, 1, -1, -1, { YearTypeID: 10 }),
+      period(2022, 1, -1, -1, { YearTypeID: 10 }),
+    ],
   });
   await exportIndicators(options);
   expect((await rows('indicator_version'))[0]).toMatchObject({
     time_periods: '{single-years,quarters}',
     year_type: 'financial',
     values_cumulative: 't',
+  });
+});
+
+it('judges overlap within each sex and age series', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    periods: [
+      period(2011, 3),
+      period(2014, 3),
+      period(2012, 3, -1, -1, { SexID: 1 }),
+      period(2015, 3, -1, -1, { SexID: 1 }),
+    ],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    time_periods: '{multiple-years}',
+    periods_rolling: 'f',
+    rolling_frequency: DATA_MIGRATION_NULL,
+  });
+});
+
+it('reads no time periods from rows the observation export leaves out', async () => {
+  const empty = { Value: -1, Count: -1, Denominator: -1, ValueNoteId: 0 };
+  indicatorQueries('No unit', undefined, [], {
+    periods: [
+      period(2020, 1),
+      period(2020, 1, 1, -1, empty),
+      period(2020, 1, 2, -1, empty),
+      period(2020, 1, -1, 3, { ValueNoteId: 506 }),
+      period(1850, 3),
+    ],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    time_periods: '{single-years}',
+    multiple_years_count: DATA_MIGRATION_NULL,
   });
 });
 
