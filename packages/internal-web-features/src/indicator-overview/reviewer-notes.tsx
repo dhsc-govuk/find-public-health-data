@@ -65,7 +65,7 @@ export function ReviewerNotes({ indicatorId, notes, form }: ReviewerNotesProps) 
           name={REVIEWER_NOTE_FIELD}
           rows={5}
         />
-        <Button classModifiers="secondary" preventDoubleClick type="submit">
+        <Button classModifiers="secondary" type="submit">
           {editing ? 'Update notes' : 'Add notes'}
         </Button>
       </form>

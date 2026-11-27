@@ -23,7 +23,7 @@ export function IndicatorDiscardPage({ id, draftUpdatedAt, indicatorStatus }: Di
       </p>
       <form action={indicatorDiscardPath(id)} method="post">
         <input name="draftUpdatedAt" type="hidden" value={draftUpdatedAt} />
-        <Button classModifiers="warning" preventDoubleClick type="submit">
+        <Button classModifiers="warning" type="submit">
           Discard draft
         </Button>
       </form>

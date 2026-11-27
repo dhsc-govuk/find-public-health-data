@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { expectNoAccessibilityViolations } from '../support/accessibility.ts';
 import { createDraft, createIndicator, uniqueIndicatorName } from '../support/create-indicator.ts';
+import { pressTwiceWhileSending } from '../support/double-press.ts';
 import { expectHydrated } from '../support/govuk-frontend.ts';
 import { expectNotFoundWithoutDraft, taskRow } from '../support/section-page.ts';
 import { PUBLISHER } from '../support/sign-in.ts';
@@ -111,6 +112,23 @@ test('refuses a file that is not a CSV, or is empty, without sending it', async 
   await continueWithFile(page, 'empty.csv', '');
   await expect(page.getByRole('alert')).toContainText('The selected file is empty');
   expect(uploads()).toBe(0);
+});
+
+test('sends the data table once when Continue is pressed again while it uploads', async ({
+  page,
+}) => {
+  const id = await openUploadPage(page);
+  await expectHydrated(page);
+  await chooseFile(page, 'life-expectancy.csv', VALID_CSV);
+
+  const uploads = await pressTwiceWhileSending(
+    page,
+    page.getByRole('button', { name: 'Continue' }),
+    `/publish/indicators/${id}/data-table`,
+  );
+
+  await expect(page).toHaveURL(`/publish/indicators/${id}/data-table/check`);
+  expect(uploads()).toBe(1);
 });
 
 test('refuses a file over 100MB without sending it', async ({ page }) => {

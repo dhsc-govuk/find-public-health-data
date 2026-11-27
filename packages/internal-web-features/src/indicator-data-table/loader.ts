@@ -26,7 +26,8 @@ export type { DataTableProblem } from '@fphd/internal-api-features/contract';
 
 export type DataTableUploadFailure = FormRefusal<DataUploadField>;
 
-export const DATA_TABLE_TOO_SLOW = 'Your data table took too long to check. Try again.';
+export const DATA_TABLE_TOO_SLOW =
+  'Your data table took too long to check. Upload a smaller data table.';
 
 // The form wraps the file in a boundary and a few part headers, a few hundred bytes; a megabyte
 // more than the file's own cap is generous, so a file just under it is never refused here.

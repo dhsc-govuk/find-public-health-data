@@ -107,9 +107,7 @@ export function RequestLinkPage({
             spellCheck={false}
             type="email"
           />
-          <Button preventDoubleClick type="submit">
-            Send sign-in link
-          </Button>
+          <Button type="submit">Send sign-in link</Button>
         </form>
       </PageIntro>
     </>
