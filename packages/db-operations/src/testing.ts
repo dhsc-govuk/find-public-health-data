@@ -40,20 +40,34 @@ async function buildTemplate(
 ): Promise<void> {
   const name = templateName(run, stage);
   const admin = createOwnerClient('postgres');
+  const startedAt = performance.now();
   try {
     const from = source === undefined ? '' : ` TEMPLATE "${templateName(run, source)}"`;
     await admin.unsafe(`CREATE DATABASE "${name}"${from}`);
+    const [database] = await admin<
+      { oid: number }[]
+    >`SELECT oid::int AS oid FROM pg_database WHERE datname = ${name}`;
+    console.log(
+      `[timing] template=${stage} oid=${database?.oid} create_ms=${Math.round(performance.now() - startedAt)}`,
+    );
   } finally {
     await admin.end();
   }
 
   const template = createOwnerClient(name);
+  const step = async (label: string, work: () => Promise<unknown>) => {
+    const stepStartedAt = performance.now();
+    await work();
+    console.log(
+      `[timing] template=${stage} step=${label} ms=${Math.round(performance.now() - stepStartedAt)}`,
+    );
+  };
   try {
-    if (stage === 'schema') await migrateToLatest(template);
-    if (stage === 'core') await importCoreData(template);
+    if (stage === 'schema') await step('migrate', () => migrateToLatest(template));
+    if (stage === 'core') await step('import-core-data', () => importCoreData(template));
     if (stage === 'seeded') {
-      await template.begin((tx) => seedDummyTables(tx));
-      await rebuildReadModels(template);
+      await step('seed-dummy-tables', () => template.begin((tx) => seedDummyTables(tx)));
+      await step('rebuild-read-models', () => rebuildReadModels(template));
     }
   } finally {
     // Left with no connections: a template with an open session cannot be copied.
@@ -67,10 +81,13 @@ async function buildTemplate(
  * Other runs' databases are left alone unless they are stale.
  */
 export async function setUpTestTemplate(run: string): Promise<void> {
+  const startedAt = performance.now();
   await dropTestDatabases((names) => staleTestDatabases(names));
+  console.log(`[timing] drop-stale ms=${Math.round(performance.now() - startedAt)}`);
   await buildTemplate(run, 'schema');
   await buildTemplate(run, 'core', 'schema');
   await buildTemplate(run, 'seeded', 'core');
+  console.log(`[timing] templates total_ms=${Math.round(performance.now() - startedAt)}`);
 }
 
 /** Drops the run's templates and any copy a test file failed to drop. */

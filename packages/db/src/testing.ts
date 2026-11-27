@@ -184,6 +184,8 @@ export async function createTestDb({
   const run = currentTestRun();
   const name = testDatabaseName(run);
   const admin = createOwnerClient('postgres');
+  const requestedAt = performance.now();
+  let lockedAt = requestedAt;
   try {
     if (template === 'unmigrated') {
       // Nothing else connects to the default template, so no need to queue for the lock.
@@ -192,12 +194,20 @@ export async function createTestDb({
       // FILE_COPY copies the template's files directly. The default, WAL_LOG, writes the whole
       // copy to the write-ahead log (391 MB for the seeded template), which is slower and fills
       // the server's disk when several files copy at once.
-      await withCopyLock(admin, run, () =>
-        admin.unsafe(
+      await withCopyLock(admin, run, () => {
+        lockedAt = performance.now();
+        return admin.unsafe(
           `CREATE DATABASE "${name}" TEMPLATE "${templateName(run, template)}" STRATEGY FILE_COPY`,
-        ),
-      );
+        );
+      });
     }
+    const [database] = await admin<
+      { oid: number }[]
+    >`SELECT oid::int AS oid FROM pg_database WHERE datname = ${name}`;
+    const copiedAt = performance.now();
+    console.log(
+      `[timing] copy template=${template} oid=${database?.oid} lock_wait_ms=${Math.round(lockedAt - requestedAt)} copy_ms=${Math.round(copiedAt - lockedAt)}`,
+    );
   } finally {
     await admin.end();
   }
@@ -219,6 +229,7 @@ export async function createTestDb({
       // Bounded, so a client stuck behind a lock after a failed test cannot hold up the drop,
       // and a client that fails to end cannot leave the database behind: FORCE ends whatever
       // sessions remain.
+      const dropStartedAt = performance.now();
       await Promise.allSettled(clients.map((client) => client.end({ timeout: 5 })));
       const cleanup = createOwnerClient('postgres');
       try {
@@ -226,6 +237,7 @@ export async function createTestDb({
       } finally {
         await cleanup.end();
       }
+      console.log(`[timing] drop_ms=${Math.round(performance.now() - dropStartedAt)}`);
     },
   };
 }

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { schema } from '@fphd/db';
 import { createTestDb, type TestDb } from '@fphd/db/testing';
-import { afterAll, beforeAll, beforeEach, expect } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect } from 'vitest';
 
 import {
   INDICATOR_ID,
@@ -15,6 +15,7 @@ import {
   VERSION_ROW,
 } from './data-migration.testing.ts';
 import { applyDataMigration } from './data-migration.ts';
+import type { DataMigrationProgress } from './data-migration-copy.ts';
 import {
   DATA_MIGRATION_REFERENCE_TABLES,
   DATA_MIGRATION_TABLES,
@@ -76,9 +77,59 @@ interface DataMigrationTestState {
  * object inside tests and hooks, since they only exist once the beforeAll has run. The
  * functions can be destructured at the top of the file.
  */
+/** Milliseconds each part of one test took, printed after the test. */
+interface TestTimings {
+  startedAt: number;
+  truncate: number;
+  directory: number;
+  fixture: number;
+  apply: number;
+  tables: number;
+  relationships: number;
+  applies: number;
+}
+
+function emptyTimings(): TestTimings {
+  return {
+    startedAt: performance.now(),
+    truncate: 0,
+    directory: 0,
+    fixture: 0,
+    apply: 0,
+    tables: 0,
+    relationships: 0,
+    applies: 0,
+  };
+}
+
+/** Postgres's own time for the statements run in this database, when pg_stat_statements is loaded. */
+async function statementTotals(sql: TestDb['sql']): Promise<string> {
+  try {
+    const [totals] = await sql<{ calls: number; ms: number }[]>`
+      SELECT coalesce(sum(calls), 0)::int AS calls, round(coalesce(sum(total_exec_time), 0))::int AS ms
+      FROM pg_stat_statements
+      WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+    `;
+    const top = await sql<{ calls: number; ms: number; query: string }[]>`
+      SELECT calls::int AS calls, round(total_exec_time)::int AS ms, left(regexp_replace(query, '[[:space:]]+', ' ', 'g'), 100) AS query
+      FROM pg_stat_statements
+      WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+      ORDER BY total_exec_time DESC LIMIT 8
+    `;
+    return [
+      `statements calls=${totals?.calls} exec_ms=${totals?.ms}`,
+      ...top.map((row) => `  ${row.ms} ms ${row.calls} calls ${row.query}`),
+    ].join('\n');
+  } catch (error) {
+    return `statements unavailable: ${(error as Error).message}`;
+  }
+}
+
 export function dataMigrationTestDb() {
   let database: TestDb | undefined;
   let state: DataMigrationTestState | undefined;
+  let timings = emptyTimings();
+  const fileStartedAt = performance.now();
 
   function ready(): DataMigrationTestState {
     if (!state) throw new Error('The data-migration test database is read before its beforeAll');
@@ -88,6 +139,7 @@ export function dataMigrationTestDb() {
   beforeAll(async () => {
     database = await createTestDb({ template: 'core' });
     const { sql } = database;
+    await sql`CREATE EXTENSION IF NOT EXISTS pg_stat_statements`.catch(() => undefined);
     const [topic] = await sql<{ id: string }[]>`SELECT id FROM topic LIMIT 1`;
     const [framework] = await sql<
       { id: string }[]
@@ -109,23 +161,59 @@ export function dataMigrationTestDb() {
     (table) => !DATA_MIGRATION_REFERENCE_TABLES.includes(table),
   );
   beforeEach(async () => {
+    timings = emptyTimings();
     const { database, directory } = ready();
+    const truncateStartedAt = performance.now();
     await database.sql.unsafe(
       `TRUNCATE ${tables.map((table) => `"${table}"`).join(', ')}, data_migration, audit_log CASCADE`,
     );
     await database.sql`ALTER SEQUENCE indicator_short_id_seq RESTART WITH 100000`;
+    const directoryStartedAt = performance.now();
+    timings.truncate = directoryStartedAt - truncateStartedAt;
     await rm(directory, { recursive: true, force: true });
     await mkdir(directory);
+    timings.directory = performance.now() - directoryStartedAt;
+  });
+  afterEach(() => {
+    const total = performance.now() - timings.startedAt;
+    const round = (ms: number) => Math.round(ms);
+    console.log(
+      `[timing] test total_ms=${round(total)} truncate_ms=${round(timings.truncate)} directory_ms=${round(timings.directory)} fixture_ms=${round(timings.fixture)} apply_ms=${round(timings.apply)} apply_tables_ms=${round(timings.tables)} apply_relationships_ms=${round(timings.relationships)} applies=${timings.applies} other_ms=${round(total - timings.truncate - timings.directory - timings.fixture - timings.apply)}`,
+    );
   });
   afterAll(async () => {
+    if (database)
+      console.log(
+        `[timing] file wall_ms=${Math.round(performance.now() - fileStartedAt)}\n${await statementTotals(database.sql)}`,
+      );
     if (state) await rm(state.directory, { recursive: true, force: true });
     await database?.drop();
   });
 
   async function apply(options: MigrationFixtureOptions = {}) {
     const { database, directory, topicId } = ready();
+    const fixtureStartedAt = performance.now();
     const { manifest, sha256 } = await migrationFixture(database.sql, directory, topicId, options);
-    return database.sql.begin((tx) => applyDataMigration(tx, directory, manifest, sha256));
+    const applyStartedAt = performance.now();
+    timings.fixture += applyStartedAt - fixtureStartedAt;
+    const started = new Map<string, number>();
+    const report = ({ table, phase, state }: DataMigrationProgress) => {
+      const key = `${phase}:${table}`;
+      if (state === 'started') started.set(key, performance.now());
+      if (state === 'complete') {
+        const elapsed = performance.now() - (started.get(key) ?? performance.now());
+        if (phase === 'relationships') timings.relationships += elapsed;
+        else timings.tables += elapsed;
+      }
+    };
+    try {
+      return await database.sql.begin((tx) =>
+        applyDataMigration(tx, directory, manifest, sha256, report),
+      );
+    } finally {
+      timings.apply += performance.now() - applyStartedAt;
+      timings.applies += 1;
+    }
   }
 
   return {

@@ -59,9 +59,15 @@ jobs:
       - run: pnpm test:unit
 
   integration:
-    name: Integration tests
+    name: Integration tests (${{ matrix.workers }} workers)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Temporary measurement run: the suite runs after a separate single-file run, so it needs
+    # longer than the usual 15 minutes.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        workers: [3, 4]
     services:
       postgres:
         image: postgres:18.4
@@ -91,6 +97,47 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
+      - name: "Measure: runner hardware"
+        run: |
+          nproc
+          lscpu | grep -E '^(Model name|CPU\(s\)|Thread|Core|Socket)'
+          free -m
+          node -p '"availableParallelism " + require("node:os").availableParallelism()'
+      - name: "Measure: load pg_stat_statements into Postgres"
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          psql_fphd() { docker exec "${POSTGRES_CONTAINER}" psql -U fphd -d fphd -v ON_ERROR_STOP=1 "$@"; }
+          psql_fphd -c "ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements'"
+          psql_fphd -c "ALTER SYSTEM SET pg_stat_statements.max = 50000"
+          psql_fphd -c "ALTER SYSTEM SET track_io_timing = on"
+          psql_fphd -c "ALTER SYSTEM SET log_lock_waits = on"
+          psql_fphd -c "ALTER SYSTEM SET log_checkpoints = on"
+          docker restart "${POSTGRES_CONTAINER}"
+          for _ in $(seq 1 60); do
+            docker exec "${POSTGRES_CONTAINER}" pg_isready -U fphd -d fphd && break
+            sleep 1
+          done
+          psql_fphd -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements"
+          psql_fphd -c "SELECT name, setting, unit FROM pg_settings WHERE name IN ('shared_buffers', 'max_connections', 'work_mem', 'maintenance_work_mem', 'max_wal_size', 'fsync', 'synchronous_commit', 'max_worker_processes', 'max_parallel_workers_per_gather')"
+      - name: "Measure: start sampling CPU and memory every 5 seconds"
+        run: |
+          cat > "${RUNNER_TEMP}/cpu.awk" <<'AWK'
+          /^top -/ {
+            if (time != "") {
+              line = time
+              for (command in cpu) if (cpu[command] >= 5) line = line sprintf(" %s=%.0f%%", command, cpu[command])
+              print line
+              fflush()
+            }
+            time = $3
+            delete cpu
+            next
+          }
+          $1 ~ /^[0-9]+$/ && NF >= 12 { cpu[$12] += $9 }
+          AWK
+          nohup setsid bash -c 'vmstat -t -w 5 > "${RUNNER_TEMP}/vmstat.log" 2>&1' > /dev/null 2>&1 &
+          nohup setsid bash -c 'top -b -d 5 -w 200 | awk -f "${RUNNER_TEMP}/cpu.awk" > "${RUNNER_TEMP}/cpu-by-command.log" 2>&1' > /dev/null 2>&1 &
       # The grant migrations reference the per-API roles, so they must exist before the global
       # setup migrates the template databases. Same command locally (`pnpm db:bootstrap`) and
       # in a deployed environment — this is the only bootstrap path.
@@ -109,7 +156,45 @@ jobs:
       # setup builds three template databases: schema (migrated), core (schema plus the core
       # data) and seeded (core plus the dummy indicators). Each test file copies the template
       # it asks for, so files run in parallel against isolated databases.
-      - run: pnpm test:integration
+      - name: "Measure: query round trips through the published port and to the container directly"
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          cat > "${RUNNER_TEMP}/latency.mjs" <<'JS'
+          import { createRequire } from 'node:module';
+
+          const require = createRequire(`${process.cwd()}/packages/db/package.json`);
+          const postgres = require('postgres');
+          const [containerIp, rounds, everySeconds, times] = process.argv.slice(2);
+
+          async function perQuery(host) {
+            const sql = postgres({ host, port: 5432, user: 'fphd', password: 'fphd', database: 'fphd', max: 1 });
+            await sql`SELECT 1`;
+            const startedAt = performance.now();
+            for (let i = 0; i < Number(rounds); i += 1) await sql`SELECT 1`;
+            const ms = (performance.now() - startedAt) / Number(rounds);
+            await sql.end();
+            return ms.toFixed(3);
+          }
+
+          for (let i = 0; i < Number(times); i += 1) {
+            const published = await perQuery('127.0.0.1');
+            const direct = await perQuery(containerIp);
+            console.log(`${new Date().toISOString().slice(11, 19)} published_port_ms=${published} container_ip_ms=${direct}`);
+            if (i + 1 < Number(times)) await new Promise((resolve) => setTimeout(resolve, Number(everySeconds) * 1000));
+          }
+          JS
+          container_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${POSTGRES_CONTAINER}")"
+          echo "Postgres container IP ${container_ip}"
+          ps -eo pid,comm,args | grep -E 'docker-proxy' | grep -v grep || echo "no docker-proxy process"
+          echo "Idle, mean of 2000 sequential SELECT 1 round trips:"
+          node "${RUNNER_TEMP}/latency.mjs" "${container_ip}" 2000 0 1
+          nohup setsid node "${RUNNER_TEMP}/latency.mjs" "${container_ip}" 200 20 120 > "${RUNNER_TEMP}/latency.log" 2>&1 &
+      - name: "Measure: data-migration-headers alone"
+        run: |
+          date -u +%T
+          pnpm exec cross-env INTEGRATION_DB=1 APP_ENV=test vitest run packages/db-operations/src/data-migration-headers.integration.test.ts
+          date -u +%T
         env:
           DB_HOST: localhost
           DB_PORT: 5432
@@ -123,6 +208,59 @@ jobs:
           # Azurite's published development account; internal-api's config requires storage too.
           STORAGE_CONTAINER: uploads
           STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;
+      - name: "Measure: reset statement statistics before the full suite"
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          date -u +%T
+          docker exec "${POSTGRES_CONTAINER}" psql -U fphd -d fphd -v ON_ERROR_STOP=1 -c "SELECT pg_stat_statements_reset()"
+      - run: pnpm test:integration --maxWorkers="${MAX_WORKERS}"
+        env:
+          MAX_WORKERS: ${{ matrix.workers }}
+          DB_HOST: localhost
+          DB_PORT: 5432
+          POSTGRES_DB: fphd
+          POSTGRES_USER: fphd
+          POSTGRES_PASSWORD: fphd
+          PUBLIC_API_PASSWORD: public_api
+          INTERNAL_API_PASSWORD: internal_api
+          # internal-api's config requires it at import; CI-only value, not a secret.
+          SESSION_JWT_SECRET: ci-only-jwt-session-secret-at-least-32-bytes
+          # Azurite's published development account; internal-api's config requires storage too.
+          STORAGE_CONTAINER: uploads
+          STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;
+      - name: "Measure: CPU and memory samples"
+        if: ${{ always() }}
+        run: |
+          date -u +%T
+          echo "::group::vmstat every 5 seconds"
+          cat "${RUNNER_TEMP}/vmstat.log"
+          echo "::endgroup::"
+          echo "::group::CPU by command every 5 seconds (top, 100% is one core)"
+          cat "${RUNNER_TEMP}/cpu-by-command.log"
+          echo "::endgroup::"
+          echo "::group::Query round trips every 20 seconds, mean of 200 SELECT 1"
+          cat "${RUNNER_TEMP}/latency.log"
+          echo "::endgroup::"
+      - name: "Measure: Postgres statement statistics for the full suite"
+        if: ${{ always() }}
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          psql_fphd() { docker exec "${POSTGRES_CONTAINER}" psql -U fphd -d fphd -P pager=off "$@"; }
+          echo "::group::Totals by database oid"
+          psql_fphd -c "SELECT dbid, sum(calls)::bigint AS calls, round(sum(total_exec_time))::bigint AS exec_ms, round(sum(shared_blk_read_time + shared_blk_write_time))::bigint AS io_ms FROM pg_stat_statements GROUP BY dbid ORDER BY exec_ms DESC"
+          echo "::endgroup::"
+          echo "::group::Top 60 statements by total time"
+          psql_fphd -c "SELECT dbid, calls, round(total_exec_time)::bigint AS exec_ms, round(mean_exec_time::numeric, 1) AS mean_ms, rows, round((shared_blk_read_time + shared_blk_write_time)::numeric) AS io_ms, left(regexp_replace(query, '[[:space:]]+', ' ', 'g'), 160) AS query FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 60"
+          echo "::endgroup::"
+          echo "::group::Checkpoints and WAL"
+          psql_fphd -c "SELECT * FROM pg_stat_checkpointer"
+          psql_fphd -c "SELECT * FROM pg_stat_wal"
+          echo "::endgroup::"
+          echo "::group::Postgres log: checkpoints and lock waits"
+          docker logs "${POSTGRES_CONTAINER}" 2>&1 | grep -E 'checkpoint|still waiting|acquired' | tail -200
+          echo "::endgroup::"
 
   # Each matrix entry starts its own stack. The three shards each run their share of the suite; add
   # a shard, and raise every shard's total, as the suite grows. The publishing entry runs the
