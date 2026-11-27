@@ -1444,7 +1444,11 @@ it.each([
       },
     ],
   );
-  const result = await exportObservations(observationOptions());
+  // The export refuses a grouping whose sex or age it has no dimension value for.
+  const result = await exportObservations({
+    ...observationOptions(),
+    dimensionValueIds: new Set([sexDimensionValueId(1), ageDimensionValueId(28)]),
+  });
   expect(result.observationExclusions[reason]).toBe(1);
   expect(await rows('observation')).toEqual([]);
 });
