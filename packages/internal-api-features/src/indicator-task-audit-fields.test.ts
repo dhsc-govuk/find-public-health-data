@@ -110,6 +110,7 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
     }),
   calculation: () =>
     savedFields(calculationColumns, {
+      standardMethodUsed: 'no',
       methodology: 'Counted',
       calculatedBy: 'other',
       calculatedByDetail: 'A university',

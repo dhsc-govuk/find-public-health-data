@@ -750,6 +750,13 @@
       "when": 1795776044886,
       "tag": "0106_counts-and-values",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1795781949484,
+      "tag": "0107_standard-calculation-method",
+      "breakpoints": true
     }
   ]
 }

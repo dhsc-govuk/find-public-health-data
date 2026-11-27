@@ -13,6 +13,7 @@ import { countsAndValuesColumns, valueTypeId } from './pholio/value-type-and-uni
 import { yearTypeValues } from './pholio/year-type.ts';
 import { rekeyDirectory } from './prepare-baseline.ts';
 import { ACTOR_COLUMNS, actorUserId } from './seed-writers.ts';
+import { standardMethodUsed } from './standard-method.ts';
 
 const indicators = [108, 40501, 90366, 90851, 92026, 92033, 92443, 92708, 93622, 94194];
 const areaTypes = [6, 15, 160, 170, 180];
@@ -180,6 +181,7 @@ async function writeIndicatorSplit(
     'ci_confidence_level',
     'definition',
     'rationale',
+    'standard_method_used',
     'methodology',
     'numerator_definition',
     'denominator_definition',
@@ -228,6 +230,8 @@ async function writeIndicatorSplit(
       vtName != null ? countsAndValuesColumns(vtName, uName ?? 'No unit', Number(row.id)) : null;
     if (countsAndValues === undefined) throw new Error(`Indicator ${id}: unit not translated`);
     const translatedYt = ytName != null ? yearTypeValues(ytName) : null;
+    const versionValueTypeId = vtName != null ? valueTypeId(vtName) : null;
+    const methodology = meta?.methodology != null ? String(meta.methodology) : null;
     const versionRow: Record<string, unknown> = {
       id,
       indicator_id: id,
@@ -235,7 +239,7 @@ async function writeIndicatorSplit(
       is_locked: true,
       published_at: row.updated_at,
       name: row.name,
-      value_type_id: vtName != null ? valueTypeId(vtName) : null,
+      value_type_id: versionValueTypeId,
       ...countsAndValues,
       period_type: translatedYt?.period_type ?? null,
       year_type: translatedYt?.year_type ?? null,
@@ -249,7 +253,8 @@ async function writeIndicatorSplit(
       ci_confidence_level: row.ci_confidence_level,
       definition: meta?.definition ?? null,
       rationale: meta?.rationale ?? null,
-      methodology: meta?.methodology ?? null,
+      standard_method_used: standardMethodUsed(versionValueTypeId, methodology),
+      methodology,
       numerator_definition: meta?.numerator_definition ?? null,
       denominator_definition: meta?.denominator_definition ?? null,
       disclosure_control: ncAnswers.disclosure_control,

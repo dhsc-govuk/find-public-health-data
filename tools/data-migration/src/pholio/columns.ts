@@ -77,6 +77,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'numerator_definition',
     'denominator_definition',
     'data_source_id',
+    'standard_method_used',
     'methodology',
     'calculated_by',
     'calculated_by_detail',

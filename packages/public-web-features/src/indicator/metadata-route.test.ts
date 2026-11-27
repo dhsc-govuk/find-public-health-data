@@ -72,3 +72,17 @@ it('gives the caveats before the notes, as the page shows them', async () => {
 
   expect(text).toContain('Caveats: Survey data.\n\nNotes: Revised in 2024.');
 });
+
+it('gives the methodology under the label the page shows it with', async () => {
+  const api = createFakeApiClient({
+    'GET /api/indicators/indicator-108': {
+      ...indicatorDetail(108),
+      methodology: 'Value and count are the same.',
+    },
+  });
+
+  const text = await (await loader(args(api, false))).text();
+
+  expect(text).toContain('How the indicator was calculated: Value and count are the same.');
+  expect(text).not.toContain('Methodology:');
+});

@@ -464,6 +464,23 @@ describe('indicator_version', () => {
     });
   });
 
+  it.each([
+    ['the standard method used', { standardMethodUsed: true }],
+    ['the standard method not used', { standardMethodUsed: false, methodology: 'Our own' }],
+    ['a methodology with no standard method question', { methodology: 'Scored' }],
+  ] as const)('accepts %s', async (_, answers) => {
+    await expect(addVersion(await newIndicatorId(), 'draft', answers)).resolves.toHaveLength(1);
+  });
+
+  it.each([
+    ['a methodology beside the standard method', { standardMethodUsed: true, methodology: 'x' }],
+    ['no methodology when the standard method was not used', { standardMethodUsed: false }],
+  ] as const)('refuses %s', async (_, answers) => {
+    await expect(addVersion(await newIndicatorId(), 'draft', answers)).rejects.toMatchObject({
+      cause: { code: CHECK_VIOLATION, constraint_name: 'indicator_version_methodology_check' },
+    });
+  });
+
   it.each(['numerator', 'denominator'])(
     'refuses a %s disclosure control answer the publisher form does not offer',
     async (part) => {

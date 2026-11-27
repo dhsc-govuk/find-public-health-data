@@ -55,8 +55,9 @@ of those values. Most also export a `*_LABELS` record of the words the pages sho
 - `./sex-gender-and-ethnicity`: what can be said to be collected for an indicator (sex, gender,
   ethnicity), and the sexes, genders and ethnic groups it can cover.
 - `./source-part`: the numerator and the denominator, each of which names where its data comes from.
-- `./standard-methods`: the standard description of each value type's calculation method and of each
-  confidence interval method, as the publisher guidance and the Confidence intervals page give them.
+- `./standard-methods`: the standard description of each value type's calculation method, found by
+  the value type's id, and of each confidence interval method, as the publisher guidance, the How
+  the indicator was calculated and Confidence intervals pages and the public page give them.
 - `./update-frequency`: how often an indicator's data is updated.
 - `./value-type-and-unit`: the value type ids the code behaves on, the value types whose count is
   the numerator, and how a value type is standardised.

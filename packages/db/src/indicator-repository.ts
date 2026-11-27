@@ -15,6 +15,7 @@ import type { PolicyGoalBands } from '@fphd/utils/policy-goal';
 import { isShortId, SHORT_ID_PATTERN } from '@fphd/utils/short-id';
 import { SLUG_MAX_LENGTH, SLUG_PATTERN } from '@fphd/utils/slug';
 import type { IndicatorSourcePart } from '@fphd/utils/source-part';
+import { standardCalculationMethodOf } from '@fphd/utils/standard-methods';
 import type { UpdateFrequency } from '@fphd/utils/update-frequency';
 import type { FingertipsFormatting } from '@fphd/utils/value-type-and-unit';
 import {
@@ -228,6 +229,7 @@ export interface IndicatorDetail {
   lastPublishedAt: string;
   definition: string | null;
   rationale: string | null;
+  /** How the indicator was calculated: the value type's standard method, or the publisher's own. */
   methodology: string | null;
   numeratorDefinition: string | null;
   /** The details of the disclosure control applied to the numerator, where some was. */
@@ -393,6 +395,7 @@ export async function getIndicatorDetailsByIds(
       lastPublishedAt: indicator.lastPublishedAt,
       definition: indicator.definition,
       rationale: indicator.rationale,
+      standardMethodUsed: indicator.standardMethodUsed,
       methodology: indicator.methodology,
       numeratorDefinition: indicator.numeratorDefinition,
       numeratorDisclosureControl: indicator.numeratorDisclosureControlDetail,
@@ -512,7 +515,7 @@ export async function getIndicatorDetailsByIds(
           lastPublishedAt: row.lastPublishedAt.toISOString(),
           definition: row.definition,
           rationale: row.rationale,
-          methodology: row.methodology,
+          methodology: methodologyShown(row),
           numeratorDefinition: row.numeratorDefinition,
           numeratorDisclosureControl: row.numeratorDisclosureControl,
           denominatorDefinition: row.denominatorDefinition,
@@ -542,6 +545,20 @@ export async function getIndicatorDetailsByIds(
       ];
     }),
   );
+}
+
+/**
+ * How the indicator was calculated, as the indicator page and its metadata show it. A version
+ * that used its value type's standard method shows that method's description as it is now in
+ * `@fphd/utils/standard-methods`, and any other shows the publisher's own methodology.
+ */
+export function methodologyShown(row: {
+  valueTypeId: string | null;
+  standardMethodUsed: boolean | null;
+  methodology: string | null;
+}): string | null {
+  if (row.standardMethodUsed !== true || row.valueTypeId === null) return row.methodology;
+  return standardCalculationMethodOf(row.valueTypeId);
 }
 
 /**

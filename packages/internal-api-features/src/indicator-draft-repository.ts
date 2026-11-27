@@ -52,7 +52,8 @@ import {
 } from './indicator-version-lists-repository.ts';
 import { clearFlag } from './review-flag-repository.ts';
 
-const { ciMethod, currentPublishedVersion, indicator, indicatorVersion, isUnpublished } = schema;
+const { ciMethod, currentPublishedVersion, indicator, indicatorVersion, isUnpublished, valueType } =
+  schema;
 
 export type { IndicatorDraftVersion };
 
@@ -76,6 +77,8 @@ export interface IndicatorDraftStateRow {
   draft: IndicatorDraft | null;
   /** What the draft's CI method asks for, which the task list needs to judge its answers. */
   draftCiMethodKind: CiMethodKind | null;
+  /** The name of the draft's value type, which the calculation page shows. */
+  draftValueTypeName: string | null;
   indicatorStatus: IndicatorStatus;
   draftStatus: DraftStatus | null;
   draftSubmissionStatus: DraftSubmissionStatus | null;
@@ -99,6 +102,7 @@ export async function getIndicatorDraftState(
       teamId: indicator.teamId,
       draft: draftVersion,
       draftCiMethodKind: ciMethod.kind,
+      draftValueTypeName: valueType.name,
       indicatorStatus,
       draftStatus,
       draftSubmissionStatus,
@@ -109,6 +113,7 @@ export async function getIndicatorDraftState(
     .from(indicator)
     .leftJoin(draftVersion, draftJoin)
     .leftJoin(ciMethod, eq(ciMethod.id, draftVersion.ciMethodId))
+    .leftJoin(valueType, eq(valueType.id, draftVersion.valueTypeId))
     .leftJoin(currentPublishedVersion, publishedJoin)
     .where(eq(indicator.id, id));
 

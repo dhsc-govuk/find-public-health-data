@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import { STANDARD_CALCULATION_METHODS } from '@fphd/utils/standard-methods';
 import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
 
@@ -52,5 +53,11 @@ describe('the committed value types', () => {
     expect(valueTypes.map(({ id }) => id)).toEqual(
       expect.arrayContaining(Object.values(VALUE_TYPE_IDS)),
     );
+  });
+
+  it('each have a standard calculation method, under the same name', () => {
+    expect(
+      STANDARD_CALCULATION_METHODS.map(({ valueTypeId, name }) => ({ id: valueTypeId, name })),
+    ).toEqual(valueTypes);
   });
 });

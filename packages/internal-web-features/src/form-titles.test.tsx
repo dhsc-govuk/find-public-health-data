@@ -210,9 +210,14 @@ const forms: {
   sectionForm('polarity', polarity, polaritySection, 'What is the polarity of this indicator?', {
     polarity: 'Select the polarity of this indicator',
   }),
-  sectionForm('calculation', calculation, calculationSection, 'How was the indicator calculated?', {
-    methodology: 'Enter the methodology',
-  }),
+  sectionForm(
+    'calculation',
+    calculation,
+    calculationSection,
+    'How the indicator was calculated',
+    { calculatedBy: 'Select who calculated the indicator' },
+    { valueType: null },
+  ),
   sectionForm(
     'confidence intervals',
     confidenceIntervals,

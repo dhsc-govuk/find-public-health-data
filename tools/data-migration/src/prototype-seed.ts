@@ -22,6 +22,7 @@ import {
   valueTypeId,
 } from './pholio/value-type-and-unit.ts';
 import { yearTypeValues } from './pholio/year-type.ts';
+import { standardMethodUsed } from './standard-method.ts';
 
 const indicatorConfig = {
   241: {
@@ -312,7 +313,7 @@ async function addIndicators(
          value_measure_detail, gap_object, gap_object_detail, ratio_format, period_type, year_type, year_end_day, year_end_month,
          ci_method_id, polarity,
          update_frequency, comparator_method_id, ci_confidence_level,
-         definition, rationale, methodology, has_numerator_denominator,
+         definition, rationale, standard_method_used, methodology, has_numerator_denominator,
          numerator_definition, numerator_disclosure_control, numerator_disclosure_control_detail,
          denominator_definition, denominator_disclosure_control,
          denominator_disclosure_control_detail,
@@ -331,6 +332,7 @@ async function addIndicators(
         ${translateFrequency('Annual')},
         ${await namedId(tx, 'comparator_method', config.comparator)}, ${config.confidence},
         ${descriptive.Definition ?? null}, ${descriptive.Rationale ?? null},
+        ${standardMethodUsed(valueTypeId(item.ValueType.Name), descriptive.IndMethod ?? null)},
         ${descriptive.IndMethod ?? null}, ${format.hasNumeratorDenominator},
         ${format.numerator?.definition ?? null}, ${format.numerator?.disclosureControl ?? null},
         ${format.numerator?.disclosureControlDetail ?? null},

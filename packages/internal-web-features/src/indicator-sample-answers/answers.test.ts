@@ -1,4 +1,8 @@
-import { indicatorTaskKeySchema } from '@fphd/internal-api-features/contract';
+import {
+  calculationSectionFor,
+  indicatorTaskKeySchema,
+} from '@fphd/internal-api-features/contract';
+import { VALUE_TYPE_IDS } from '@fphd/utils/value-type-and-unit';
 import { describe, expect, it } from 'vitest';
 import { sampleAnswerOptions } from './answers.testing.ts';
 import { sampleAnswers } from './answers.ts';
@@ -18,6 +22,20 @@ describe('sampleAnswers', () => {
     "gives %s answers its page's schema accepts",
     (_, { schema, answers }) => {
       expect(schema.safeParse(answers).error).toBeUndefined();
+    },
+  );
+
+  // A draft whose value type task is already complete keeps its value type, such as Score.
+  it.each(Object.entries(VALUE_TYPE_IDS))(
+    'gives calculation answers a draft whose value type is %s accepts',
+    (_, valueTypeId) => {
+      const calculation = sampleAnswers(sampleAnswerOptions, now).find(
+        ({ key }) => key === 'calculation',
+      );
+
+      expect(
+        calculationSectionFor(valueTypeId).schema.safeParse(calculation?.answers).error,
+      ).toBeUndefined();
     },
   );
 
