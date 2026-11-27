@@ -102,8 +102,12 @@ indicator; the legacy clone has no grouping table, so its seed needs this refres
   has no translation for stops the export. A year type alone gives its yearly periods: single years
   of a year type, or a specific date range for September-January and September-February. Rolling
   year types roll on by the quarter or the month, and the cumulative quarter types answer that
-  values are cumulative. The committed seed also has periods of more than 1 year where its data
-  does, rolling on by the year where they overlap. Neither export carries a `year_type` table.
+  values are cumulative. Neither export carries a `year_type` table.
+- Six committed seed versions have their periods of more than 1 year set by hand, because their data
+  has them and no seed script reads the data: 108, 40501, 92443 and 93995 have 3-year calendar
+  periods beside their single years, and 92026 and 92033 have 5-year academic periods alone, all
+  rolling on by the year. Regenerating the seed turns them back into single years of their year
+  type.
 - `indicator_version.value_type_id` points at the service's own rows, which are core data in
   `../value-types.json`, so neither export carries a `value_type` table. Fingertips' unit becomes
   the answers about the counts and values (`rate_per`, `rate_object`, `count_measure`,

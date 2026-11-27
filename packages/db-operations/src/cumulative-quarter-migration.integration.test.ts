@@ -14,9 +14,8 @@ beforeAll(async () => {
   testDb = await createTestDb({ template: 'unmigrated' });
   sql = testDb.sql;
   await migrateBefore(sql, '0108_cumulative-quarter-series');
-  // Today's preview views select columns later migrations add, so they can't be built on a
-  // schema this old. A stand-in for the preview views an environment had then shows the
-  // migration replaces them.
+  // Migrating drops the preview views that already exist and replaces them. Today's preview views
+  // can't be built on a schema this old, so a stand-in shows that existing ones are replaced.
   await asOwnerGroup(
     sql,
     () => sql`CREATE VIEW preview.observation AS SELECT o.id FROM public.observation o`,
