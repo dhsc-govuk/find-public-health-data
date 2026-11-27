@@ -42,12 +42,17 @@ async function openColumn(page: Page, name: string): Promise<void> {
   await column(page, name).click();
 }
 
-/** Opens a column, ticks some of its values and adds them. */
+/**
+ * Opens a column, ticks some of its values and adds them, then waits for the filtered page. The
+ * column closes as soon as Add values is pressed, but the page moves focus to the selected values
+ * only once the filtered page has loaded. Acting before then would act on the old page, whose links
+ * and forms leave the new values out.
+ */
 async function addValues(page: Page, name: string, ...values: string[]): Promise<void> {
   await openColumn(page, name);
   for (const value of values) await page.getByLabel(value, { exact: true }).check();
   await page.getByRole('button', { name: `Add values (${values.length})` }).click();
-  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Selected values' })).toBeFocused();
 }
 
 test('shows the rows with any value chosen in a column', async ({ page }) => {
@@ -211,6 +216,7 @@ test('shows the rows with an empty cell', async ({ page }) => {
   await expect(periods(page)).toHaveText(['2021', '2022']);
 
   await page.getByRole('link', { name: 'Clear filters' }).click();
+  await expect(chips(page)).toHaveCount(0);
   await addValues(page, 'Sex', 'Persons');
   await expect(chips(page)).toHaveText([/Persons \(Sex\)/]);
   await expect(periods(page)).toHaveText(['2023']);
