@@ -1076,12 +1076,17 @@ test('headlines the whole age group over the bands in it', async ({ page }) => {
 // Fingertips works out a recent trend only from rows with a count and denominator. Smoking
 // prevalence is seeded with values and 95% limits but neither, as Fingertips publishes indicator
 // 94184, and gastroenteritis with counts whose latest five years show no significant trend.
+// Resident population is a count, a value type Fingertips calculates no trend for.
 for (const [path, trend] of [
   [
     '/indicator/smoking-prevalence-in-adults-aged-18-and-over-current-smokers-aps',
     /^Trend unavailable\s*\(not enough data points\)$/,
   ],
   ['/indicator/emergency-admissions-for-gastroenteritis-0-to-4-years', /^No significant change$/],
+  [
+    '/indicator/resident-population',
+    /^Trend unavailable\s*\(not calculated for this value type\)$/,
+  ],
 ] as const)
   test(`follows Fingertips' recent trend on ${path}`, async ({ page }) => {
     await openIndicatorPage(page, path);

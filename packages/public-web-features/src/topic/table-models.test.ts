@@ -741,3 +741,23 @@ describe('trend sorts', () => {
     expect(names(model)).toEqual(['By sex (Female)', 'Getting worse', 'By sex (Male)']);
   });
 });
+
+it.each([
+  ['Count', null],
+  ['Gap', 'percentage-points'],
+] as const)(
+  'gives every %s cell the value type reason for its unavailable trend',
+  (valueType, valueMeasure) => {
+    const source = structuredClone(entry);
+    source.detail = { ...source.detail, valueType, valueMeasure };
+    const [row] = topicDataTableModel([source], 'diabetes').rows;
+    expect(row?.cells.length).toBeGreaterThan(0);
+    for (const { trend } of row?.cells ?? [])
+      expect(trend).toEqual({
+        direction: null,
+        label: 'Trend unavailable',
+        tone: 'grey',
+        reason: 'not calculated for this value type',
+      });
+  },
+);

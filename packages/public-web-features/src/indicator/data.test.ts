@@ -113,6 +113,45 @@ describe('recentTrend', () => {
     },
   );
 
+  it.each([
+    ['Count', null],
+    ['Score', null],
+    ['Gap', 'percentage-points'],
+  ] as const)(
+    'explains that a %s in %s has no trend, even with ten complete years',
+    (valueType, valueMeasure) => {
+      const points = Array.from({ length: 10 }, (_, index) =>
+        obs({
+          fromDate: `${2015 + index}-01-01`,
+          toDate: `${2015 + index}-12-31`,
+          value: 10 + index * 2,
+          count: (10 + index * 2) * 10,
+          denominator: 1000,
+          lowerCi95: 9 + index * 2,
+          upperCi95: 11 + index * 2,
+        }),
+      );
+      const expected = {
+        direction: null,
+        label: 'Trend unavailable',
+        tone: 'grey',
+        reason: 'not calculated for this value type',
+      };
+      for (const precomputed of [undefined, null] as const)
+        expect(
+          recentTrend(
+            points,
+            { polarity: 'higher-is-better', valueType, valueMeasure },
+            precomputed,
+          ),
+        ).toEqual(expected);
+      expect(
+        recentTrend(points, { polarity: 'higher-is-better', valueType: 'Gap', valueMeasure: null })
+          .direction,
+      ).toBe('up');
+    },
+  );
+
   it('explains when there are too few valid annual observations', () => {
     expect(
       recentTrend([obs(), obs({ value: null })], {
