@@ -2,8 +2,8 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { DATA_MIGRATION_NULL } from '@fphd/db-operations/data-migration-contract';
-import { ensureDirectory } from '../files.ts';
 import { checkSlugs } from '../indicator-checks.ts';
+import { writePreparedDirectory } from '../prepared-directory.ts';
 import { TABLES } from '../tables.ts';
 import type { IndicatorSelection, StageResult } from './context.ts';
 import { exportDimensions } from './dimensions.ts';
@@ -26,7 +26,9 @@ export interface ExportPholioOptions {
 
 /**
  * Reads Pholio directly and writes the source export prepare-baseline and the dev snapshot take:
- * the same tables and columns export-live wrote from the alpha intermediate database.
+ * the same tables and columns export-live wrote from the alpha intermediate database. The export
+ * is written to a temporary directory beside `outDir` and renamed to it only once every file is
+ * written, so `outDir` must not exist yet and a failed export leaves nothing behind.
  */
 export async function exportPholio(options: ExportPholioOptions): Promise<void> {
   if (
@@ -35,7 +37,10 @@ export async function exportPholio(options: ExportPholioOptions): Promise<void> 
   ) {
     throw new Error('The approved indicator list is empty');
   }
-  await ensureDirectory(options.outDir);
+  await writePreparedDirectory(options.outDir, (staged) => writeExport(options, staged));
+}
+
+async function writeExport(options: ExportPholioOptions, outDir: string): Promise<void> {
   const pool = await connectToPholio(options.connectionString);
   try {
     const [identity] = await queryPholio<{ database: string; snapshotAt: Date }>(
@@ -50,7 +55,7 @@ export async function exportPholio(options: ExportPholioOptions): Promise<void> 
     const snapshotAt = new Date(identity.snapshotAt).toISOString();
     const context = {
       pool,
-      outDir: options.outDir,
+      outDir,
       excludedIndicators: options.excludedIndicators ?? [],
       indicatorSelection: options.indicatorSelection,
     };
@@ -82,7 +87,7 @@ export async function exportPholio(options: ExportPholioOptions): Promise<void> 
     if (missing.length > 0) throw new Error(`Pholio export wrote no ${missing.join(', ')}`);
 
     await writeFile(
-      join(options.outDir, 'source-manifest.json'),
+      join(outDir, 'source-manifest.json'),
       `${JSON.stringify(
         {
           source: {
