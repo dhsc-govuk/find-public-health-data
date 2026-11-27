@@ -15,7 +15,7 @@ beforeAll(async () => {
   testDb = await createTestDb({ template: 'unmigrated' });
   sql = testDb.sql;
   await migrateBefore(sql, '0108_cumulative-quarter-series');
-  await asOwnerGroup(sql, () => createPreviewViews(sql));
+  await asOwnerGroup(sql, () => createPreviewViews(sql, { skipUnpublished: true }));
   await migrateToLatest(sql);
 
   const [created] = await sql<(typeof fixture)[]>`

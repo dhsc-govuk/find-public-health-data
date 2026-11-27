@@ -139,6 +139,7 @@ export const PHOLIO_EXPORT_COLUMNS: Readonly<Record<(typeof TABLES)[number], rea
     'validation_result',
   ],
   note_type: ['id', 'text', 'category'],
+  indicator_grouping: ['id', 'indicator_id', 'sex_id', 'age_id', 'year_range', 'period_kind'],
   observation: [
     'id',
     'indicator_id',

@@ -18,6 +18,7 @@ const matches = {
 } as const;
 
 const references: Record<string, Record<string, string>> = {
+  indicator_grouping: { sex_id: 'dimension_value', age_id: 'dimension_value' },
   observation: { area_id: 'area' },
   observation_dimension: {
     dimension_type_id: 'dimension_type',

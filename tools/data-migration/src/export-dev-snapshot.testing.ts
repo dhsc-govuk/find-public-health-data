@@ -109,6 +109,9 @@ export async function writeDevelopmentSource(outDir: string): Promise<void> {
         created_by: 'pholio-migration',
       },
     ],
+    indicator_grouping: [
+      { id: 1, indicator_id: 108, sex_id: 1, age_id: null, year_range: 1, period_kind: 'annual' },
+    ],
     observation_dimension: [{ observation_id: 2, dimension_value_id: 1, dimension_type_id: 1 }],
     observation_note: [{ observation_id: 2, note_type_id: 1 }],
   };

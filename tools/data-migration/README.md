@@ -225,14 +225,16 @@ package's indicator list:
 `indicators` must exactly match the indicators in the package. Each needs a topic assignment or an
 explicit entry in `areaContextIndicators`; an area-context indicator cannot also carry topics or
 classifications. `indicatorSubtopics` contains `{ fingertipsId, topicId, subtopicId }` rows.
-Packages use format version 13 and `canonical-v13`, including explicit area status and nullable area
-validity dates. Every area file requires `is_current`; missing status is rejected rather than filled
-from the database default. Every `indicator_version` file requires `is_locked` in the same way, and
-a version whose `is_locked` is false is refused, so a published version never arrives unlocked.
-Migrate the receiver's schema and regenerate older packages before importing; the receiver refuses
-an older format rather than applying different area or measure semantics. Preparation checks
-coverage before writing prepared output; the importer verifies all applied topic, subtopic and
-classification links before committing.
+Packages use format version 14 and `canonical-v14`, with `indicator_grouping` tuples from Pholio for
+published age choices. Existing packages must be re-exported to supply these tuples. The format also
+includes explicit area status and nullable area validity dates. Every area file requires
+`is_current`; missing status is rejected rather than filled from the database default. Every
+`indicator_version` file requires `is_locked` in the same way, and a version whose `is_locked` is
+false is refused, so a published version never arrives unlocked. Migrate the receiver's schema and
+regenerate older packages before importing; the receiver refuses an older format rather than
+applying different area or measure semantics. Preparation checks coverage before writing prepared
+output; the importer verifies all applied topic, subtopic and classification links before
+committing.
 
 Generate draft relationships from the committed V2 workbook snapshot. The command maps the
 workbook's topic, subtopic and tag names onto the core data's lists through the name maps in
@@ -429,8 +431,10 @@ Run `pnpm vitest run --project @fphd/data-migration` and
 - `taxonomy.ts` translates explicit workbook placements and tags without profile or name heuristics.
   `legacy-seed.ts` and `prototype-seed.ts` retain the historical maintenance workflows; production
   package construction does not call them. After either writes seed CSVs, run
-  `packages/db-operations/data/seed/export/drop-england-values.py` as the seed README describes, so
-  air pollution (93861) stays without England values.
+  `packages/db-operations/data/seed/export/refresh-indicator-groupings.py` as the seed README
+  describes, so the selector fixtures retain every published sex/age pair, then
+  `packages/db-operations/data/seed/export/drop-england-values.py` so air pollution (93861) stays
+  without England values.
 
 ## Build a dev snapshot from Pholio
 

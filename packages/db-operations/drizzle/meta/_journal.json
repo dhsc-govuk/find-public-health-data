@@ -764,6 +764,13 @@
       "when": 1795785403520,
       "tag": "0108_cumulative-quarter-series",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1795790770908,
+      "tag": "0109_indicator-published-groupings",
+      "breakpoints": true
     }
   ]
 }

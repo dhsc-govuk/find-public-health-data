@@ -14,6 +14,7 @@ const observationOwner = `
 `;
 const OWNER_JOINS: Record<string, string> = {
   indicator: 'JOIN protected_indicators owner ON owner.indicator_id = rows.id',
+  indicator_grouping: 'JOIN protected_indicators owner ON owner.indicator_id = rows.indicator_id',
   upload_batch: 'JOIN protected_versions owner ON owner.id = rows.indicator_version_id',
   observation: `
     JOIN upload_batch b ON b.id = rows.upload_batch_id

@@ -5,7 +5,7 @@ import {
   MAX_AREA_CODES_PER_REQUEST,
 } from '@fphd/public-api-features/contract';
 import { isOneOf } from '@fphd/utils/is-one-of';
-import { isObservationPeriodType } from '@fphd/utils/observation-series';
+import { isObservationPeriodType, publishedSeries } from '@fphd/utils/observation-series';
 import { type ApiClient, apiPath } from '@fphd/web-server/api-client';
 import { apiContext } from '@fphd/web-server/api-context';
 import { pageSearch } from '@fphd/web-server/page-url';
@@ -21,6 +21,7 @@ import {
   type ConfidenceLevel,
   dimensionValues,
   filterObservations,
+  indicatorAgeChoice,
   periodTypeChoice,
 } from './data.ts';
 import { allDataCsv, trendCsv } from './download.ts';
@@ -126,6 +127,10 @@ export async function loadIndicatorCsv(
 
   let csv: string;
   if (kind === 'table') {
+    areaData = areaData.map((area) => ({
+      ...area,
+      observations: publishedSeries(area.observations, detail.publishedGroupings),
+    }));
     // These validations exactly mirror the controls on the rendered page. A stale or
     // hand-edited URL therefore downloads the table the user can actually see.
     const requestedPeriod = url.searchParams.get(`pt-${shortId}`);
@@ -146,6 +151,11 @@ export async function loadIndicatorCsv(
       ).flatMap(({ observations }) => observations),
       { periodType },
     );
+    const age = indicatorAgeChoice(areaData, detail.publishedGroupings, {
+      age: url.searchParams.get(`age-${shortId}`) ?? '',
+      sex,
+      periodType,
+    }).value;
     const requestedConfidence = url.searchParams.get(`ci-${shortId}`);
     const confidence: ConfidenceLevel = isOneOf(
       availableConfidenceLevels(shownObservations),
@@ -212,7 +222,10 @@ export async function loadIndicatorCsv(
     );
     const narrow = (data: IndicatorAreaData) => ({
       ...data,
-      observations: filterObservations(data.observations, { sex, periodType }),
+      observations: filterObservations(
+        publishedSeries(data.observations, detail.publishedGroupings),
+        { sex, age, periodType },
+      ),
     });
     const model = trendTableModel({
       areaData: areaData.map(narrow),

@@ -65,6 +65,9 @@ WHERE cpv.indicator_id IS DISTINCT FROM (
  * order, and `createPreviewViews` checks that it does.
  */
 const HAND_WRITTEN_VIEWS: Record<string, string> = {
+  indicator_grouping: `SELECT g.* FROM public.indicator_grouping g
+    WHERE g.indicator_id IN (SELECT indicator_id FROM preview.current_published_version)`,
+
   observation_dimension: `
 SELECT od.observation_id, od.dimension_value_id, od.dimension_type_id
 FROM public.observation_dimension od
@@ -218,6 +221,14 @@ export interface PreviewViewPlan {
   handWritten: string[];
 }
 
+export interface PreviewViewOptions {
+  /**
+   * Leaves out a hand-written view whose published view doesn't exist yet, for tests that build
+   * preview views on a part-migrated schema.
+   */
+  skipUnpublished?: boolean;
+}
+
 /**
  * The published views that depend on which version is visible: those that read versioned data,
  * and those that read another published view that does, however indirectly. `published.indicator`
@@ -246,10 +257,13 @@ function versionedViewNames(views: PublishedViewReads[]): Set<string> {
  * `current_published_version`, including through another published view, whose preview the copy
  * would not read.
  */
-export function planPreviewViews(views: PublishedViewReads[]): PreviewViewPlan {
+export function planPreviewViews(
+  views: PublishedViewReads[],
+  { skipUnpublished = false }: PreviewViewOptions = {},
+): PreviewViewPlan {
   const names = new Set(views.map(({ name }) => name));
   const orphans = Object.keys(HAND_WRITTEN_VIEWS).filter((name) => !names.has(name));
-  if (orphans.length > 0) {
+  if (orphans.length > 0 && !skipUnpublished) {
     throw new Error(`Hand-written preview views have no published view: ${orphans.join(', ')}`);
   }
   const versionedNames = versionedViewNames(views);
@@ -272,7 +286,9 @@ export function planPreviewViews(views: PublishedViewReads[]): PreviewViewPlan {
   }
   return {
     generated: versioned.map(({ name }) => name).sort(),
-    handWritten: Object.keys(HAND_WRITTEN_VIEWS).sort(),
+    handWritten: Object.keys(HAND_WRITTEN_VIEWS)
+      .filter((name) => names.has(name))
+      .sort(),
   };
 }
 
@@ -382,10 +398,13 @@ async function assertColumnsMatch(tx: postgres.TransactionSql, names: string[]):
  * Creates the preview views from the published views, in one transaction, and grants
  * internal_api SELECT on each. Run as the owner group, after every migration.
  */
-export async function createPreviewViews(sql: postgres.Sql): Promise<PreviewViewPlan> {
+export async function createPreviewViews(
+  sql: postgres.Sql,
+  options: PreviewViewOptions = {},
+): Promise<PreviewViewPlan> {
   return sql.begin(async (tx) => {
     await tx`SET LOCAL search_path = ''`;
-    const plan = planPreviewViews(await readPublishedViews(tx));
+    const plan = planPreviewViews(await readPublishedViews(tx), options);
     await tx.unsafe(CURRENT_VERSION);
     for (const name of plan.generated) {
       const [view] = await tx<{ definition: string }[]>`

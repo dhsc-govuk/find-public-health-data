@@ -9,6 +9,7 @@ import {
   AGE_DIMENSION_TYPE_ID,
   categoryDimensionTypeId,
   categoryDimensionValueId,
+  indicatorGroupingId,
   observationId,
   SEX_DIMENSION_TYPE_ID,
   sourceUidForObservationId,
@@ -21,7 +22,7 @@ import {
 } from './observation-corrections.ts';
 import { computeDates, sourcePeriodType } from './period.ts';
 import { queryPholio, streamPholio } from './source.ts';
-import { TableWriter } from './table-writer.ts';
+import { type ExportRow, TableWriter } from './table-writer.ts';
 
 // ─── Sentinel / CI helpers ────────────────────────────────────────────────────
 
@@ -440,6 +441,48 @@ export async function exportObservations(context: ObservationExportOptions) {
   const groupings = await loadObservationGroupings(context.pool);
   const { exclusions, dropped, sourceObservations, scannedObservations } =
     await assertDistinctObservations(context, groupings);
+  const tuples = new Map<number, ExportRow>();
+  for (const grouping of groupings.rows) {
+    if (!context.indicatorIds.has(grouping.IndicatorID)) continue;
+    for (const dimensions of observationDimensions({
+      ...grouping,
+      CategoryID: -1,
+      CategoryTypeID: -1,
+    })) {
+      const sex =
+        dimensions.find(({ typeId }) => typeId === SEX_DIMENSION_TYPE_ID)?.valueId ?? null;
+      const age =
+        dimensions.find(({ typeId }) => typeId === AGE_DIMENSION_TYPE_ID)?.valueId ?? null;
+      for (const value of [sex, age]) {
+        if (value !== null && !context.dimensionValueIds.has(value))
+          throw new Error(
+            `Grouping for ${grouping.IndicatorID} references missing dimension ${value}`,
+          );
+      }
+      const periodKind =
+        grouping.BaselineQuarter > 0
+          ? 'quarterly'
+          : grouping.BaselineMonth > 0
+            ? 'monthly'
+            : 'annual';
+      const yearRange = grouping.YearRange === -1 ? 1 : grouping.YearRange;
+      const tuple = JSON.stringify([grouping.IndicatorID, sex, age, yearRange, periodKind]);
+      const id = indicatorGroupingId(tuple);
+      const row = {
+        id,
+        indicator_id: grouping.IndicatorID,
+        sex_id: sex,
+        age_id: age,
+        year_range: yearRange,
+        period_kind: periodKind,
+      };
+      if (tuples.has(id) && JSON.stringify(tuples.get(id)) !== JSON.stringify(row))
+        throw new Error(`Grouping id collision: ${tuple}`);
+      tuples.set(id, row);
+    }
+  }
+  await using groupingWriter = new TableWriter(context.outDir, 'indicator_grouping');
+  await groupingWriter.writeAll(tuples.values());
   await using obsWriter = new TableWriter(context.outDir, 'observation');
   await using dimWriter = new TableWriter(context.outDir, 'observation_dimension');
   await using noteWriter = new TableWriter(context.outDir, 'observation_note');
@@ -517,6 +560,7 @@ export async function exportObservations(context: ObservationExportOptions) {
     }
   });
   const tables = {
+    indicator_grouping: await groupingWriter.close(),
     observation: await obsWriter.close(),
     observation_dimension: await dimWriter.close(),
     observation_note: await noteWriter.close(),

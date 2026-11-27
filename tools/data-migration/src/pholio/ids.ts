@@ -85,3 +85,7 @@ export function observationId(uid: number, split: 0 | 1 = 0): number {
 export function sourceUidForObservationId(id: number): number {
   return Math.floor(checkedKey('Observation id', id, 2 ** 51) / 2);
 }
+
+export function indicatorGroupingId(tuple: string): number {
+  return hashed(`indicator_grouping:${tuple}`);
+}

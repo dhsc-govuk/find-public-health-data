@@ -129,6 +129,7 @@ describe('the preview views on the seeded database', () => {
       'indicator_classification',
       'indicator_data_value',
       'indicator_goal',
+      'indicator_grouping',
       'indicator_slug',
       'indicator_source',
       'indicator_subtopic',

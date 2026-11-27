@@ -269,6 +269,14 @@ export const indicatorDetailSchema = z.object({
       disclosureControl: z.string().nullable(),
     }),
   ),
+  publishedGroupings: z.array(
+    z.object({
+      sex: z.string().nullable(),
+      age: z.string(),
+      yearRange: z.number().int(),
+      periodKind: z.enum(['annual', 'quarterly', 'monthly']),
+    }),
+  ),
   areaTypes: z.array(z.object({ name: z.string().min(1), areaCount: z.number().int() })),
   topics: z.array(
     z.object({

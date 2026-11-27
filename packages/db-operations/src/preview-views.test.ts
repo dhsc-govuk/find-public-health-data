@@ -5,6 +5,7 @@ import { type PublishedViewReads, planPreviewViews } from './preview-views.ts';
 const HAND_WRITTEN = [
   'available_data',
   'indicator',
+  'indicator_grouping',
   'indicator_slug',
   'indicator_update_summary',
   'observation_dimension',
@@ -102,5 +103,12 @@ describe('planPreviewViews', () => {
 
   it('refuses a hand-written preview view with no published view', () => {
     expect(() => planPreviewViews(handWritten.slice(1))).toThrow(/available_data/);
+  });
+
+  it('leaves out a hand-written preview view with no published view when asked to', () => {
+    expect(planPreviewViews(handWritten.slice(1), { skipUnpublished: true })).toEqual({
+      generated: [],
+      handWritten: HAND_WRITTEN.slice(1),
+    });
   });
 });

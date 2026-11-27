@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { benchmarkFixture } from './benchmark.testing.ts';
 import { loadIndicatorCsv } from './csv.ts';
 import { indicatorPageContext } from './page-context.ts';
+import { publishedSexFixture } from './published-sex.testing.ts';
 import { indicatorDetail, sex } from './view.testing.ts';
 
 const SLUG = 'mortality-all-causes';
@@ -78,6 +79,26 @@ function paths(client: FakeApiClient) {
 }
 
 describe('loadIndicatorCsv', () => {
+  it.each([92443, 93622] as const)(
+    'downloads only the published persons series for %s with a stale sex and age',
+    async (shortId) => {
+      const fixture = publishedSexFixture(shortId);
+      const client = api(fixture.areaData, {
+        [`GET ${DETAIL}`]: { ...fixture.detail, slug: SLUG },
+      });
+      const url = `http://localhost/indicator/${SLUG}/table.csv?sex-${shortId}=Male&age-${shortId}=65%2B+yrs`;
+      const response = await loadIndicatorCsv(args(client, url), 'table');
+      const body = await response.text();
+      expect(body).toContain('2024,12,');
+      for (const value of [77, 88, 99]) expect(body).not.toContain(`2024,${value},`);
+      const allData = await loadIndicatorCsv(args(client, url), 'all-data');
+      const all = await allData.text();
+      expect(all).toContain('Male');
+      expect(all).toContain('Female');
+      expect(all).toContain(shortId === 92443 ? '65+ yrs' : '25-64 yrs');
+    },
+  );
+
   it('exports both IMD value and spread groups, neighbour means, CA values and goal verdicts in table order', async () => {
     const fixture = benchmarkFixture();
     const client = api([], {
@@ -1064,5 +1085,100 @@ it.each([3, 5, 7])(
     expect(rows[0]).toBe(
       `${2025 - years}/${String(2026 - years).slice(-2)} to 2024/25,${years},339,343.2`,
     );
+  },
+);
+
+it.each(['65+ yrs', 'unpublished'])(
+  'downloads the chosen published age with URL age %s',
+  async (age) => {
+    const client = api(
+      [
+        {
+          areaCode: 'E92000001',
+          areaName: 'England',
+          observations: [18, 65, 75].map((years) =>
+            observation({
+              value: years,
+              dimensions: [
+                {
+                  type: 'Age',
+                  value: `${years}+ yrs`,
+                  ageFrom: `P${years}Y`,
+                  dimensionClass: 'core',
+                  sortOrder: years,
+                },
+              ],
+            }),
+          ),
+        },
+      ],
+      {
+        [`GET ${DETAIL}`]: {
+          ...detail,
+          publishedGroupings: [18, 65].map((years) => ({
+            sex: null,
+            age: `${years}+ yrs`,
+            yearRange: 1,
+            periodKind: 'annual',
+          })),
+        },
+      },
+    );
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?age-108=${encodeURIComponent(age)}`,
+      ),
+      'table',
+    );
+    const body = await response.text();
+    expect(body).toContain(`2023,${age === '65+ yrs' ? 65 : 18},`);
+    expect(body).not.toContain('2023,75,');
+  },
+);
+
+it.each(['', '65+ yrs', '18+ yrs'])(
+  'downloads the selected areas age with suppressed England and requested age %s',
+  async (age) => {
+    const point = (years: number, value: number | null) =>
+      observation({
+        value,
+        dimensions: [
+          {
+            type: 'Age',
+            value: `${years}+ yrs`,
+            ageFrom: `P${years}Y`,
+            dimensionClass: 'core',
+            sortOrder: years,
+          },
+        ],
+      });
+    const client = api(
+      [
+        { areaCode: 'E12000001', areaName: 'North East', observations: [point(65, 65)] },
+        { areaCode: 'E92000001', areaName: 'England', observations: [point(18, null)] },
+      ],
+      {
+        [`GET ${DETAIL}`]: {
+          ...detail,
+          publishedGroupings: [18, 65].map((years) => ({
+            sex: null,
+            age: `${years}+ yrs`,
+            yearRange: 1,
+            periodKind: 'annual',
+          })),
+        },
+      },
+    );
+    const response = await loadIndicatorCsv(
+      args(
+        client,
+        `http://localhost/indicator/${SLUG}/table.csv?as=E12000001&age-108=${encodeURIComponent(age)}`,
+      ),
+      'table',
+    );
+    const body = await response.text();
+    if (age === '18+ yrs') expect(body.trim()).toBe('Period');
+    else expect(body).toContain('2023,65,');
   },
 );

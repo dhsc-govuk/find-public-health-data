@@ -47,6 +47,7 @@ const indicator: IndicatorDetail = {
   topics: [],
   classifications: [],
   updateSummaries: [],
+  publishedGroupings: [],
 };
 
 function renderBackground(detail: IndicatorPageDetail) {

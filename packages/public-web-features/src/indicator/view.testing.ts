@@ -44,6 +44,7 @@ export function indicatorDetail(
     topics: [],
     classifications: [],
     updateSummaries: [],
+    publishedGroupings: [],
     ...overrides,
   };
 }

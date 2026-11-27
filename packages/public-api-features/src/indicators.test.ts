@@ -47,6 +47,7 @@ const indicatorDetail = {
     { dimension: 'indicator_type', slug: 'indicator-type-outcome', name: 'Outcome' },
   ],
   updateSummaries: [],
+  publishedGroupings: [],
 };
 
 function createTestApp(overrides: FakeRepositoryOverrides['indicators'] = {}): Express {

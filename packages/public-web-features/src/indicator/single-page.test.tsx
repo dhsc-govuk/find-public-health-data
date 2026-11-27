@@ -52,6 +52,7 @@ function selected(shortId: number, name: string, value: number): SelectedIndicat
     topics: [{ slug: 'diabetes', title: 'Diabetes' }],
     classifications: [],
     updateSummaries: [],
+    publishedGroupings: [],
   } as IndicatorDetail;
   return {
     detail,
