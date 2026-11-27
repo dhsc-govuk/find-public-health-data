@@ -159,10 +159,21 @@ transaction. This keeps the parameter count constant for the 73,302 areas and 15
 and IMD2019 decile memberships for both local authority tiers on April 2023 geography, keyed by area
 code and dimension value id. The import resolves each code to exactly one current area, retains
 existing area ids and replaces obsolete memberships. These catalogs are imported separately from
-seed and live-data packages. Refresh deprivation memberships with
-`python3 packages/db-operations/data/geography/export-area-categories.py`; clear this worktree's
-`node_modules/.cache/area-categories` first to fetch new responses. The exporter updates the
-geography manifest's row count, size and digest.
+seed and live-data packages.
+
+Both files are built from the public Fingertips API by commands in the migration tool. Run them from
+the repository root after `area.csv.gz` changes, or to pick up new peer groups or deciles:
+
+```sh
+pnpm --filter @fphd/data-migration data-migration export-area-neighbours
+pnpm --filter @fphd/data-migration data-migration export-area-categories
+```
+
+Each writes its file into `data/geography/` and updates that file's row count, size and digest in
+the manifest. Neighbour ids are derived from the council's code, the scheme and the position, so an
+unchanged ranking keeps its ids. The categories command caches the API's responses in this
+worktree's `node_modules/.cache/area-categories`; clear it first to fetch new ones. A refresh that
+finds the same rows leaves the file and the manifest as they are.
 
 Areas match on code and area type. Relationships match on their parent and child areas. Existing ids
 are retained when those keys match. Multiple matching area or relationship versions stop the import

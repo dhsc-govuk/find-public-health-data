@@ -1,6 +1,4 @@
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
 import { lstat, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,17 +9,12 @@ import {
   assertMigrationFileNames,
   type DataMigrationManifest,
   dataMigrationManifestSchema,
+  sha256,
 } from '@fphd/db-operations';
 
 import { type DownloadResume, downloadFile } from './download.ts';
 
 const runFile = promisify(execFile);
-
-async function sha256(path: string): Promise<string> {
-  const hash = createHash('sha256');
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
-  return hash.digest('hex');
-}
 
 async function assertRegularFile(path: string): Promise<void> {
   if (!(await lstat(path)).isFile()) throw new Error('Data migration archive contains a link');

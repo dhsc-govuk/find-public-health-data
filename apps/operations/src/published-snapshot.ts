@@ -1,13 +1,11 @@
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import { z } from '@fphd/config';
-import { readCsvHeader, SEED_TABLES } from '@fphd/db-operations';
+import { readCsvHeader, SEED_TABLES, sha256 } from '@fphd/db-operations';
 
 import { type DownloadResume, downloadFile } from './download.ts';
 
@@ -54,12 +52,6 @@ export type PublishedManifest = z.infer<typeof manifestSchema>;
 function sameMembers(left: number[], right: number[]): boolean {
   const sorted = (list: number[]) => [...list].sort((a, b) => a - b).join(',');
   return sorted(left) === sorted(right);
-}
-
-async function sha256(path: string): Promise<string> {
-  const hash = createHash('sha256');
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
-  return hash.digest('hex');
 }
 
 export async function verifyPublishedSnapshot(directory: string): Promise<PublishedManifest> {

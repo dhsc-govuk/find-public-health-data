@@ -1,18 +1,13 @@
-import { createHash } from 'node:crypto';
 import { once } from 'node:events';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { createWriteStream } from 'node:fs';
 import { mkdir, stat } from 'node:fs/promises';
 import { finished } from 'node:stream/promises';
 import { createGzip } from 'node:zlib';
 
+import { sha256 } from '@fphd/db-operations';
+
 export async function ensureDirectory(path: string): Promise<void> {
   await mkdir(path, { recursive: true });
-}
-
-export async function sha256(path: string): Promise<string> {
-  const hash = createHash('sha256');
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
-  return hash.digest('hex');
 }
 
 // postgres.js leaves its connection wedged if stream.pipeline() pauses a COPY TO STDOUT

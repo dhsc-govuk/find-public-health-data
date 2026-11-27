@@ -1,7 +1,16 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { createArchive } from './archive.ts';
+import { exportAreaCategories } from './area-categories.ts';
+import { exportAreaNeighbours } from './area-neighbours.ts';
 import { createIncremental } from './diff.ts';
 import { exportDevSnapshot } from './export-dev-snapshot.ts';
+import {
+  cachedFetchJson,
+  DEFAULT_CACHE_DIRECTORY,
+  DEFAULT_DATA_DIRECTORY,
+  fetchFingertipsJson,
+} from './geography-files.ts';
 import {
   APPROVED_INDICATORS_FILE,
   parseApprovedIndicators,
@@ -125,9 +134,25 @@ async function main(argv: readonly string[]): Promise<void> {
         outDir: required(values, 'out-dir'),
       });
       return;
+    case 'export-area-neighbours': {
+      const entry = await exportAreaNeighbours(
+        values.get('data-dir') ?? DEFAULT_DATA_DIRECTORY,
+        fetchFingertipsJson,
+      );
+      console.log(JSON.stringify(entry));
+      return;
+    }
+    case 'export-area-categories': {
+      const entry = await exportAreaCategories(
+        values.get('data-dir') ?? DEFAULT_DATA_DIRECTORY,
+        cachedFetchJson(join(DEFAULT_CACHE_DIRECTORY, 'area-categories'), fetchFingertipsJson),
+      );
+      console.log(JSON.stringify(entry));
+      return;
+    }
     default:
       throw new Error(
-        'Usage: data-migration <export-pholio|export-core-reference-data|prepare-baseline|create-incremental|archive|generate-taxonomy-relationships|export-legacy-seed|import-prototype-seed|export-dev-snapshot> --option value',
+        'Usage: data-migration <export-pholio|export-core-reference-data|prepare-baseline|create-incremental|archive|generate-taxonomy-relationships|export-legacy-seed|import-prototype-seed|export-dev-snapshot|export-area-neighbours|export-area-categories> --option value',
       );
   }
 }
