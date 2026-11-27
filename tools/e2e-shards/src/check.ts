@@ -1,4 +1,4 @@
-import type { Shard } from './pack.ts';
+import type { Shard, Timings } from './pack.ts';
 import type { ReportedTest } from './report.ts';
 
 /**
@@ -78,4 +78,16 @@ export function findMisplacedFiles(
       ...extra.map((file) => `Shard ${index + 1} runs ${file}, which the timings put elsewhere`),
     ];
   });
+}
+
+/**
+ * A problem when the timings name files but none of them is a listed spec file, as when the keys
+ * and the spec paths stop matching. Every file would then weigh the same, and the shards would
+ * still divide the suite consistently, only by file count.
+ */
+export function findUnmatchedTimings(files: readonly string[], timings: Timings): string[] {
+  const keys = Object.keys(timings);
+  return keys.length > 0 && !files.some((file) => Object.hasOwn(timings, file))
+    ? [`None of the ${keys.length} files in e2e/shard-timings.json is a listed spec file`]
+    : [];
 }

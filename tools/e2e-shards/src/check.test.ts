@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { findMisplacedFiles, findShardProblems, readShardTotal } from './check.ts';
+import {
+  findMisplacedFiles,
+  findShardProblems,
+  findUnmatchedTimings,
+  readShardTotal,
+} from './check.ts';
 
 const matrix = (...suites: string[]) =>
   `      matrix:\n        include:\n${suites.map((suite) => `          - suite: ${suite}\n            report: x\n`).join('')}`;
@@ -69,5 +74,21 @@ describe('findMisplacedFiles', () => {
       'Shard 1 runs b.spec.ts, which the timings put elsewhere',
       "Shard 2 should run b.spec.ts but doesn't",
     ]);
+  });
+});
+
+describe('findUnmatchedTimings', () => {
+  it('finds nothing when at least one listed spec file has a timing', () => {
+    expect(findUnmatchedTimings(['a.spec.ts', 'new.spec.ts'], { 'a.spec.ts': 2 })).toEqual([]);
+  });
+
+  it('finds nothing when the timings file is empty', () => {
+    expect(findUnmatchedTimings(['a.spec.ts'], {})).toEqual([]);
+  });
+
+  it('names the problem when no listed spec file has a timing', () => {
+    expect(
+      findUnmatchedTimings(['public/a.spec.ts'], { 'tests/public/a.spec.ts': 2, 'b.spec.ts': 1 }),
+    ).toEqual(['None of the 2 files in e2e/shard-timings.json is a listed spec file']);
   });
 });

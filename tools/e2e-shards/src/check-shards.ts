@@ -10,7 +10,12 @@ import path from 'node:path';
 
 import type { JSONReport } from '@playwright/test/reporter';
 
-import { findMisplacedFiles, findShardProblems, readShardTotal } from './check.ts';
+import {
+  findMisplacedFiles,
+  findShardProblems,
+  findUnmatchedTimings,
+  readShardTotal,
+} from './check.ts';
 import { packFiles, type Timings } from './pack.ts';
 import { type ReportedTest, reportedTests } from './report.ts';
 
@@ -39,7 +44,14 @@ async function main(): Promise<void> {
       timings,
       total,
     );
-    const problems = [...findShardProblems(suite, shards), ...findMisplacedFiles(expected, shards)];
+    const problems = [
+      ...findUnmatchedTimings(
+        suite.map((test) => test.file),
+        timings,
+      ),
+      ...findShardProblems(suite, shards),
+      ...findMisplacedFiles(expected, shards),
+    ];
     if (problems.length === 0) {
       const sizes = shards.map((tests, index) => `${index + 1}/${total}: ${tests.length}`);
       console.log(`Each of the ${suite.length} tests runs in one shard (${sizes.join(', ')}).`);
