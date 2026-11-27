@@ -1154,13 +1154,13 @@ test('says when the time periods roll, on the page and in the metadata download'
     .getByText('Download or share data', { exact: true })
     .click();
   const metadata = await downloadFrom(page, 'Download metadata about this indicator (TXT)', 'link');
-  expect(metadata.text).toContain('Rolling time periods: Yes - Years');
+  expect(metadata.text).toContain('Rolling time periods: Years');
 
   await page.getByRole('tab', { name: 'About this indicator' }).click();
   await expect(answerTo(page, 'Time periods')).toHaveText(
     '3-year Calendar years (1 January to 31 December), Calendar years (1 January to 31 December)',
   );
-  await expect(answerTo(page, 'Rolling time periods')).toHaveText('Yes - Years');
+  await expect(answerTo(page, 'Rolling time periods')).toHaveText('Years');
   await expect(page.getByRole('term').filter({ hasText: /^Cumulative values$/ })).toHaveCount(0);
 });
 

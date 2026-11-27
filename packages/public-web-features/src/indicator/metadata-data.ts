@@ -47,11 +47,11 @@ export function updateFrequencyLine({
 }
 
 /**
- * That the indicator's time periods roll, and how often, such as "Yes - Months", or null for
- * periods that do not roll or are unanswered, which show no row.
+ * How often the indicator's time periods roll, such as "Months", or null for periods that do not
+ * roll or are unanswered, which show no row.
  */
 export function rollingTimePeriodsText({
   rollingFrequency,
 }: Pick<IndicatorPageDetail, 'rollingFrequency'>): string | null {
-  return rollingFrequency === null ? null : `Yes - ${ROLLING_FREQUENCY_LABELS[rollingFrequency]}`;
+  return rollingFrequency === null ? null : ROLLING_FREQUENCY_LABELS[rollingFrequency];
 }

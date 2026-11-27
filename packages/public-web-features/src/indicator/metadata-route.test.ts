@@ -64,7 +64,7 @@ it('gives time periods that roll, with their frequency, after the time periods',
   const text = await (await loader(args(api, false))).text();
 
   expect(text).toContain(
-    'Time periods: Calendar years (1 January to 31 December)\n\nRolling time periods: Yes - Months',
+    'Time periods: Calendar years (1 January to 31 December)\n\nRolling time periods: Months',
   );
 });
 

@@ -301,7 +301,7 @@ describe('BackgroundInformation', () => {
     const rolling = screen
       .getAllByRole('term')
       .find((term) => term.textContent === 'Rolling time periods');
-    expect(rolling?.nextElementSibling?.textContent).toBe('Yes - Quarters');
+    expect(rolling?.nextElementSibling?.textContent).toBe('Quarters');
     expect(attributeNames()).not.toContain('Cumulative values');
   });
 
@@ -462,7 +462,7 @@ describe('placeholders', () => {
       unanswered: [],
     });
 
-    expect(row('Rolling time periods')).toBe('Yes - Quarters');
+    expect(row('Rolling time periods')).toBe('Quarters');
     expect(row('Cumulative values')).toBe('Yes');
 
     cleanup();

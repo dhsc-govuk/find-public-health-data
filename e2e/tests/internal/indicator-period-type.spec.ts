@@ -206,7 +206,7 @@ test('saves every kind of time period and shows them in the preview', async ({ p
   await expect(answerTo(page, 'Time periods')).toHaveText(
     '3-year Calendar years (1 January to 31 December), Years ending 31 July, Quarters, 1 October to 31 March',
   );
-  await expect(answerTo(page, 'Rolling time periods')).toHaveText('Yes - Months');
+  await expect(answerTo(page, 'Rolling time periods')).toHaveText('Months');
   await expect(answerTo(page, 'Cumulative values')).toHaveText('Yes');
 });
 
