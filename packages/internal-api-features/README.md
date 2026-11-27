@@ -1,17 +1,27 @@
 # @fphd/internal-api-features
 
-Routes and repository functions only `internal_api` may run: today, topic administration and the
-publisher's view of indicators, listed for the dashboard and read one at a time for the overview
-page. The `internal-` prefix is what `tools/artefact-boundary` keys on, so nothing here can reach a
-public image.
+The routes and repository functions that only `internal_api` may run. They cover:
+
+- the publisher's work on an indicator: the dashboard list, the overview and its preview, starting a
+  new indicator or an update to a live one, the task list's sections, uploading and checking the
+  data table, and submitting, withdrawing or discarding a draft
+- review: the IMRG manager assigns reviewers, reviewers respond and keep notes, and the publisher
+  replies to a request for revisions
+- sign-off: the core team decides on a submitted update and an admin confirms the publication date
+- the workflow's queues and each indicator's history
+- the lists a publisher chooses from: tags, data providers, confidence interval methods, and value
+  types and units
+- topic administration
+
+`tools/artefact-boundary` uses the `internal-` prefix to keep this package out of the public images.
 
 Built package; consumed by `internal-api`, and by `@fphd/internal-web-features` for the contract.
 
-| Entry        | Purpose                                                                                                                                 |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `.`          | `internalApiRoutes` (every internal route in one router), `internalTopicsRouter`, `createInternalRepositories` and the repository types |
-| `./contract` | The zod schemas and inferred types for the internal API's request and response bodies, shared with the internal web loaders             |
-| `./testing`  | `createFakeInternalRepositories` for handler tests                                                                                      |
+| Entry        | Purpose                                                                                                                                                                                                                                                   |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.`          | `internalApiRoutes`, one router with every internal route, and the `InternalApiDependencies` it takes. `createInternalRepositories` and the `InternalRepositories` type. `INTERNAL_API_BODY_LIMITS`, passed to `createApiApp`. The types the preview uses |
+| `./contract` | The zod schemas and inferred types for the internal API's request and response bodies, shared with the internal web loaders                                                                                                                               |
+| `./testing`  | `createFakeInternalRepositories`, `createRouterTestApp`, a test session and actor, and other helpers for handler tests                                                                                                                                    |
 
 Queries live in this package's repository files rather than `@fphd/db`, which is the public read
 surface.
