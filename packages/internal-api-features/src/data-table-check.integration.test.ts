@@ -323,8 +323,8 @@ describe('GET /api/internal/indicators/:id/data-table/values', () => {
     ['count', ['Blank', '12', '-3']],
     ['period', ['2021/22', '2020/21', '2019/20']],
     ['areaCode', ['E06000047', 'E08000035', 'E92000001']],
-    ['sex', ['Blank', 'Female', 'Male']],
-    ['age', ['Blank', '<75 yrs', '18+ yrs']],
+    ['sex', ['Persons', 'Female', 'Male']],
+    ['age', ['All ages', '<75 yrs', '18+ yrs']],
     ['categoryType', ['Blank', 'Ethnic groups [4]', 'Ethnic groups [17]']],
     ['category', ['Blank', 'White']],
     ['valueNote', ['Blank', 'Aggregated from values for merged CCGs']],
@@ -334,6 +334,17 @@ describe('GET /api/internal/indicators/:id/data-table/values', () => {
     const listed = await labels(indicatorId, `?column=${column}`);
 
     expect(listed).toEqual({ [column]: expected });
+  });
+
+  it('lists a total of sex or age by its name, with the id of any other empty cell', async () => {
+    const indicatorId = await filterable('Values of totals');
+    const hash = async (column: string, label: string) =>
+      (await filterId(indicatorId, column, label)).split('.')[1];
+
+    const blank = await hash('value', 'Blank');
+
+    expect(await hash('sex', 'Persons')).toBe(blank);
+    expect(await hash('age', 'All ages')).toBe(blank);
   });
 
   it('lists no values for a column the file did not have', async () => {
@@ -359,12 +370,12 @@ describe('GET /api/internal/indicators/:id/data-table/values', () => {
     expect(await labels(indicatorId, '?search=blank')).toEqual({
       value: ['Blank'],
       count: ['Blank'],
-      sex: ['Blank'],
-      age: ['Blank'],
       categoryType: ['Blank'],
       category: ['Blank'],
       valueNote: ['Blank'],
     });
+    expect(await labels(indicatorId, '?search=PERSON')).toEqual({ sex: ['Persons'] });
+    expect(await labels(indicatorId, '?search=all%20ages')).toEqual({ age: ['All ages'] });
   });
 
   it.each([
@@ -405,7 +416,7 @@ describe('GET /api/internal/indicators/:id/data-table/values', () => {
 
     expect(await labels(indicatorId, '?column=value')).toEqual({ value: ['10', '9.5'] });
     expect(await labels(indicatorId, '?column=sex')).toEqual({ sex: ['Female', 'Male'] });
-    expect(await labels(indicatorId, '?column=age')).toEqual({ age: ['Blank'] });
+    expect(await labels(indicatorId, '?column=age')).toEqual({ age: ['All ages'] });
   });
 
   it('lists no more than 100 values of a column, and says when there are others', async () => {
@@ -465,8 +476,8 @@ describe('GET /api/internal/indicators/:id/data-table, filtered', () => {
     ['valueNote', 'Aggregated from values for merged CCGs', ['E08000035 2019']],
     ['value', 'Blank', ['E08000035 2019']],
     ['count', 'Blank', ['E92000001 2020', 'E06000047 2020', 'E06000047 2021']],
-    ['sex', 'Blank', ['E08000035 2020', 'E06000047 2020', 'E06000047 2021']],
-    ['age', 'Blank', ['E06000047 2020', 'E06000047 2021']],
+    ['sex', 'Persons', ['E08000035 2020', 'E06000047 2020', 'E06000047 2021']],
+    ['age', 'All ages', ['E06000047 2020', 'E06000047 2021']],
     [
       'categoryType',
       'Blank',
@@ -509,7 +520,7 @@ describe('GET /api/internal/indicators/:id/data-table, filtered', () => {
     ).toEqual(['E08000035 2019', 'E92000001 2019']);
     expect(await matching(indicatorId, ['sex', 'Female'], ['areaCode', 'E08000035'])).toEqual([]);
     expect(
-      (await matching(indicatorId, ['sex', 'Blank'], ['sex', 'Male'], ['age', '18+ yrs'])).sort(),
+      (await matching(indicatorId, ['sex', 'Persons'], ['sex', 'Male'], ['age', '18+ yrs'])).sort(),
     ).toEqual(['E08000035 2020']);
     expect((await matching(indicatorId, ['value', 'Blank'], ['value', '10'])).sort()).toEqual([
       'E08000035 2019',

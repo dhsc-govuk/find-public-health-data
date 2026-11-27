@@ -211,7 +211,8 @@ test('shows the rows with an empty cell', async ({ page }) => {
   await expect(periods(page)).toHaveText(['2021', '2022']);
 
   await page.getByRole('link', { name: 'Clear filters' }).click();
-  await addValues(page, 'Sex', 'Blank');
+  await addValues(page, 'Sex', 'Persons');
+  await expect(chips(page)).toHaveText([/Persons \(Sex\)/]);
   await expect(periods(page)).toHaveText(['2023']);
 });
 

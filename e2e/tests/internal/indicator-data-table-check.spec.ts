@@ -97,6 +97,26 @@ test('shows the count, numerator and denominator before the value, in separate c
   ]);
 });
 
+test('names a total of sex and age as Persons and All ages', async ({ page }) => {
+  const csv = [
+    'area_code,period_start,period_end,value,sex,age',
+    'E92000001,2019-01-01,2019-12-31,25,Persons,All ages',
+    'E92000001,2020-01-01,2020-12-31,26,,',
+    'E92000001,2021-01-01,2021-12-31,27,Female,18+ yrs',
+  ].join('\n');
+  await openDataTableCheck(page, csv);
+
+  const sexAndAge = dataTableRows(page).locator('td:nth-last-child(-n+2)');
+  await expect(sexAndAge).toHaveText([
+    'Persons',
+    'All ages',
+    'Persons',
+    'All ages',
+    'Female',
+    '18+ yrs',
+  ]);
+});
+
 test('pages through the data table', async ({ page }) => {
   const id = await openCheckPage(page);
   const pages = page.getByRole('navigation', { name: 'Data table pages' });

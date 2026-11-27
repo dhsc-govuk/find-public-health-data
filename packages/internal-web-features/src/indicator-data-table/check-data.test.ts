@@ -84,8 +84,11 @@ describe('checkColumns', () => {
     );
   });
 
-  it('leaves the sex and age blank for a row stored without them', () => {
-    expect(cells({ ...ROW, sex: null, age: null })).toMatchObject({ Sex: '', Age: '' });
+  it('shows a total, stored without the sex and age, as Persons and All ages', () => {
+    expect(cells({ ...ROW, sex: null, age: null })).toMatchObject({
+      Sex: 'Persons',
+      Age: 'All ages',
+    });
   });
 
   it('shows a category with its type, and the value notes', () => {

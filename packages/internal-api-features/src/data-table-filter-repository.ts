@@ -27,6 +27,7 @@ import {
   MAX_LISTED_DATA_TABLE_VALUES,
 } from './data-table-filter-contract.ts';
 import { AGE, nameKey, SEX } from './data-table-names.ts';
+import { ALL_AGES_NAME, ALL_SEXES_NAME } from './data-table-rows.ts';
 
 const { area, dimensionType, dimensionValue, noteType, observation, observationNote } = schema;
 
@@ -60,10 +61,10 @@ interface ColumnReader {
 }
 
 /**
- * An empty cell, listed as a value of its column. Its hash is that of the empty text, which no
- * value has, so it has an id like any other value's.
+ * The hash of an empty cell, listed as a value of its column. It is that of the empty text, which
+ * no value has, so an empty cell has an id like any other value's.
  */
-const BLANK: ColumnValue = { hash: 'd41d8cd98f', label: 'Blank' };
+const BLANK_HASH = 'd41d8cd98f';
 
 interface ColumnSource<Match> {
   find: (wanted: Wanted) => Promise<MatchedValue<Match>[]>;
@@ -71,22 +72,31 @@ interface ColumnSource<Match> {
   where: (matches: Match[]) => SQL | undefined;
   /** The condition for a row whose cell is empty, or undefined if the batch has none. */
   blank?: () => Promise<SQL | undefined>;
+  /** What an empty cell is listed as, such as "Persons" for a total in the sex column. */
+  blankLabel?: string | undefined;
 }
 
-function columnReader<Match>({ find, where, blank }: ColumnSource<Match>): ColumnReader {
+function columnReader<Match>({
+  find,
+  where,
+  blank,
+  blankLabel = 'Blank',
+}: ColumnSource<Match>): ColumnReader {
+  const empty: ColumnValue = { hash: BLANK_HASH, label: blankLabel };
+
   return {
     list: async (search) => {
       const values = await find({ search });
-      const isBlank = BLANK.label.toLowerCase().includes(search.toLowerCase())
+      const isBlank = empty.label.toLowerCase().includes(search.toLowerCase())
         ? await blank?.()
         : undefined;
-      return isBlank === undefined ? values : [BLANK, ...values];
+      return isBlank === undefined ? values : [empty, ...values];
     },
     resolve: async (hashes) => {
       const values = await find({ hashes });
-      const isBlank = hashes.includes(BLANK.hash) ? await blank?.() : undefined;
+      const isBlank = hashes.includes(empty.hash) ? await blank?.() : undefined;
       return {
-        values: isBlank === undefined ? values : [BLANK, ...values],
+        values: isBlank === undefined ? values : [empty, ...values],
         where: or(
           values.length === 0 ? undefined : where(values.flatMap(({ matches }) => matches)),
           isBlank,
@@ -313,6 +323,7 @@ function columnReaders(
       type: string;
       typeHash: string;
     }) => ColumnValue,
+    blankLabel?: string,
   ) =>
     columnReader<string>({
       find: async (wanted) =>
@@ -331,10 +342,15 @@ function columnReaders(
           .map(({ key }) => key);
         return keys.length === 0 ? undefined : hasDimensionKey(keys);
       },
+      blankLabel,
     });
 
-  const dimensionValues = (ofType: (type: string) => boolean) =>
-    dimensionColumn(ofType, ({ value, valueHash }) => ({ label: value, hash: valueHash }));
+  const dimensionValues = (ofType: (type: string) => boolean, blankLabel?: string) =>
+    dimensionColumn(
+      ofType,
+      ({ value, valueHash }) => ({ label: value, hash: valueHash }),
+      blankLabel,
+    );
 
   const categoryTypes = dimensionColumn(isCategory, ({ type, typeHash }) => ({
     label: type,
@@ -384,8 +400,9 @@ function columnReaders(
     upperCi998: numbers('upperCi998'),
     period: periods,
     areaCode: areas,
-    sex: dimensionValues(isSex),
-    age: dimensionValues(isAge),
+    // A total is stored without the dimension, so the empty cell is listed as the file names it.
+    sex: dimensionValues(isSex, ALL_SEXES_NAME),
+    age: dimensionValues(isAge, ALL_AGES_NAME),
     categoryType: categoryTypes,
     category: dimensionValues(isCategory),
     valueNote: valueNotes,

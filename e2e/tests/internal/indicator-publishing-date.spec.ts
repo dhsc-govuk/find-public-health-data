@@ -119,6 +119,20 @@ test('refuses a date that does not exist, keeping what was typed', async ({ page
   await expectShown(page, { ...LATER, day: '31', month: '2' });
 });
 
+test('gives one message for a date with several wrong parts, marking each', async ({ page }) => {
+  await openSectionPage(page, SECTION);
+
+  await fill(page, { ...LATER, day: 'a', month: 'b', year: 'c' });
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page.getByRole('alert').getByRole('link')).toHaveText([
+    'Publishing date must be a real date',
+  ]);
+  for (const label of ['Day', 'Month', 'Year']) {
+    await expect(part(page, 'Date', label)).toHaveClass(/govuk-input--error/);
+  }
+});
+
 test('refuses a time that does not exist', async ({ page }) => {
   await openSectionPage(page, SECTION);
 
