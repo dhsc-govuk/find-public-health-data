@@ -233,6 +233,86 @@ test('forgets the answers of a kind of time period once it is unticked', async (
   );
 });
 
+test('validates, saves and clears the optional date from which data is shown', async ({ page }) => {
+  const taskListPath = await openSectionPage(page, SECTION);
+  const pagePath = new URL(page.url()).pathname;
+  await timePeriod(page, 'Months').check();
+  await answerRollingAndCumulative(page);
+  const start = page.getByRole('textbox', { name: 'Show data from (optional)' });
+  await start.fill('2023-02-29');
+  await continueButton(page).click();
+  const summary = page.getByRole('alert');
+  await expect(summary.getByRole('link')).toHaveText('Enter a real date in the format YYYY-MM-DD');
+  await expectErrorSummaryReady(page);
+  await summary.getByRole('link').click();
+  await expect(start).toBeFocused();
+  await start.fill('2020-01-01');
+  await continueButton(page).click();
+  await expect(page).toHaveURL(taskListPath);
+  await page.goto(pagePath);
+  await expect(start).toHaveValue('2020-01-01');
+  await start.fill('');
+  await continueButton(page).click();
+  await expect(page).toHaveURL(taskListPath);
+  await page.goto(pagePath);
+  await expect(start).toBeEmpty();
+});
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('shows the questions of every kind of time period, and saves the ticked ones', async ({
+    page,
+  }) => {
+    const taskListPath = await openSectionPage(page, SECTION);
+    const pagePath = new URL(page.url()).pathname;
+
+    // Every reveal shows without JavaScript, each with controls of its own.
+    await expect(page.getByLabel('Enter number of years')).toBeVisible();
+    await expect(yearTypes(page, 'Periods of more than 1 year')).toBeVisible();
+    await expect(yearTypes(page, 'Single years')).toBeVisible();
+    await expect(dateGroup(page, 'Start date')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Select rolling frequency' })).toBeVisible();
+
+    await timePeriod(page, 'Single years').check();
+    await yearTypes(page, 'Single years').getByLabel('Ending a specified date').check();
+    await yearTypes(page, 'Single years').getByLabel('Day').fill('30');
+    await yearTypes(page, 'Single years').getByLabel('Month').fill('9');
+    // Answers under a kind left unticked are not saved.
+    await yearTypes(page, 'Periods of more than 1 year')
+      .getByLabel('Calendar (1 January to 31 December)')
+      .check();
+    await timePeriod(page, 'Months').check();
+    await yesNo(page, ROLLING, 'Yes').check();
+    await page
+      .getByRole('group', { name: 'Select rolling frequency' })
+      .getByLabel('Quarters', { exact: true })
+      .check();
+    await yesNo(page, CUMULATIVE, 'No').check();
+    await continueButton(page).click();
+
+    await expect(page).toHaveURL(taskListPath);
+    await expect(taskRow(page, SECTION.taskName)).toContainText('Completed');
+
+    await page.goto(pagePath);
+    await expect(timePeriod(page, 'Single years')).toBeChecked();
+    await expect(timePeriod(page, 'Months')).toBeChecked();
+    await expect(timePeriod(page, 'Periods of more than 1 year')).not.toBeChecked();
+    await expect(
+      yearTypes(page, 'Single years').getByLabel('Ending a specified date'),
+    ).toBeChecked();
+    await expect(yearTypes(page, 'Single years').getByLabel('Day')).toHaveValue('30');
+    await expect(
+      yearTypes(page, 'Periods of more than 1 year').getByRole('radio', { checked: true }),
+    ).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('group', { name: 'Select rolling frequency' })
+        .getByLabel('Quarters', { exact: true }),
+    ).toBeChecked();
+  });
+});
+
 test('has no WCAG 2.2 AA violations', async ({ page }, testInfo) => {
   await openSectionPage(page, SECTION);
   await timePeriod(page, 'Periods of more than 1 year').check();
