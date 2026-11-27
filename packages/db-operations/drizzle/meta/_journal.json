@@ -736,6 +736,13 @@
       "when": 1795711256725,
       "tag": "0104_indicator-format-and-sources",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1795715655901,
+      "tag": "0105_quality-caveats-and-interpretation",
+      "breakpoints": true
     }
   ]
 }

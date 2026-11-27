@@ -217,6 +217,16 @@ describe('BackgroundInformation', () => {
     expect(screen.getAllByText('Disclosure control')).toHaveLength(1);
   });
 
+  it('lists the caveats before the notes under Other notes and caveats', () => {
+    renderBackground({ ...indicator, caveats: 'Survey data.', notes: 'Revised in 2024.' });
+
+    const list = screen.getByRole('heading', { name: 'Other notes and caveats' })
+      .nextElementSibling as HTMLElement;
+    expect(
+      Array.from(list.querySelectorAll('.govuk-summary-list__key')).map((key) => key.textContent),
+    ).toEqual(['Caveats', 'Notes']);
+  });
+
   it('shows a lone data value under its own heading with its sources, definition and disclosure control', () => {
     renderBackground({
       ...indicator,

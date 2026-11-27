@@ -28,8 +28,6 @@ export const VOCABULARY: readonly [string, string, string][] = [
 export const NOTES_AND_CAVEATS_COLUMNS = [
   'disclosure_control',
   'disclosure_control_detail',
-  'has_rounding',
-  'rounding_detail',
   'has_caveats',
   'caveats_detail',
   'has_other_notes',
@@ -53,8 +51,6 @@ function proseAnswer(source: string, text: string): string {
 export interface NotesAndCaveatsResult {
   disclosure_control: string | null;
   disclosure_control_detail: string | null;
-  has_rounding: null;
-  rounding_detail: null;
   has_caveats: boolean | null;
   caveats_detail: string | null;
   has_other_notes: boolean | null;
@@ -70,8 +66,6 @@ export function notesAndCaveats(prose: {
   const result: NotesAndCaveatsResult = {
     disclosure_control: null,
     disclosure_control_detail: null,
-    has_rounding: null,
-    rounding_detail: null,
     has_caveats: null,
     caveats_detail: null,
     has_other_notes: null,

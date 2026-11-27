@@ -1357,7 +1357,6 @@ describe('GET /api/internal/indicators/:id/task-list', () => {
         'data-table': 'not_started',
         'definition-and-rationale': 'not_started',
         polarity: 'not_started',
-        'data-quality': 'not_started',
         'format-and-sources': 'not_started',
         calculation: 'not_started',
         'confidence-intervals': 'not_started',

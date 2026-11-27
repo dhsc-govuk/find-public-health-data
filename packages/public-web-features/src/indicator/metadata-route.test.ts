@@ -58,3 +58,17 @@ it('never gives a placeholder on the public side, whose schema drops the unanswe
   expect(text).not.toContain('[Not entered yet]');
   expect(text).not.toContain('Unit:');
 });
+
+it('gives the caveats before the notes, as the page shows them', async () => {
+  const api = createFakeApiClient({
+    'GET /api/indicators/indicator-108': {
+      ...indicatorDetail(108),
+      caveats: 'Survey data.',
+      notes: 'Revised in 2024.',
+    },
+  });
+
+  const text = await (await loader(args(api, false))).text();
+
+  expect(text).toContain('Caveats: Survey data.\n\nNotes: Revised in 2024.');
+});

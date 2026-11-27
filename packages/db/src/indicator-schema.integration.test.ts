@@ -492,7 +492,6 @@ describe('indicator_version', () => {
       'denominator disclosure control that is not applicable',
       { denominatorDisclosureControl: 'not-applicable', denominatorDisclosureControlDetail: 'x' },
     ],
-    ['rounding not applied', { hasRounding: false, roundingDetail: 'To the nearest 5' }],
     ['caveats of nobody', { caveatsDetail: 'Survey data' }],
     ['caveats not needed', { hasCaveats: false, caveatsDetail: 'Survey data' }],
     ['other notes not needed', { hasOtherNotes: false, otherNotesDetail: 'Revised' }],
@@ -521,8 +520,6 @@ describe('indicator_version', () => {
         numeratorDisclosureControlDetail: 'Suppressed',
         denominatorDisclosureControl: 'yes',
         denominatorDisclosureControlDetail: 'Rounded',
-        hasRounding: true,
-        roundingDetail: 'To the nearest 5',
         hasCaveats: true,
         caveatsDetail: 'Survey data',
         hasOtherNotes: true,
@@ -596,6 +593,32 @@ describe('indicator_version', () => {
     await expect(addVersion(await newIndicatorId(), 'draft', answers)).resolves.toHaveLength(1);
   });
 
+  it('refuses no caveats beside data quality issues, as the contract does', async () => {
+    await expect(
+      addVersion(await newIndicatorId(), 'draft', {
+        hasDataQualityIssues: true,
+        hasCaveats: false,
+      }),
+    ).rejects.toMatchObject({
+      cause: {
+        code: CHECK_VIOLATION,
+        constraint_name: 'indicator_version_data_quality_caveats_check',
+      },
+    });
+  });
+
+  it.each([
+    [
+      'caveats beside data quality issues',
+      { hasDataQualityIssues: true, hasCaveats: true, caveatsDetail: 'Survey data' },
+    ],
+    ['caveats not yet answered', { hasDataQualityIssues: true }],
+    ['no data quality issues', { hasDataQualityIssues: false, hasCaveats: false }],
+    ['a data quality answer not yet given', { hasCaveats: false }],
+  ] as const)('accepts %s', async (_, values) => {
+    await expect(addVersion(await newIndicatorId(), 'draft', values)).resolves.toHaveLength(1);
+  });
+
   // The contract requires each of these details beside a yes, so the table does too.
   it.each([
     [
@@ -608,7 +631,6 @@ describe('indicator_version', () => {
       { denominatorDisclosureControl: 'yes' },
       'denominator_disclosure_control_detail',
     ],
-    ['rounding', { hasRounding: true }, 'rounding_detail'],
     ['caveats', { hasCaveats: true }, 'caveats_detail'],
     ['other notes', { hasOtherNotes: true }, 'other_notes_detail'],
     ['exclusions', { hasExclusions: true }, 'exclusions_detail'],
@@ -1043,11 +1065,11 @@ describe('the published views', () => {
     expect(rows).toEqual([{ table_name: 'indicator', column_name: 'ci_method_id' }]);
   });
 
-  it('keep the notes and caveats answers and the rounding off the public surface', async () => {
+  it('keep the notes and caveats answers off the public surface', async () => {
     const rows = (await db.execute(
       sql`SELECT column_name FROM information_schema.columns
           WHERE table_schema = 'published' AND table_name = 'indicator'
-            AND column_name ~ '(disclosure_control|rounding|caveats|other_notes)'
+            AND column_name ~ '(disclosure_control|caveats|other_notes)'
           ORDER BY ordinal_position`,
     )) as unknown as { column_name: string }[];
 

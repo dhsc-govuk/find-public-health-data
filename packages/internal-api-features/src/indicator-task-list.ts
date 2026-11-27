@@ -8,7 +8,6 @@ import {
   type CiMethodKind,
   calculationSection,
   confidenceIntervalsSectionFor,
-  dataQualitySection,
   definitionAndRationaleSection,
   formatAndSourcesSection,
   type IndicatorSection,
@@ -36,7 +35,6 @@ import type { IndicatorSectionColumns, IndicatorSectionDraft } from './indicator
 import {
   calculationColumns,
   confidenceIntervalsColumns,
-  dataQualityColumns,
   definitionAndRationaleColumns,
   justificationsColumns,
   otherCommentsColumns,
@@ -131,7 +129,6 @@ function taskStatuses(draft: IndicatorTaskListDraft): IndicatorTaskStatuses {
     ),
     'period-type': complete(periodTypeSection, periodTypeColumns),
     polarity: complete(polaritySection, polarityColumns),
-    'data-quality': complete(dataQualitySection, dataQualityColumns),
     'format-and-sources': complete(formatAndSourcesSection, formatAndSourcesColumns),
     calculation: complete(calculationSection, calculationColumns),
     'confidence-intervals': complete(
@@ -172,7 +169,6 @@ const COMPARED_ANSWERS: Readonly<
   'definition-and-rationale': definitionAndRationaleColumns.fromDraft,
   'period-type': periodTypeColumns.fromDraft,
   polarity: polarityColumns.fromDraft,
-  'data-quality': dataQualityColumns.fromDraft,
   'format-and-sources': formatAndSourcesColumns.fromDraft,
   calculation: calculationColumns.fromDraft,
   'confidence-intervals': confidenceIntervalsColumns.fromDraft,

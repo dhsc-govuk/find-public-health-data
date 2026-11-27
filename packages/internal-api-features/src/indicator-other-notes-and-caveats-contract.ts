@@ -10,8 +10,7 @@ import {
 import { longText } from './text-contract.ts';
 
 const fields = z.enum([
-  'hasRounding',
-  'roundingDetail',
+  'hasDataQualityIssues',
   'hasCaveats',
   'caveatsDetail',
   'hasOtherNotes',
@@ -21,12 +20,7 @@ const fields = z.enum([
 export type OtherNotesAndCaveatsField = z.infer<typeof fields>;
 
 /** The yes/no questions whose yes asks for details. */
-export const otherNotesAndCaveatsQuestions = [
-  {
-    answer: 'hasRounding',
-    detail: 'roundingDetail',
-    detailRequired: 'Provide details of the rounding',
-  },
+const otherNotesAndCaveatsQuestions = [
   {
     answer: 'hasCaveats',
     detail: 'caveatsDetail',
@@ -35,20 +29,36 @@ export const otherNotesAndCaveatsQuestions = [
   {
     answer: 'hasOtherNotes',
     detail: 'otherNotesDetail',
-    detailRequired: 'Provide details of the other notes',
+    detailRequired: 'Provide details of the additional interpretation notes',
   },
 ] as const satisfies readonly DetailedQuestion<OtherNotesAndCaveatsField>[];
 
 const schema = requireDetails(
   z.object({
-    hasRounding: yesNoSchema('Select whether rounding has been applied'),
-    roundingDetail: longText('Details of the rounding'),
+    hasDataQualityIssues: yesNoSchema(
+      'Select whether there are any data quality issues with this indicator',
+    ),
     hasCaveats: yesNoSchema('Select whether there are any caveats needed'),
     caveatsDetail: longText('Details of the caveats'),
-    hasOtherNotes: yesNoSchema('Select whether there are any other notes needed'),
-    otherNotesDetail: longText('Details of the other notes'),
+    hasOtherNotes: yesNoSchema(
+      'Select whether there are any additional interpretation notes needed',
+    ),
+    otherNotesDetail: longText('Details of the additional interpretation notes'),
   }),
   otherNotesAndCaveatsQuestions,
+).superRefine(
+  ({ hasDataQualityIssues, hasCaveats }, ctx) => {
+    if (hasDataQualityIssues === 'yes' && hasCaveats === 'no') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['hasCaveats'],
+        message:
+          "If there are data quality issues, you need to explain these in the 'Caveats' section",
+      });
+    }
+  },
+  // Refused with the other answers, not only once they are all given.
+  { when: ({ value }) => typeof value === 'object' && value !== null },
 );
 
 export type OtherNotesAndCaveats = z.infer<typeof schema>;

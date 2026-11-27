@@ -237,8 +237,6 @@ export const indicatorVersion = pgTable(
     publishedFrom: date(),
     // Polarity
     polarity: text({ enum: POLARITIES }),
-    // Data quality
-    hasDataQualityIssues: boolean(),
     // Definition and rationale
     definition: text(),
     rationale: text(),
@@ -270,10 +268,10 @@ export const indicatorVersion = pgTable(
     comparatorMethodId: uuid().references(() => comparatorMethod.id),
     // The goals a yes gives are rows of indicator_version_goal.
     hasGoalBenchmark: boolean(),
-    // Other notes and caveats
-    // Each answer's detail is asked for, and required, only when the answer is yes.
-    hasRounding: boolean(),
-    roundingDetail: text(),
+    // Quality, caveats and interpretation
+    // Each answer's detail is asked for, and required, only when the answer is yes. Data quality
+    // issues are explained in the caveats, so a yes to them needs a yes to caveats.
+    hasDataQualityIssues: boolean(),
     hasCaveats: boolean(),
     caveatsDetail: text(),
     hasOtherNotes: boolean(),
@@ -420,8 +418,8 @@ export const indicatorVersion = pgTable(
       sql`${t.hasNumeratorDenominator} IS NOT FALSE OR (${t.numeratorDefinition} IS NULL AND ${t.numeratorDisclosureControl} IS NULL AND ${t.denominatorDefinition} IS NULL AND ${t.denominatorDisclosureControl} IS NULL)`,
     ),
     check(
-      'indicator_version_rounding_detail_check',
-      detailBesideYes(t.hasRounding, t.roundingDetail),
+      'indicator_version_data_quality_caveats_check',
+      sql`${t.hasDataQualityIssues} IS NOT TRUE OR ${t.hasCaveats} IS NOT FALSE`,
     ),
     check('indicator_version_caveats_detail_check', detailBesideYes(t.hasCaveats, t.caveatsDetail)),
     check(

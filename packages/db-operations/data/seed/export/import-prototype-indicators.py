@@ -396,12 +396,12 @@ def add_indicators(cur, metadata, seed_dir):
                has_numerator_denominator, numerator_definition, numerator_disclosure_control,
                numerator_disclosure_control_detail, denominator_definition,
                denominator_disclosure_control, denominator_disclosure_control_detail,
-               has_rounding, rounding_detail, has_caveats, caveats_detail, has_other_notes,
+               has_caveats, caveats_detail, has_other_notes,
                other_notes_detail, data_source_id, created_at, created_by, updated_at,
                updated_by)
             VALUES
               (%s, %s, 'published', true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                %s, %s, %s, %s)
             """,
             (
@@ -428,8 +428,6 @@ def add_indicators(cur, metadata, seed_dir):
                 figure_column(figures, "denominator", "definition"),
                 figure_column(figures, "denominator", "disclosure_control"),
                 figure_column(figures, "denominator", "disclosure_control_detail"),
-                answers["has_rounding"],
-                answers["rounding_detail"],
                 answers["has_caveats"],
                 answers["caveats_detail"],
                 answers["has_other_notes"],

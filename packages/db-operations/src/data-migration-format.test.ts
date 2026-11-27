@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { baselineManifestSchema, DATA_MIGRATION_NULL } from './data-migration-manifest.ts';
 
 describe('the migration format', () => {
-  it('requires version 9, whose indicator versions carry no copyright or data re-use answers', () => {
+  it('requires version 10, whose indicator versions carry no rounding answer', () => {
     const manifest = {
-      format_version: 9,
-      schema: 'canonical-v9',
+      format_version: 10,
+      schema: 'canonical-v10',
       migration_id: 'taxonomy-fixture',
       source: {
         system: 'fingertips',
@@ -28,7 +28,7 @@ describe('the migration format', () => {
     };
     expect(baselineManifestSchema.safeParse(manifest).success).toBe(true);
     expect(
-      baselineManifestSchema.safeParse({ ...manifest, format_version: 8, schema: 'canonical-v8' })
+      baselineManifestSchema.safeParse({ ...manifest, format_version: 9, schema: 'canonical-v9' })
         .success,
     ).toBe(false);
   });

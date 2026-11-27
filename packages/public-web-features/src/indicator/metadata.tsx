@@ -410,8 +410,8 @@ export function BackgroundInformation({
           <h2 className="govuk-heading-m">Other notes and caveats</h2>
           <SummaryList
             items={[
-              ...attribute('Notes', indicator.notes),
               ...attribute('Caveats', indicator.caveats),
+              ...attribute('Notes', indicator.notes),
             ].map((item) => ({
               ...item,
               children: <span className="fphd-metadata-text">{item.children}</span>,

@@ -4,8 +4,7 @@ Fingertips holds disclosure control, caveats and notes as prose alone, where the
 asks whether each applies and keeps the prose as the detail of a yes. Prose that says no
 more than "none" or "not applicable" in one of the forms in VOCABULARY becomes that answer
 and is dropped; any other prose is kept as the detail of a yes. Blank prose leaves the
-question unanswered, since Fingertips recorded no answer, and rounding, which Fingertips
-has no field for, stays unanswered too.
+question unanswered, since Fingertips recorded no answer.
 """
 
 import re
@@ -51,8 +50,6 @@ PROSE_ANSWERS = {
 NOTES_AND_CAVEATS_COLUMNS = [
     "disclosure_control",
     "disclosure_control_detail",
-    "has_rounding",
-    "rounding_detail",
     "has_caveats",
     "caveats_detail",
     "has_other_notes",

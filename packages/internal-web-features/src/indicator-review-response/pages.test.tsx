@@ -153,11 +153,11 @@ describe('the response pages', () => {
       'Metadata',
       'Publishing',
     ]);
-    expect(document.querySelectorAll('input[name="flags"]')).toHaveLength(17);
+    expect(document.querySelectorAll('input[name="flags"]')).toHaveLength(16);
     expect(screen.queryByLabelText('Justifications')).toBeNull();
     expect(screen.getByLabelText('High-level comments or clarification requests')).toBeTruthy();
     expect(screen.getByLabelText('Enter comments or requests')).toBeTruthy();
-    expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(17);
+    expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(16);
   });
 
   it('offer the update summary under Publishing on an update', () => {
@@ -207,7 +207,7 @@ describe('the response pages', () => {
 
     expect(
       screen.getAllByLabelText('Enter advised revisions or clarification request'),
-    ).toHaveLength(17);
+    ).toHaveLength(16);
   });
 
   it('word the notes as required on an update', () => {
@@ -221,7 +221,7 @@ describe('the response pages', () => {
       />,
     );
 
-    expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(18);
+    expect(screen.getAllByLabelText('Enter required revisions')).toHaveLength(17);
     expect(screen.queryByLabelText('Enter advised revisions or clarification request')).toBeNull();
   });
 

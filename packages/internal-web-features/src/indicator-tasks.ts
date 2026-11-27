@@ -52,7 +52,6 @@ export const TASK_GROUPS: readonly TaskGroup[] = [
       task('ages'),
       task('period-type'),
       task('polarity'),
-      task('data-quality'),
     ],
   },
   {

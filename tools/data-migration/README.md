@@ -211,7 +211,7 @@ package's indicator list:
 `indicators` must exactly match the indicators in the package. Each needs a topic assignment or an
 explicit entry in `areaContextIndicators`; an area-context indicator cannot also carry topics or
 classifications. `indicatorSubtopics` contains `{ fingertipsId, topicId, subtopicId }` rows.
-Packages use format version 9 and `canonical-v9`, including explicit area status and nullable area
+Packages use format version 10 and `canonical-v10`, including explicit area status and nullable area
 validity dates. Every area file requires `is_current`; missing status is rejected rather than filled
 from the database default. Every `indicator_version` file requires `is_locked` in the same way, and
 a version whose `is_locked` is false is refused, so a published version never arrives unlocked.

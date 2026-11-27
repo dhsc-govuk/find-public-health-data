@@ -11,7 +11,6 @@ import type { IndicatorSectionColumns } from './indicator-section.ts';
 import {
   calculationColumns,
   confidenceIntervalsColumns,
-  dataQualityColumns,
   definitionAndRationaleColumns,
   otherNotesAndCaveatsColumns,
   periodTypeColumns,
@@ -101,7 +100,6 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
   'definition-and-rationale': () =>
     savedFields(definitionAndRationaleColumns, { definition: 'Deaths', rationale: 'Why' }),
   polarity: () => savedFields(polarityColumns, { polarity: 'lower-is-better' }),
-  'data-quality': () => savedFields(dataQualityColumns, { hasDataQualityIssues: 'yes' }),
   'format-and-sources': () =>
     savedFields(formatAndSourcesColumns, {
       ...formatAndSources,
@@ -151,8 +149,7 @@ const SAVES: Readonly<Record<SavedTaskKey, () => string[]>> = {
     }),
   'other-notes-and-caveats': () =>
     savedFields(otherNotesAndCaveatsColumns, {
-      hasRounding: 'yes',
-      roundingDetail: 'To 5',
+      hasDataQualityIssues: 'yes',
       hasCaveats: 'yes',
       caveatsDetail: 'Survey data',
       hasOtherNotes: 'yes',

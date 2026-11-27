@@ -6,7 +6,6 @@ export const INDICATOR_TASK_KEYS = [
   'data-table',
   'definition-and-rationale',
   'polarity',
-  'data-quality',
   'format-and-sources',
   'calculation',
   'confidence-intervals',

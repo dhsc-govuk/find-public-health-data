@@ -3,7 +3,6 @@ import {
   calculationSection,
   confidenceIntervalsSection,
   DEFAULT_PUBLISHING_TIME,
-  dataQualitySection,
   definitionAndRationaleSection,
   type IndicatorSectionFields,
   indicatorSectionFormValues,
@@ -29,7 +28,6 @@ import * as ages from './indicator-ages/route.tsx';
 import * as benchmarking from './indicator-benchmarking/route.tsx';
 import * as calculation from './indicator-calculation/route.tsx';
 import * as confidenceIntervals from './indicator-confidence-intervals/route.tsx';
-import * as dataQuality from './indicator-data-quality/route.tsx';
 import * as definitionAndRationale from './indicator-definition-and-rationale/route.tsx';
 import * as formatAndSources from './indicator-format-and-sources/route.tsx';
 import * as justifications from './indicator-justifications/route.tsx';
@@ -212,15 +210,6 @@ const forms: {
   sectionForm('polarity', polarity, polaritySection, 'What is the polarity of this indicator?', {
     polarity: 'Select the polarity of this indicator',
   }),
-  sectionForm(
-    'data quality',
-    dataQuality,
-    dataQualitySection,
-    'Are there any data quality issues with this indicator?',
-    {
-      hasDataQualityIssues: 'Select whether there are any data quality issues with this indicator',
-    },
-  ),
   sectionForm('calculation', calculation, calculationSection, 'How was the indicator calculated?', {
     methodology: 'Enter the methodology',
   }),
@@ -255,11 +244,11 @@ const forms: {
     { periodType: 'Select the period type' },
   ),
   sectionForm(
-    'other notes and caveats',
+    'quality, caveats and interpretation',
     otherNotesAndCaveats,
     otherNotesAndCaveatsSection,
-    'Provide any other notes and caveats',
-    { hasRounding: 'Select whether rounding has been applied' },
+    'Quality, caveats and interpretation',
+    { hasCaveats: 'Select whether there are any caveats needed' },
   ),
   sectionForm(
     'publishing date',

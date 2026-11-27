@@ -36,8 +36,6 @@ export const completeTaskListDraft: IndicatorTaskListDraft = {
   standardPopulationDetail: null,
   unitId: '01a0d8a5-3ca2-7315-bfca-96daa0c93ee9',
   unitDetail: null,
-  hasRounding: false,
-  roundingDetail: null,
   hasCaveats: true,
   caveatsDetail: 'Survey data.',
   hasOtherNotes: false,

@@ -115,9 +115,8 @@ stored total is 433,532 observations.
   `export/notes_and_caveats.py` turns prose that is an answer in itself, such as "None applied" or
   "Not applicable", into that answer and drops it, matching the whole text against its `VOCABULARY`.
   Any other prose is kept as the detail of a yes (`disclosure_control`, `has_caveats`,
-  `has_other_notes`), and blank prose leaves the question unanswered. Rounding has no Pholio field
-  and stays unanswered. Migration 0022 holds the same vocabulary for databases that already had the
-  prose.
+  `has_other_notes`), and blank prose leaves the question unanswered. Migration 0022 holds the same
+  vocabulary for databases that already had the prose.
 - Dimension type, dimension value and note type names are stored with their whitespace tidied
   (trimmed, each run of whitespace one space), the form uploaded data is matched in, and no two
   match once tidied. `export/tidy-reference-names.py` tidies them and merges rows that differ only

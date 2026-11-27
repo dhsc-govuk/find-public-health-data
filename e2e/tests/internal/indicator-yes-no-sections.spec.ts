@@ -44,31 +44,6 @@ const REVIEWER_USE_ONLY = 'The information you provide here is for reviewer use 
 
 const SECTIONS: YesNoSection[] = [
   {
-    section: { key: 'other-notes-and-caveats', taskName: 'Other notes and caveats' },
-    heading: 'Provide any other notes and caveats',
-    textQuestions: [],
-    questions: [
-      {
-        legend: 'Has any rounding been applied?',
-        details: 'Provide details',
-        refusal: 'Select whether rounding has been applied',
-        detailsRefusal: 'Provide details of the rounding',
-      },
-      {
-        legend: 'Are there any caveats needed?',
-        details: 'Provide details',
-        refusal: 'Select whether there are any caveats needed',
-        detailsRefusal: 'Provide details of the caveats',
-      },
-      {
-        legend: 'Are there any other notes needed?',
-        details: 'Provide details',
-        refusal: 'Select whether there are any other notes needed',
-        detailsRefusal: 'Provide details of the other notes',
-      },
-    ],
-  },
-  {
     forReviewers: true,
     section: { key: 'justifications', taskName: 'Justifications' },
     heading: 'Justifications',

@@ -159,10 +159,6 @@ export default withRouteIds([
         '../../../packages/internal-web-features/src/indicator-polarity/route.tsx',
       ),
       route(
-        'publish/indicators/:id/data-quality',
-        '../../../packages/internal-web-features/src/indicator-data-quality/route.tsx',
-      ),
-      route(
         'publish/indicators/:id/format-and-sources',
         '../../../packages/internal-web-features/src/indicator-format-and-sources/route.tsx',
       ),

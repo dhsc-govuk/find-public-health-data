@@ -10,18 +10,27 @@ import { OtherNotesAndCaveatsPage } from './page.tsx';
 afterEach(cleanup);
 
 const empty = {
-  hasRounding: '',
-  roundingDetail: '',
+  hasDataQualityIssues: '',
   hasCaveats: '',
   caveatsDetail: '',
   hasOtherNotes: '',
   otherNotesDetail: '',
 };
 
+const DATA_QUALITY = 'Are there any data quality issues with this indicator?';
+const CAVEATS = 'Are there any caveats needed?';
+const NOTES = 'Are there any additional interpretation notes needed?';
+const CAVEATS_PROMPT = 'You need to clearly explain the data quality issues with this indicator.';
+
 const QUESTIONS = [
-  ['Has any rounding been applied?', 'hasRounding', 'roundingDetail'],
-  ['Are there any caveats needed?', 'hasCaveats', 'caveatsDetail'],
-  ['Are there any other notes needed?', 'hasOtherNotes', 'otherNotesDetail'],
+  [DATA_QUALITY, 'hasDataQualityIssues'],
+  [CAVEATS, 'hasCaveats'],
+  [NOTES, 'hasOtherNotes'],
+] as const;
+
+const DETAILED_QUESTIONS = [
+  [CAVEATS, 'caveatsDetail'],
+  [NOTES, 'otherNotesDetail'],
 ] as const;
 
 // The error summary's links read router state, so the page renders inside a router.
@@ -65,7 +74,7 @@ describe('OtherNotesAndCaveatsPage', () => {
     const { container } = renderPage();
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Provide any other notes and caveats' }),
+      screen.getByRole('heading', { level: 1, name: 'Quality, caveats and interpretation' }),
     ).toBeTruthy();
     expect(
       screen
@@ -88,40 +97,66 @@ describe('OtherNotesAndCaveatsPage', () => {
     expect(radios.map((radio) => radio.value)).toEqual(['yes', 'no']);
   });
 
-  it('asks nothing about disclosure control, which the indicator format and sources page asks', () => {
+  it('asks that data quality issues are explained in the caveats', () => {
     renderPage();
 
-    expect(screen.queryByText(/disclosure control/i)).toBeNull();
+    expect(
+      question(DATA_QUALITY).getByText(
+        "If yes, you should ensure these issues are clearly explained in the 'Caveats' section.",
+      ),
+    ).toBeTruthy();
+    expect(question(DATA_QUALITY).queryByLabelText('Provide details')).toBeNull();
   });
 
-  it.each(QUESTIONS)(
+  it('asks nothing about rounding or disclosure control', () => {
+    renderPage();
+
+    expect(screen.queryByText(/rounding|disclosure control/i)).toBeNull();
+  });
+
+  it.each(DETAILED_QUESTIONS)(
     'asks for the details of "%s" inside the reveal Yes controls',
-    (legend, _, detail) => {
+    (legend, detail) => {
       renderPage();
 
       expect(detailsField(legend).getAttribute('name')).toBe(detail);
-      expect(detailsField(legend).getAttribute('rows')).toBe('2');
+      expect(detailsField(legend).getAttribute('rows')).toBe('5');
       expect(option(legend, 'Yes').getAttribute('aria-controls')).toBe(conditional(legend).id);
     },
   );
+
+  it.each(['', 'no'])('shows no caveats prompt while the data quality answer is "%s"', (answer) => {
+    renderPage({ values: { ...empty, hasDataQualityIssues: answer } });
+
+    expect(screen.queryByText(CAVEATS_PROMPT)).toBeNull();
+  });
+
+  it('prompts for caveats under their question when there are data quality issues', () => {
+    renderPage({ values: { ...empty, hasDataQualityIssues: 'yes' } });
+
+    expect(question(CAVEATS).getByText(CAVEATS_PROMPT)).toBeTruthy();
+    expect(
+      screen.getAllByRole('radio').filter((radio) => (radio as HTMLInputElement).checked),
+    ).toHaveLength(1);
+  });
 
   it('shows the answers it is given, so a draft can be revisited', () => {
     renderPage({
       values: {
         ...empty,
-        hasRounding: 'no',
+        hasDataQualityIssues: 'no',
         hasCaveats: 'yes',
         caveatsDetail: 'Survey data.',
         hasOtherNotes: 'no',
       },
     });
 
-    expect(option('Has any rounding been applied?', 'No').checked).toBe(true);
-    expect(option('Are there any caveats needed?', 'Yes').checked).toBe(true);
-    expect(detailsField('Are there any caveats needed?').value).toBe('Survey data.');
-    expect(option('Are there any other notes needed?', 'No').checked).toBe(true);
+    expect(option(DATA_QUALITY, 'No').checked).toBe(true);
+    expect(option(CAVEATS, 'Yes').checked).toBe(true);
+    expect(detailsField(CAVEATS).value).toBe('Survey data.');
+    expect(option(NOTES, 'No').checked).toBe(true);
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(document.title).toBe(`Provide any other notes and caveats - ${serviceName} - GOV.UK`);
+    expect(document.title).toBe(`Quality, caveats and interpretation - ${serviceName} - GOV.UK`);
   });
 
   it('chooses nothing while the questions are unanswered', () => {
@@ -135,9 +170,10 @@ describe('OtherNotesAndCaveatsPage', () => {
   it('links each refusal to its control, in the order the form asks', () => {
     renderPage({
       fieldErrors: {
-        hasOtherNotes: 'Select whether there are any other notes needed',
+        hasOtherNotes: 'Select whether there are any additional interpretation notes needed',
         caveatsDetail: 'Provide details of the caveats',
-        hasRounding: 'Select whether rounding has been applied',
+        hasDataQualityIssues:
+          'Select whether there are any data quality issues with this indicator',
       },
       values: { ...empty, hasCaveats: 'yes' },
     });
@@ -145,14 +181,28 @@ describe('OtherNotesAndCaveatsPage', () => {
     const links = within(screen.getByRole('alert')).getAllByRole('link');
 
     expect(links.map((link) => link.textContent)).toEqual([
-      'Select whether rounding has been applied',
+      'Select whether there are any data quality issues with this indicator',
       'Provide details of the caveats',
-      'Select whether there are any other notes needed',
+      'Select whether there are any additional interpretation notes needed',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      `#${option('Has any rounding been applied?', 'Yes').id}`,
-      `#${detailsField('Are there any caveats needed?').id}`,
-      `#${option('Are there any other notes needed?', 'Yes').id}`,
+      `#${option(DATA_QUALITY, 'Yes').id}`,
+      `#${detailsField(CAVEATS).id}`,
+      `#${option(NOTES, 'Yes').id}`,
     ]);
+  });
+
+  it('links the refusal of No to caveats beside data quality issues to the caveats question', () => {
+    const refusal =
+      "If there are data quality issues, you need to explain these in the 'Caveats' section";
+    renderPage({
+      fieldErrors: { hasCaveats: refusal },
+      values: { ...empty, hasDataQualityIssues: 'yes', hasCaveats: 'no' },
+    });
+
+    const link = within(screen.getByRole('alert')).getByRole('link', { name: refusal });
+
+    expect(link.getAttribute('href')).toBe(`#${option(CAVEATS, 'Yes').id}`);
+    expect(question(CAVEATS).getAllByText(refusal, { exact: false })).not.toHaveLength(0);
   });
 });
