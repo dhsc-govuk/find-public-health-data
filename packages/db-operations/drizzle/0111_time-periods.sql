@@ -1,5 +1,7 @@
 -- The published indicator view selects the year type columns, so it goes first and is recreated
--- at the end with the time periods columns.
+-- at the end with the time periods columns. The published grouping view reads it, so that goes
+-- before it and comes back after it, unchanged.
+DROP VIEW "published"."indicator_grouping";--> statement-breakpoint
 DROP VIEW "published"."indicator";--> statement-breakpoint
 ALTER TABLE "indicator_version" DROP CONSTRAINT "indicator_version_period_type_check";--> statement-breakpoint
 ALTER TABLE "indicator_version" DROP CONSTRAINT "indicator_version_year_type_check";--> statement-breakpoint
@@ -104,5 +106,8 @@ CROSS JOIN LATERAL (
   WHERE pv.indicator_id = i.id
 ) p
       );--> statement-breakpoint
--- Recreating the view removes its explicit read grants.
-GRANT SELECT ON published.indicator TO public_api, internal_api;
+-- Recreating the views removes their explicit read grants.
+GRANT SELECT ON published.indicator TO public_api, internal_api;--> statement-breakpoint
+CREATE VIEW "published"."indicator_grouping" AS (SELECT g.* FROM public.indicator_grouping g
+        WHERE g.indicator_id IN (SELECT id FROM "published".indicator));--> statement-breakpoint
+GRANT SELECT ON published.indicator_grouping TO public_api, internal_api;
