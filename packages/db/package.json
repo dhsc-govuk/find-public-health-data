@@ -37,10 +37,14 @@
     "@fphd/config": "workspace:*",
     "@fphd/utils": "workspace:*",
     "drizzle-orm": "catalog:",
+    "pg": "catalog:",
+    "pg-copy-streams": "catalog:",
     "postgres": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "@types/pg-copy-streams": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
