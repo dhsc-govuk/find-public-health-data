@@ -132,15 +132,17 @@ moves to this service. The operations image applies the packages with `db migrat
 - Deleting a version also deletes the topic, classification, source and data value rows the
   migration wrote for it. A version a publisher has added age ranges to is never deleted; the import
   stops and names the count.
-- Each version's time periods answers come from its Fingertips year type and the shapes of period
-  its published Groupings keep (`src/pholio/year-type.ts`). Yearly rows of one year are single
-  years, of more than one year are periods of more than 1 year of that many years (the shortest,
-  where there are several lengths), and quarterly and monthly rows are quarters and months, each of
-  the year type Fingertips names. Rolling year types are single years rolling on by the quarter or
-  the month. Periods of more than 1 year roll on by the year where consecutive ones start less than
-  their length apart. September-January and September-February are a specific date range from 1
-  September. Financial year end point is a year ending 31 March. The two cumulative quarter year
-  types answer that values are cumulative; that answer is independent of `observation.period_type`.
+- Each version's time periods answers come from its Fingertips year type and the shapes of period in
+  the rows the observation export keeps, read through its own exclusion rules
+  (`src/pholio/year-type.ts`). Yearly rows of one year are single years, of more than one year are
+  periods of more than 1 year of that many years (the shortest, where there are several lengths),
+  and quarterly and monthly rows are quarters and months, each of the year type Fingertips names.
+  Rolling year types are single years rolling on by the quarter or the month. Periods of more than 1
+  year roll on by the year where consecutive periods of the length kept start less than that length
+  apart within one sex and age series. September-January and September-February are a specific date
+  range from 1 September. Financial year end point is a year ending 31 March. The two cumulative
+  quarter year types answer that values are cumulative; that answer is independent of
+  `observation.period_type`.
 - Financial cumulative-quarter data retains its cumulative date ranges. Repeated canonical
   observation keys stop the export with source-row diagnostics.
 - Cumulative financial quarters retain a baseline-specific `observation.period_type`, such as
