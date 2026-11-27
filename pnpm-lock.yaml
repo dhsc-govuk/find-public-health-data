@@ -280,7 +280,7 @@ overrides:
 pnpmfileChecksum: sha256-CZAJzV29393EAcq1yVNJqo8Ta+cjp6u6e8Qi/zuta/E=
 
 patchedDependencies:
-  postgres@3.4.9: 34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5
+  postgres@3.4.9: 07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85
 
 importers:
 
@@ -652,7 +652,7 @@ importers:
         version: 26.6.6
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+        version: 0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85))
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -742,10 +742,10 @@ importers:
         version: link:../utils
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+        version: 0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85))
       postgres:
         specifier: 'catalog:'
-        version: 3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5)
+        version: 3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -773,10 +773,10 @@ importers:
         version: link:../utils
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+        version: 0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85))
       postgres:
         specifier: 'catalog:'
-        version: 3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5)
+        version: 3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85)
     devDependencies:
       '@fphd/auth':
         specifier: workspace:*
@@ -862,13 +862,13 @@ importers:
         version: 7.0.3
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+        version: 0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85))
       express:
         specifier: 'catalog:'
         version: 5.3.0
       postgres:
         specifier: 'catalog:'
-        version: 3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5)
+        version: 3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85)
       uuid:
         specifier: 'catalog:'
         version: 14.0.3
@@ -908,7 +908,7 @@ importers:
         version: link:../utils
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+        version: 0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85))
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1013,7 +1013,7 @@ importers:
         version: link:../utils
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+        version: 0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85))
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1036,7 +1036,7 @@ importers:
         version: 26.6.6
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+        version: 0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85))
       pino-pretty:
         specifier: 'catalog:'
         version: 13.2.0
@@ -1134,7 +1134,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5))
+        version: 0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85))
       express:
         specifier: 'catalog:'
         version: 5.3.0
@@ -1419,7 +1419,7 @@ importers:
         version: 12.7.14
       postgres:
         specifier: 'catalog:'
-        version: 3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5)
+        version: 3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85)
     devDependencies:
       '@types/mssql':
         specifier: 'catalog:'
@@ -1474,7 +1474,7 @@ importers:
     dependencies:
       postgres:
         specifier: 'catalog:'
-        version: 3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5)
+        version: 3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85)
     devDependencies:
       '@playwright/test':
         specifier: 'catalog:'
@@ -6196,9 +6196,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.15
 
-  drizzle-orm@0.45.4(postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5)):
+  drizzle-orm@0.45.4(postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85)):
     optionalDependencies:
-      postgres: 3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5)
+      postgres: 3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85)
 
   dunder-proto@1.0.1:
     dependencies:
@@ -6868,7 +6868,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  postgres@3.4.9(patch_hash=34d6079b86eaa76328b2cbc95b3e9b28e5d4e37697ae030846f72a8182a64cf5): {}
+  postgres@3.4.9(patch_hash=07f4aa8d85c9610c78878fb62dcdb4a6107cbf6c18476382bbd1c38330c5ed85): {}
 
   powershell-utils@0.2.1: {}
 

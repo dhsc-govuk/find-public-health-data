@@ -1,8 +1,19 @@
 diff --git a/src/connection.js b/src/connection.js
-index 1b1cccde43b4570d5d071d6ffaab2669b3c2065a..2ac9d184d46521045cdbda79973cff8421b419af 100644
+index 1b1cccde43b4570d5d071d6ffaab2669b3c2065a..dc35c7cb30c802e0a5838f87a10d3378b2c66564 100644
 --- a/src/connection.js
 +++ b/src/connection.js
-@@ -389,6 +389,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
+@@ -139,6 +139,10 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
+     x.on('error', error)
+     x.on('close', closed)
+     x.on('drain', drain)
++    // Sends each write at once. With Nagle's algorithm on, the CopyDone that ends a COPY waits
++    // for the server to acknowledge the last CopyData, which Linux delays by 40 ms. Set on the
++    // TCP socket before it connects, so it holds when TLS wraps the socket too.
++    x.setNoDelay && x.setNoDelay(true)
+     return x
+   }
+ 
+@@ -389,6 +393,7 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
  
    function errored(err) {
      stream && (stream.destroy(err), stream = null)
@@ -10,7 +21,7 @@ index 1b1cccde43b4570d5d071d6ffaab2669b3c2065a..2ac9d184d46521045cdbda79973cff84
      query && queryError(query, err)
      initial && (queryError(initial, err), initial = null)
    }
-@@ -671,15 +672,19 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
+@@ -671,15 +676,19 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
    }
  
    async function Authentication(x, type = x.readUInt32BE(5)) {
