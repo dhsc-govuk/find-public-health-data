@@ -10,9 +10,10 @@
   },
   "scripts": {
     "build": "pnpm --recursive run build",
-    "check": "biome check . && pnpm typecheck && pnpm check:migrations && pnpm test && pnpm build && pnpm check:artefacts && pnpm check:e2e-coverage",
+    "check": "biome check . && pnpm typecheck && pnpm check:migrations && pnpm test && pnpm build && pnpm check:artefacts && pnpm check:e2e-coverage && pnpm check:e2e-shards",
     "check:artefacts": "pnpm --filter @fphd/artefact-boundary run check:artefacts",
     "check:e2e-coverage": "pnpm --filter @fphd/e2e-coverage run check:e2e-coverage",
+    "check:e2e-shards": "pnpm --filter @fphd/e2e-shards run check:e2e-shards",
     "check:migrations": "scripts/check-migration-drift.sh",
     "check:perf": "pnpm --filter @fphd/perf run check:perf",
     "check:write": "biome check --write .",
@@ -38,6 +39,7 @@
     "test": "pnpm test:unit && pnpm test:integration",
     "test:e2e": "pnpm --filter @fphd/e2e run test:e2e",
     "test:e2e:publishing": "pnpm --filter @fphd/e2e run test:e2e:publishing",
+    "test:e2e:timings": "pnpm --filter @fphd/e2e-shards run e2e:shard-timings",
     "test:integration": "cross-env INTEGRATION_DB=1 APP_ENV=test vitest run integration.test",
     "test:unit": "vitest run --exclude '**/*integration.test.*' && python3 -m unittest discover -s packages/db-operations/data/seed/export -p 'test_*.py' && python3 -m unittest discover -s packages/db-operations/data/geography -p 'test_*.py'",
     "typecheck": "pnpm --recursive run typecheck"

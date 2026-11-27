@@ -7,5 +7,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["playwright.config.ts", "tests"]
+  "include": ["playwright.config.ts", "shard-by-time.ts", "tests"]
 }
