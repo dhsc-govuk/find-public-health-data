@@ -126,6 +126,16 @@ describe('neighbourRows', () => {
     );
   });
 
+  it('ignores another neighbour type whatever its neighbours look like', async () => {
+    const neighbours = ranked(15);
+    const groups = [
+      { NeighbourTypeId: 1, NeighbourAreas: null },
+      { NeighbourTypeId: 15, NeighbourAreas: neighbours },
+    ];
+
+    expect(await neighbourRows(respond(council('E06000001', groups)))).toHaveLength(15);
+  });
+
   it('stops when a council is its own neighbour', async () => {
     const group = { NeighbourTypeId: 15, NeighbourAreas: ranked(15, 1) };
 

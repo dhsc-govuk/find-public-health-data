@@ -27,13 +27,12 @@ const SOURCE = `Fingertips API, neighbour type ${NEIGHBOUR_TYPE}: NHS England pe
 export const AREA_NEIGHBOUR_TAG = 22;
 
 const areasSchema = z.array(z.object({ Code: z.string() }));
-const neighboursSchema = z.object({
-  NeighbourAreaDet: z.array(
-    z.object({
-      NeighbourTypeId: z.number(),
-      NeighbourAreas: z.array(z.object({ AreaCode: z.string(), Position: z.number() })),
-    }),
-  ),
+// Only the peer group's neighbours are read, so other neighbour types may take any shape.
+const neighbourGroupsSchema = z.object({
+  NeighbourAreaDet: z.array(z.looseObject({ NeighbourTypeId: z.number() })),
+});
+const peerGroupSchema = z.object({
+  NeighbourAreas: z.array(z.object({ AreaCode: z.string(), Position: z.number() })),
 });
 
 export interface AreaNeighbour {
@@ -71,7 +70,7 @@ export async function neighbourRows(fetchJson: FetchJson): Promise<AreaNeighbour
   const codes = areas.map(({ Code }) => Code).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const rows: AreaNeighbour[] = [];
   for (const code of codes) {
-    const detail = neighboursSchema.parse(
+    const detail = neighbourGroupsSchema.parse(
       await fetchJson(`areas/nearest_neighbours?area_type_id=${AREA_TYPE}&area_code=${code}`),
     );
     const groups = detail.NeighbourAreaDet.filter(
@@ -81,7 +80,9 @@ export async function neighbourRows(fetchJson: FetchJson): Promise<AreaNeighbour
     if (groups.length !== 1 || !group) {
       throw new Error(`Expected one neighbour-type-${NEIGHBOUR_TYPE} group for ${code}`);
     }
-    const neighbours = [...group.NeighbourAreas].sort((a, b) => a.Position - b.Position);
+    const neighbours = [...peerGroupSchema.parse(group).NeighbourAreas].sort(
+      (a, b) => a.Position - b.Position,
+    );
     const ranked = neighbours.every(({ Position }, index) => Position === index + 1);
     if (
       neighbours.length !== NEIGHBOURS_PER_AREA ||
