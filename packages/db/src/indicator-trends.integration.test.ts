@@ -205,9 +205,12 @@ it.each(publishedTrends.samples)(
   '$key preserves the published marker through SQL, fallback and cached reads',
   async (sample) => {
     const fixture = await publishedIndicator(`Published trend ${sample.key}`);
+    // The import makes a Fingertips percentage point a gap, as the service has no Percentage point
+    // value type.
+    const typeName = sample.valueType === 'Percentage point' ? 'Gap' : sample.valueType;
     const types = await database.db.select().from(valueType);
-    const type = types.find(({ name }) => name.toLowerCase() === sample.valueType.toLowerCase());
-    if (!type) throw new Error(`Value type fixture missing: ${sample.valueType}`);
+    const type = types.find(({ name }) => name.toLowerCase() === typeName.toLowerCase());
+    if (!type) throw new Error(`Value type fixture missing: ${typeName}`);
     await database.db
       .update(indicatorVersion)
       .set({ valueTypeId: type.id })
