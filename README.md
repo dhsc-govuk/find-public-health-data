@@ -179,7 +179,7 @@ Each tier is its own CI job, so the jobs run `pnpm test:unit`, `pnpm test:integr
 `pnpm test:e2e` individually.
 
 - `pnpm test:integration` runs Vitest over every project, selecting `integration.test` files. A
-  project without any still passes because of `--passWithNoTests`.
+  project without any is skipped, but the run fails if no project has one.
 - `pnpm test:e2e` names the one suite directly (`pnpm --filter @fphd/e2e run test:e2e`), so broken
   e2e wiring is an error rather than a silent skip. In CI the job is a matrix of shards, each
   running `--shard=i/n`: every shard runs the four apps and the worker as compose containers from

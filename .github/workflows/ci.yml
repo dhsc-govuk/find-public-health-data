@@ -105,7 +105,7 @@ jobs:
           PUBLIC_API_PASSWORD: public_api
           INTERNAL_API_PASSWORD: internal_api
       # One root Vitest run across every project, filtered to paths containing `integration.test`
-      # (any extension) — it passes on --passWithNoTests, not because nothing ran. The global
+      # (any extension). It fails if no project has a matching file. The global
       # setup builds three template databases: schema (migrated), core (schema plus the core
       # data) and seeded (core plus the dummy indicators). Each test file copies the template
       # it asks for, so files run in parallel against isolated databases.
