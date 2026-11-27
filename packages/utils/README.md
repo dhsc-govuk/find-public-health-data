@@ -73,8 +73,10 @@ Periods, dates and observations:
   the date has it.
 - `./observation-series`: `headlineSeries`, an area's headline series in date order, and
   `tableAreaSeries`, which keeps each area's complete headline history for the trend table.
-- `./recent-trend`: `recentTrendDirection`, the direction of the last five values, with changes
-  under 2% counted as no change.
+- `./recent-trend`: Fingertips' recent trend. `summariseTrend` gathers what a series offers the
+  calculation, which the read models cache, and `trendDirection` runs the test the value type picks.
+  `trendRefusedForValueType` names the value types with no trend: counts, scores and gaps in
+  percentage points.
 
 The seed export's `packages/db-operations/data/seed/export/slug.py` mirrors `./slug` and must change
 with it. `packages/db-operations/data/seed/export/tidy-reference-names.py` and the
