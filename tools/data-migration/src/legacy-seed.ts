@@ -10,7 +10,7 @@ import { ensureDirectory } from './files.ts';
 import { translateFrequency, translatePolarity } from './fingertips-lookups.ts';
 import { notesAndCaveats } from './notes-and-caveats.ts';
 import { countsAndValuesColumns, valueTypeId } from './pholio/value-type-and-unit.ts';
-import { yearTypeValues } from './pholio/year-type.ts';
+import { NO_TIME_PERIODS, timePeriodColumns } from './pholio/year-type.ts';
 import { rekeyDirectory } from './prepare-baseline.ts';
 import { ACTOR_COLUMNS, actorUserId } from './seed-writers.ts';
 import { standardMethodUsed } from './standard-method.ts';
@@ -170,10 +170,21 @@ async function writeIndicatorSplit(
     'gap_object',
     'gap_object_detail',
     'ratio_format',
-    'period_type',
+    'time_periods',
+    'multiple_years_count',
+    'multiple_years_year_type',
+    'multiple_years_end_day',
+    'multiple_years_end_month',
     'year_type',
     'year_end_day',
     'year_end_month',
+    'date_range_start_day',
+    'date_range_start_month',
+    'date_range_end_day',
+    'date_range_end_month',
+    'periods_rolling',
+    'rolling_frequency',
+    'values_cumulative',
     'ci_method_id',
     'polarity',
     'update_frequency',
@@ -229,7 +240,7 @@ async function writeIndicatorSplit(
     const countsAndValues =
       vtName != null ? countsAndValuesColumns(vtName, uName ?? 'No unit', Number(row.id)) : null;
     if (countsAndValues === undefined) throw new Error(`Indicator ${id}: unit not translated`);
-    const translatedYt = ytName != null ? yearTypeValues(ytName) : null;
+    const timePeriods = ytName != null ? timePeriodColumns(ytName, []) : NO_TIME_PERIODS;
     const versionValueTypeId = vtName != null ? valueTypeId(vtName) : null;
     const methodology = meta?.methodology != null ? String(meta.methodology) : null;
     const versionRow: Record<string, unknown> = {
@@ -241,10 +252,7 @@ async function writeIndicatorSplit(
       name: row.name,
       value_type_id: versionValueTypeId,
       ...countsAndValues,
-      period_type: translatedYt?.period_type ?? null,
-      year_type: translatedYt?.year_type ?? null,
-      year_end_day: translatedYt?.year_end_day ?? null,
-      year_end_month: translatedYt?.year_end_month ?? null,
+      ...timePeriods,
       ci_method_id: row.ci_method_id,
       polarity: row.polarity_name != null ? translatePolarity(String(row.polarity_name)) : null,
       update_frequency:

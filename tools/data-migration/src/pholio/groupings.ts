@@ -31,7 +31,10 @@ export interface GroupingBaselineExclusion {
 
 export type GroupingExclusion = 'year_range_not_in_grouping' | 'periodicity_not_in_grouping';
 
-function samePeriodicity(grouping: Grouping, row: ObservationSeries): boolean {
+function samePeriodicity(
+  grouping: Grouping,
+  row: Pick<ObservationSeries, 'Quarter' | 'Month'>,
+): boolean {
   if (grouping.BaselineQuarter > 0) return row.Quarter > 0 && row.Month === -1;
   if (grouping.BaselineMonth > 0) return row.Month > 0 && row.Quarter === -1;
   return row.Quarter === -1 && row.Month === -1;
@@ -92,7 +95,9 @@ export function createObservationGroupings(rows: readonly Grouping[]) {
       }
       return earliest;
     },
-    exclusionReason(row: ObservationSeries): GroupingExclusion | undefined {
+    exclusionReason(
+      row: Pick<ObservationSeries, 'IndicatorID' | 'YearRange' | 'Quarter' | 'Month'>,
+    ): GroupingExclusion | undefined {
       const groupings = byIndicator.get(row.IndicatorID);
       if (!groupings) return undefined;
       const sameRange = groupings.filter((grouping) => grouping.YearRange === row.YearRange);

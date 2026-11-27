@@ -20,7 +20,12 @@ import {
   unreadableUnits,
   valueTypeId,
 } from './value-type-and-unit.ts';
-import { YEAR_TYPES, yearTypeValues } from './year-type.ts';
+import {
+  type FingertipsPeriod,
+  NO_TIME_PERIODS,
+  timePeriodColumns,
+  YEAR_TYPES,
+} from './year-type.ts';
 
 interface CiLevelRow extends PholioRow {
   IndicatorID: number;
@@ -177,6 +182,41 @@ export async function exportIndicators(context: PholioExportOptions) {
   if (unmappableYearTypes.length)
     throw new Error(`Cannot translate year types: ${unmappableYearTypes.join(', ')}`);
 
+  // The shapes of period each indicator's data has, among the rows the observation export keeps:
+  // those its groupings publish, and the annual rows beside a cumulative quarter series.
+  const yearTypeIdById = new Map(metaRows.map((row) => [row.IndicatorID, row.YearTypeID]));
+  const periodRows = await queryPholio<{
+    IndicatorID: number;
+    SexID: number;
+    AgeID: number;
+    Year: number;
+    YearRange: number;
+    Quarter: number;
+    Month: number;
+  }>(
+    pool,
+    `SELECT DISTINCT IndicatorID, SexID, AgeID, Year, YearRange,
+       CASE WHEN Quarter > 0 THEN 1 ELSE -1 END AS Quarter,
+       CASE WHEN Month > 0 THEN 1 ELSE -1 END AS Month
+     FROM dbo.CoreDataSet
+     WHERE Year >= 1900`,
+  );
+  const periodsById = new Map<number, FingertipsPeriod[]>();
+  for (const row of periodRows) {
+    const kept =
+      (yearTypeIdById.get(row.IndicatorID) === 10 && groupings.retainsCumulativeHistory(row)) ||
+      groupings.exclusionReason(row) === undefined;
+    if (!kept) continue;
+    const periods = periodsById.get(row.IndicatorID) ?? [];
+    periods.push({
+      year: row.Year,
+      yearRange: row.YearRange,
+      quarter: row.Quarter > 0,
+      month: row.Month > 0,
+    });
+    periodsById.set(row.IndicatorID, periods);
+  }
+
   const uploadRows = await queryPholio<{ IndicatorID: number; LastUploadedAt: Date }>(
     pool,
     `SELECT d.IndicatorID, MAX(u.DateCreated) AS LastUploadedAt
@@ -307,8 +347,9 @@ export async function exportIndicators(context: PholioExportOptions) {
     const resolvedValueTypeId = valueTypeId(vtName);
     const countsAndValues = countsAndValuesColumns(vtName, row.UnitName ?? 'No unit', id);
     if (countsAndValues === undefined) throw new Error(`Indicator ${id}: unit not translated`);
-    const yearTypeName = row.YearTypeName;
-    const yearTypeEntry = yearTypeName ? yearTypeValues(yearTypeName) : null;
+    const timePeriods = row.YearTypeName
+      ? timePeriodColumns(row.YearTypeName, periodsById.get(id) ?? [])
+      : NO_TIME_PERIODS;
     const ciLevel = ciLevelById.get(id) ?? null;
     const text = textById.get(id) ?? null;
     const definition = text?.Definition == null ? null : plainTextFromHtml(text.Definition);
@@ -358,10 +399,7 @@ export async function exportIndicators(context: PholioExportOptions) {
       specific_age: null,
       specific_age_unit: null,
       age_detail: null,
-      period_type: yearTypeEntry?.period_type ?? null,
-      year_type: yearTypeEntry?.year_type ?? null,
-      year_end_day: yearTypeEntry?.year_end_day ?? null,
-      year_end_month: yearTypeEntry?.year_end_month ?? null,
+      ...timePeriods,
       published_from: groupings.publishedFrom(id, row.YearTypeID, (entry) =>
         groupingBaselineExclusions.push(entry),
       ),

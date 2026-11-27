@@ -801,6 +801,8 @@ function indicatorQueries(
   metadata: {
     groupings?: Record<string, unknown>[];
     baselines?: Record<string, unknown>[];
+    periods?: Record<string, unknown>[];
+    yearTypeName?: string;
     yearTypeId?: number | null;
     ownerProfileId?: number | null;
     formattingMaximum?: number | null;
@@ -857,7 +859,7 @@ function indicatorQueries(
         ValueTypeName: 'Count',
         DecimalPlacesDisplayed: metadata.decimalPlaces ?? null,
         UnitName: unitName,
-        YearTypeName: 'Calendar',
+        YearTypeName: metadata.yearTypeName ?? 'Calendar',
         YearTypeID: metadata.yearTypeId === undefined ? 1 : metadata.yearTypeId,
         OwnerProfileId: metadata.ownerProfileId === undefined ? 10 : metadata.ownerProfileId,
         CIMethodID: metadata.ciMethodId ?? null,
@@ -865,6 +867,7 @@ function indicatorQueries(
       })),
     )
     .mockResolvedValueOnce(metadata.baselines ?? [])
+    .mockResolvedValueOnce(metadata.periods ?? [])
     .mockResolvedValueOnce(uploads)
     .mockResolvedValueOnce([
       {
@@ -1309,6 +1312,99 @@ it('exports the earliest grouping baseline as version metadata and keeps observa
   });
   await exportIndicators(options);
   expect((await rows('indicator_version'))[0]?.published_from).toBe('2022-04-01');
+});
+
+function period(Year: number, YearRange: number, Quarter = -1, Month = -1) {
+  return { IndicatorID: 108, SexID: 4, AgeID: 1, Year, YearRange, Quarter, Month };
+}
+
+it('exports the time periods its data has, rolling on by the year where they overlap', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    periods: [2018, 2019, 2020].flatMap((year) => [period(year, 1), period(year - 2, 3)]),
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    time_periods: '{multiple-years,single-years}',
+    multiple_years_count: '3',
+    multiple_years_year_type: 'calendar',
+    year_type: 'calendar',
+    periods_rolling: 't',
+    rolling_frequency: 'years',
+    values_cumulative: 'f',
+  });
+});
+
+it('exports periods of more than 1 year that do not overlap as not rolling', async () => {
+  indicatorQueries('No unit', undefined, [], { periods: [period(2014, 3), period(2017, 3)] });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    time_periods: '{multiple-years}',
+    multiple_years_count: '3',
+    year_type: DATA_MIGRATION_NULL,
+    periods_rolling: 'f',
+    rolling_frequency: DATA_MIGRATION_NULL,
+  });
+});
+
+it('exports only the time periods its groupings publish', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    baselines: [
+      {
+        IndicatorID: 108,
+        BaselineYear: 2018,
+        BaselineQuarter: -1,
+        BaselineMonth: -1,
+        YearRange: 1,
+      },
+    ],
+    periods: [period(2018, 1), period(2016, 3), period(2017, 3), period(2018, 1, 2)],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    time_periods: '{single-years}',
+    multiple_years_count: DATA_MIGRATION_NULL,
+    periods_rolling: 'f',
+  });
+});
+
+it('exports the annual years kept beside a cumulative quarter series', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    yearTypeName: 'Financial multi year cumulative quarters',
+    yearTypeId: 10,
+    baselines: [
+      {
+        IndicatorID: 108,
+        SexID: 4,
+        AgeID: 1,
+        BaselineYear: 2022,
+        BaselineQuarter: 1,
+        BaselineMonth: -1,
+        YearRange: 5,
+      },
+    ],
+    periods: [period(2022, 5, 1), period(2022, 5, 2), period(2021, 1), period(2022, 1)],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    time_periods: '{single-years,quarters}',
+    year_type: 'financial',
+    values_cumulative: 't',
+  });
+});
+
+it('exports a rolling Fingertips year type as years rolling on by its frequency', async () => {
+  indicatorQueries('No unit', undefined, [], {
+    yearTypeName: 'Calendar rolling year - quarterly',
+    yearTypeId: 5,
+    periods: [period(2020, 1, 1), period(2020, 1, 2)],
+  });
+  await exportIndicators(options);
+  expect((await rows('indicator_version'))[0]).toMatchObject({
+    time_periods: '{single-years}',
+    year_type: 'calendar',
+    periods_rolling: 't',
+    rolling_frequency: 'quarters',
+  });
 });
 
 it('exports a null start date without grouping baselines', async () => {
