@@ -387,6 +387,12 @@ Upload the archive to private migration storage. Pass a short-lived HTTPS URL an
 the generated `.sha256` file to the operations job as `DATA_MIGRATION_URL` and
 `DATA_MIGRATION_SHA256`.
 
+`export-pholio` writes its export into a temporary directory beside `--out-dir` and renames it to
+`--out-dir` only once every file, `source-manifest.json` last, is written. An existing `--out-dir`
+is refused. A failed export removes its temporary directory, and an interrupted one never reaches
+`--out-dir`, so that directory always holds one complete export. Export into a new directory each
+time.
+
 Preparation never changes the source export. It tidies names, refuses ambiguous reference name
 collisions and rekeys a staged copy, then renames the complete package into the new output
 directory. Existing output is refused; a failed attempt removes its partial output, so the same
@@ -464,6 +470,10 @@ export PHOLIO_CONNECTION_STRING='Server=…;Database=pholio_live_b;…'
 pnpm --filter @fphd/data-migration data-migration export-dev-snapshot \
   --out-dir /secure/fphd-dev-snapshot
 ```
+
+The output directory must not exist yet, as for `export-pholio`. The later steps tidy, rekey and
+archive the export inside it, so if one of them fails the directory holds a partial snapshot; delete
+it before running the command again.
 
 Four source indicators (90366, 90776, 92774, 93280) are excluded because they share a name with a
 newer indicator; the importer refuses an archive built with a different list. The snapshot is not
