@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
+import { SlowestFirstSequencer } from './vitest.sequencer.ts';
+
 export default defineConfig({
   test: {
     // Runs once per vitest invocation; a no-op unless INTEGRATION_DB=1 (set by
@@ -8,5 +10,6 @@ export default defineConfig({
     // A projects glob rejects any non-config file it matches, and both workspace directories hold
     // shared tsconfigs and `apps/web-config.ts` alongside the package directories.
     projects: ['apps/*', 'packages/*', 'tools/*', '!**/*.json', '!**/*.ts'],
+    sequence: { sequencer: SlowestFirstSequencer },
   },
 });

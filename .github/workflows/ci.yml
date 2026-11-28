@@ -91,6 +91,16 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
+      # Vitest's results cache holds each file's duration from the last run, which the root
+      # config's sequencer uses to start the slowest files first. Every run saves it, so a pull
+      # request orders its files by its own latest run, or by main's before it has one.
+      - name: Restore the latest integration test durations
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules/.vite/vitest
+          # Never saved, so restore-keys picks the newest copy.
+          key: vitest-integration-results-newest
+          restore-keys: vitest-integration-results-
       # The grant migrations reference the per-API roles, so they must exist before the global
       # setup migrates the template databases. Same command locally (`pnpm db:bootstrap`) and
       # in a deployed environment — this is the only bootstrap path.
@@ -123,6 +133,12 @@ jobs:
           # Azurite's published development account; internal-api's config requires storage too.
           STORAGE_CONTAINER: uploads
           STORAGE_CONNECTION_STRING: DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;
+      - name: Save the integration test durations
+        if: ${{ !cancelled() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules/.vite/vitest
+          key: vitest-integration-results-${{ github.run_id }}-${{ github.run_attempt }}
 
   # Each matrix entry starts its own stack. The four shards split the public and internal projects
   # by measured run time: e2e/shard-by-time.ts packs whole spec files by the times in

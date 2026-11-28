@@ -219,8 +219,10 @@ describe('refreshIndicatorReadModels', () => {
     const indicatorId = (await seededIndicatorIds()).at(-1);
     if (indicatorId === undefined) throw new Error('The seed holds no indicator with read models');
     await publishNewObservation(indicatorId);
-    const expected = await rowsAfterWholeRebuild(indicatorId);
 
+    // The rows a whole rebuild leaves are read inside the rebuild the refresh waits for, so the
+    // test runs one whole rebuild, the slowest step here, instead of two.
+    let expected: string[] = [];
     let rebuilt: () => void = () => {};
     let release: () => void = () => {};
     const rebuilding = new Promise<void>((resolve) => {
@@ -231,6 +233,7 @@ describe('refreshIndicatorReadModels', () => {
     });
     const rebuild = db.transaction(async (tx) => {
       await rebuildReadModelTables(tx);
+      expected = await readModelRowsOf(tx, indicatorId);
       rebuilt();
       await released;
     });
